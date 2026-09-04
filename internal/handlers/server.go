@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	threadsPerPage = 20
-	postsPerPage   = 20
+	threadsPerPage = 15
+	postsPerPage   = 15
 	maxPostLen     = 10000
 	maxTitleLen    = 120
 )

@@ -131,3 +131,81 @@
       .catch(function () { window.location.href = href; });
   });
 })();
+
+// 编辑资料:内置头像面板(隐藏浏览器原生文件控件,选中即上传并预览)
+(function () {
+  var panel = document.querySelector("[data-avatar-panel]");
+  if (!panel) return;
+  var pickers = panel.querySelectorAll("[data-avatar-pick]");
+  var preview = pickers[0];
+  var fileInput = panel.querySelector("[data-avatar-input]");
+  var resetBtn = panel.querySelector("[data-avatar-reset]");
+  var statusEl = panel.querySelector("[data-avatar-status]");
+  var urlInput = panel.querySelector("[data-avatar-url]");
+  var originalEl = panel.querySelector("[data-avatar-original]");
+  var originalHTML = originalEl ? originalEl.innerHTML : "";
+  var form = panel.closest("form");
+  var csrf = form ? form.querySelector('input[name="_csrf"]') : null;
+  var maxBytes = 5 * 1024 * 1024;
+  var allowed = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+
+  function setStatus(msg, cls) {
+    statusEl.textContent = msg || "";
+    statusEl.className = "upload-status" + (cls ? " " + cls : "");
+  }
+
+  function pickFile() { fileInput.click(); }
+
+  Array.prototype.forEach.call(pickers, function (el) {
+    el.addEventListener("click", pickFile);
+  });
+
+  resetBtn.addEventListener("click", function () {
+    preview.innerHTML = originalHTML;
+    urlInput.value = "";
+    resetBtn.hidden = true;
+    setStatus("");
+  });
+
+  fileInput.addEventListener("change", function () {
+    var f = fileInput.files && fileInput.files[0];
+    if (!f) return;
+    if (allowed.indexOf(f.type) === -1) {
+      setStatus("仅支持 jpg/png/gif/webp 图片", "err");
+      fileInput.value = "";
+      return;
+    }
+    if (f.size > maxBytes) {
+      setStatus("图片不能超过 5MB", "err");
+      fileInput.value = "";
+      return;
+    }
+    var fd = new FormData();
+    fd.append("file", f);
+    var headers = { "Accept": "application/json" };
+    if (csrf) headers["X-CSRF-Token"] = csrf.value;
+    setStatus("上传中…");
+    fetch("/uploads", { method: "POST", body: fd, headers: headers })
+      .then(function (res) {
+        if (!res.ok) {
+          return res.text().then(function (t) { throw new Error(t || "上传失败"); });
+        }
+        return res.json();
+      })
+      .then(function (d) {
+        if (!d || !d.url) throw new Error("上传失败");
+        var img = document.createElement("img");
+        img.src = d.url;
+        img.alt = "新头像预览";
+        preview.innerHTML = "";
+        preview.appendChild(img);
+        urlInput.value = d.url;
+        resetBtn.hidden = false;
+        setStatus("新头像已就绪,点「保存」生效", "ok");
+      })
+      .catch(function (e) {
+        setStatus(e.message || "上传失败", "err");
+      })
+      .then(function () { fileInput.value = ""; });
+  });
+})();

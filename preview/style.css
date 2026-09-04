@@ -593,6 +593,22 @@ body.drawer-open { overflow: hidden; }
 .avatar-preview { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex: none; }
 .form-note { display: block; font-size: 11px; color: var(--ink-4); margin-top: 4px; }
 
+/* 编辑资料:内置头像面板(不用浏览器原生文件控件) */
+.avatar-panel {
+  display: flex; align-items: center; gap: 14px;
+  padding: 12px; border: 1px dashed var(--line-strong); border-radius: var(--r-card);
+  background: var(--bg);
+}
+.avatar-pick { border: none; padding: 0; cursor: pointer; }
+.avatar-pick:hover { box-shadow: 0 0 0 3px var(--accent-soft); }
+.avatar-panel-body { min-width: 0; display: grid; gap: 6px; }
+.avatar-panel-title { font-size: 13px; font-weight: 600; color: var(--ink); }
+.avatar-panel-note { margin: 0; font-size: 11px; color: var(--ink-4); line-height: 1.5; }
+.avatar-panel-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.avatar-panel-actions .upload-status { line-height: 1.3; }
+.avatar-panel-actions .upload-status.err { color: var(--danger); }
+.avatar-panel-actions .upload-status.ok { color: #75906f; }
+
 /* ---------- 主题页操作区 / 管理表单 ---------- */
 .thread-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .inline-form { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
@@ -645,23 +661,31 @@ body.drawer-open { overflow: hidden; }
 .member-top .avatar { flex: none; }
 .member-info { min-width: 0; }
 .member-name {
-  margin: 0; font-size: 19px; font-weight: 800; color: var(--ink);
+  margin: 0; font-size: 21px; font-weight: 800; color: var(--ink);
   line-height: 1.35; overflow-wrap: anywhere;
 }
 .member-name .badge { vertical-align: 3px; }
 .member-meta { margin: 4px 0 0; font-size: 11px; }
 .member-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
 .member-chips .uc-chip { justify-content: flex-start; }
+.member-chips .uc-chip.on { background: var(--accent); color: #fff; }
 .member-bio {
   margin: 13px 0 0; max-width: 560px;
   font-size: 13px; color: var(--ink-2); line-height: 1.6;
 }
 .member-actions { display: flex; gap: 6px; margin-top: 13px; }
+.profile-sec { margin: 14px 0 6px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.profile-sec b { color: var(--accent-dk); font-weight: 600; }
 .member-topics { display: block; }
 .member-topic {
   padding: 11px 0; border-bottom: 1px solid var(--line);
 }
 .member-topic:last-child { border-bottom: 0; }
+.mt-snippet {
+  margin: 4px 0 0; font-size: 13px; color: var(--ink-3); line-height: 1.6;
+  overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
 .mt-title {
   display: block; font-size: 14px; font-weight: 600; color: var(--ink);
   line-height: 1.5; overflow-wrap: anywhere;

@@ -32,12 +32,12 @@ func Static() fs.FS {
 
 // Base 是所有页面数据结构的公共头。
 type Base struct {
-	Title      string
-	User       *db.User // 可能为 nil(未登录)
-	CSRF       string
-	Categories []db.Category // 抽屉/侧栏导航
-	Members    int64         // 社区统计
-	Threads    int64
+	Title        string
+	User         *db.User // 可能为 nil(未登录)
+	CSRF         string
+	Categories   []db.Category // 抽屉/侧栏导航
+	Members      int64         // 社区统计
+	TotalThreads int64         // 社区统计(主题总数;避免与各页 Threads 列表字段重名)
 }
 
 // PostView 是帖子 partial 的数据:帖子 + 当前查看者(决定是否显示删除按钮)。

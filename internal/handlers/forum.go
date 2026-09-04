@@ -24,7 +24,7 @@ func (s *Server) base(r *http.Request, title string) web.Base {
 		b.Members = n
 	}
 	if n, err := s.store.CountAllThreads(); err == nil {
-		b.Threads = n
+		b.TotalThreads = n
 	}
 	return b
 }

@@ -276,6 +276,81 @@ func (s *Store) ListUserThreads(userID int64, limit, offset int) ([]Thread, erro
 	return out, rows.Err()
 }
 
+// UserActivity 是个人中心「回复 / 帖子」页的条目:一条回复,或主题本身。
+type UserActivity struct {
+	Kind         string // topic | reply
+	ThreadID     int64
+	PostID       sql.NullInt64
+	ThreadTitle  string
+	CategoryID   int64
+	CategoryName string
+	CreatedAt    int64
+	Snippet      string // 回复正文预览(topic 为空)
+}
+
+// ListUserReplies 某用户写过的回复(资料页「TA 的回复」)。
+func (s *Store) ListUserReplies(userID int64, limit, offset int) ([]UserActivity, error) {
+	rows, err := s.DB.Query(`
+		SELECT p.thread_id, p.id, t.title, c.id, c.name, p.created_at, p.content_md
+		FROM posts p
+		JOIN threads t ON t.id = p.thread_id
+		JOIN categories c ON c.id = t.category_id
+		WHERE p.author_id = ? AND p.is_first = 0
+		ORDER BY p.created_at DESC LIMIT ? OFFSET ?`, userID, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []UserActivity
+	for rows.Next() {
+		var a UserActivity
+		if err := rows.Scan(&a.ThreadID, &a.PostID, &a.ThreadTitle,
+			&a.CategoryID, &a.CategoryName, &a.CreatedAt, &a.Snippet); err != nil {
+			return nil, err
+		}
+		a.Kind = "reply"
+		out = append(out, a)
+	}
+	return out, rows.Err()
+}
+
+// ListUserActivity 某用户的全部发言(主题+回复,按时间倒序;资料页「TA 的帖子」)。
+func (s *Store) ListUserActivity(userID int64, limit, offset int) ([]UserActivity, error) {
+	rows, err := s.DB.Query(`
+		SELECT kind, thread_id, COALESCE(post_id, 0), title, cat_id, cat_name, created, COALESCE(snippet, '')
+		FROM (
+			SELECT 'topic' AS kind, t.id AS thread_id, NULL AS post_id, t.title AS title,
+			       c.id AS cat_id, c.name AS cat_name, t.created_at AS created, NULL AS snippet
+			FROM threads t JOIN categories c ON c.id = t.category_id
+			WHERE t.author_id = ?
+			UNION ALL
+			SELECT 'reply' AS kind, p.thread_id, p.id, t.title, c.id, c.name, p.created_at, p.content_md
+			FROM posts p
+			JOIN threads t ON t.id = p.thread_id
+			JOIN categories c ON c.id = t.category_id
+			WHERE p.author_id = ? AND p.is_first = 0
+		)
+		ORDER BY created DESC LIMIT ? OFFSET ?`, userID, userID, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []UserActivity
+	for rows.Next() {
+		var a UserActivity
+		var postID int64
+		if err := rows.Scan(&a.Kind, &a.ThreadID, &postID, &a.ThreadTitle,
+			&a.CategoryID, &a.CategoryName, &a.CreatedAt, &a.Snippet); err != nil {
+			return nil, err
+		}
+		if a.Kind == "reply" && postID > 0 {
+			a.PostID = sql.NullInt64{Int64: postID, Valid: true}
+		}
+		out = append(out, a)
+	}
+	return out, rows.Err()
+}
+
 func (s *Store) UpdateUserBio(userID int64, bio string) error {
 	_, err := s.DB.Exec(`UPDATE users SET bio = ? WHERE id = ?`, bio, userID)
 	return err

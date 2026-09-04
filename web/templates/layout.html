@@ -98,7 +98,7 @@
 <div class="side-card">
   <div class="side-title">版块</div>
   <nav class="side-links">
-    <a class="side-link" href="/"><span class="dot c1"></span>全部<span class="cnt">{{.Threads}}</span></a>
+    <a class="side-link" href="/"><span class="dot c1"></span>全部<span class="cnt">{{.TotalThreads}}</span></a>
     {{range $i, $c := .Categories}}
     <a class="side-link" href="/c/{{$c.Slug}}"><span class="dot {{catColor $i}}"></span>{{$c.Name}}<span class="cnt">{{$c.ThreadCount}}</span></a>
     {{end}}
@@ -108,7 +108,7 @@
   <div class="side-title">社区</div>
   <div class="side-stats">
     <div><b>{{.Members}}</b><span>成员</span></div>
-    <div><b>{{.Threads}}</b><span>主题</span></div>
+    <div><b>{{.TotalThreads}}</b><span>主题</span></div>
   </div>
 </div>
 {{end}}

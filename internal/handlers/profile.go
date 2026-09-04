@@ -18,6 +18,8 @@ type profileData struct {
 	web.Base
 	Profile       *db.User
 	Topics        []db.Thread
+	Activity      []db.UserActivity
+	Tab           string // topics | replies | posts
 	Threads       int64
 	Replies       int64
 	Posts         int64
@@ -25,15 +27,27 @@ type profileData struct {
 	IsAdminViewer bool
 	Page, Pages   int
 	BaseURL       string
+	HasQ          bool
+	Count         int64
 }
 
-const profileTopicsPerPage = 10
+const profileItemsPerPage = 15
+
+// clipRunes 给正文预览截断到 n 个字符。
+func clipRunes(s string, n int) string {
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	return string(r[:n]) + "…"
+}
 
 type editProfileData struct {
 	web.Base
-	Profile *db.User
-	Bio     string
-	Error   string
+	Profile   *db.User
+	Bio       string
+	AvatarNew string // 刚上传、尚未保存的新头像路径(校验失败后保留选择)
+	Error     string
 }
 
 // profile GET /u/{id}:公开资料页。
@@ -62,25 +76,53 @@ func (s *Server) profile(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, err)
 		return
 	}
+	tab := r.URL.Query().Get("tab")
+	switch tab {
+	case "replies", "posts":
+	default:
+		tab = "topics"
+	}
 	page := pageParam(r)
-	topics, err := s.store.ListUserThreads(u.ID, profileTopicsPerPage, (page-1)*profileTopicsPerPage)
+	offset := (page - 1) * profileItemsPerPage
+	var topics []db.Thread
+	var activity []db.UserActivity
+	var total int64
+	switch tab {
+	case "replies":
+		activity, err = s.store.ListUserReplies(u.ID, profileItemsPerPage, offset)
+		total = replies
+	case "posts":
+		activity, err = s.store.ListUserActivity(u.ID, profileItemsPerPage, offset)
+		total = threads + replies
+	default:
+		topics, err = s.store.ListUserThreads(u.ID, profileItemsPerPage, offset)
+		total = threads
+	}
 	if err != nil {
 		s.serverError(w, err)
 		return
 	}
 	viewer := auth.From(r.Context()).User
+	baseURL := "/u/" + strconv.FormatInt(u.ID, 10) + "?tab=" + tab
+	for i := range activity {
+		activity[i].Snippet = clipRunes(activity[i].Snippet, 90)
+	}
 	s.rend.Render(w, 200, "profile", profileData{
 		Base:          s.base(r, u.Name+" 的资料"),
 		Profile:       u,
 		Topics:        topics,
+		Activity:      activity,
+		Tab:           tab,
 		Threads:       threads,
 		Replies:       replies,
 		Posts:         threads + replies,
 		IsSelf:        viewer != nil && viewer.ID == u.ID,
 		IsAdminViewer: viewer != nil && viewer.IsAdmin(),
 		Page:          page,
-		Pages:         totalPages(threads, profileTopicsPerPage),
-		BaseURL:       "/u/" + strconv.FormatInt(u.ID, 10),
+		Pages:         totalPages(total, profileItemsPerPage),
+		BaseURL:       baseURL,
+		HasQ:          true,
+		Count:         total,
 	})
 }
 
@@ -142,26 +184,43 @@ func (s *Server) editProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	bio := strings.TrimSpace(r.FormValue("bio"))
-	fail := func(msg string) {
-		s.rend.Render(w, 200, "edit_profile", editProfileData{
-			Base:    s.base(r, "编辑资料"),
-			Profile: u,
-			Bio:     bio,
-			Error:   msg,
-		})
-	}
-	if utf8.RuneCountInString(bio) > maxBioLen {
-		fail("简介最多 200 字")
-		return
-	}
-
+	avatarURL := strings.TrimSpace(r.FormValue("avatar_url"))
 	avatarPath := u.AvatarPath
+	pendingAvatar := ""
 	if r.MultipartForm != nil && len(r.MultipartForm.File["avatar"]) > 0 {
+		// 兼容旧版:直接以表单文件换头像
 		uploadID, ok := s.saveImageUpload(w, r, "avatar", user.ID)
 		if !ok {
 			return
 		}
 		avatarPath = "/uploads/" + strconv.FormatInt(uploadID, 10)
+	} else if avatarURL != "" && avatarURL != u.AvatarPath {
+		if !s.validAvatarUpload(avatarURL, user.ID) {
+			s.rend.Render(w, 200, "edit_profile", editProfileData{
+				Base:    s.base(r, "编辑资料"),
+				Profile: u,
+				Bio:     bio,
+				Error:   "头像无效,请重新选择",
+			})
+			return
+		}
+		avatarPath = avatarURL
+	}
+	if avatarPath != u.AvatarPath {
+		pendingAvatar = avatarPath
+	}
+	fail := func(msg string) {
+		s.rend.Render(w, 200, "edit_profile", editProfileData{
+			Base:      s.base(r, "编辑资料"),
+			Profile:   u,
+			Bio:       bio,
+			AvatarNew: pendingAvatar,
+			Error:     msg,
+		})
+	}
+	if utf8.RuneCountInString(bio) > maxBioLen {
+		fail("简介最多 200 字")
+		return
 	}
 	if err := s.store.UpdateUserBio(u.ID, bio); err != nil {
 		s.serverError(w, err)
@@ -177,4 +236,14 @@ func (s *Server) editProfile(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	http.Redirect(w, r, "/u/"+strconv.FormatInt(u.ID, 10), http.StatusSeeOther)
+}
+
+// validAvatarUpload 校验头像路径是本人生成过的上传记录。
+func (s *Server) validAvatarUpload(path string, userID int64) bool {
+	id, ok := uploadPathID(path)
+	if !ok {
+		return false
+	}
+	u, err := s.store.GetUpload(id)
+	return err == nil && u != nil && u.UserID == userID
 }

@@ -1,6 +1,4 @@
 {{define "content"}}
-<nav class="crumb"><a href="/">首页</a><svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg><span>{{.Profile.Name}} 的资料</span></nav>
-
 <header class="member-head">
   <div class="member-top">
     {{if .Profile.AvatarPath}}
@@ -17,9 +15,9 @@
       </h1>
       <p class="member-meta muted">论坛第 {{.Profile.ID}} 位成员 · {{date .Profile.CreatedAt}} 加入</p>
       <div class="member-chips">
-        <span class="uc-chip"><svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>{{.Threads}} 主题</span>
-        <span class="uc-chip"><svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg>{{.Replies}} 回复</span>
-        <span class="uc-chip"><svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg>{{.Posts}} 帖子</span>
+        <a class="uc-chip{{if eq .Tab "topics"}} on{{end}}" href="/u/{{.Profile.ID}}?tab=topics"><svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>{{.Threads}} 主题</a>
+        <a class="uc-chip{{if eq .Tab "replies"}} on{{end}}" href="/u/{{.Profile.ID}}?tab=replies"><svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg>{{.Replies}} 回复</a>
+        <a class="uc-chip{{if eq .Tab "posts"}} on{{end}}" href="/u/{{.Profile.ID}}?tab=posts"><svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg>{{.Posts}} 帖子</a>
       </div>
     </div>
   </div>
@@ -36,33 +34,56 @@
   {{end}}
 </header>
 
-<div class="replies-head">TA 的主题{{if .Threads}} · <b>{{.Threads}}</b>{{end}}</div>
-{{if .Topics}}
-<div class="member-topics">
-  {{range .Topics}}
-  <div class="member-topic">
-    <a class="mt-title" href="/t/{{.ID}}">
-      {{if .IsPinned}}<span class="badge badge-lock">置顶</span>{{end}}
-      {{if .IsLocked}}<span class="badge badge-lock">锁定</span>{{end}}
-      {{.Title}}
-    </a>
-    <div class="mt-meta">
-      <span class="bcat {{bcatColor .CategoryID}}">{{.CategoryName}}</span>
-      <span>{{.ReplyCount}} 回复</span>
-      <span>{{.ViewCount}} 浏览</span>
-      <span>{{relTime .CreatedAt}}</span>
-    </div>
-  </div>
-  {{end}}
+<div class="profile-sec">
+  {{if eq .Tab "replies"}}TA 的回复{{else if eq .Tab "posts"}}TA 的全部帖子{{else}}TA 的主题{{end}}
+  {{if .Count}} · <b>{{.Count}}</b>{{end}}
 </div>
-{{template "pagination" .}}
+
+{{if eq .Tab "topics"}}
+  {{if .Topics}}
+  <div class="member-topics">
+    {{range .Topics}}
+    <div class="member-topic">
+      <a class="mt-title" href="/t/{{.ID}}">
+        {{if .IsPinned}}<span class="badge badge-lock">置顶</span>{{end}}
+        {{if .IsLocked}}<span class="badge badge-lock">锁定</span>{{end}}
+        {{.Title}}
+      </a>
+      <div class="mt-meta">
+        <span class="bcat {{bcatColor .CategoryID}}">{{.CategoryName}}</span>
+        <span>{{.ReplyCount}} 回复</span>
+        <span>{{.ViewCount}} 浏览</span>
+        <span>{{relTime .CreatedAt}}</span>
+      </div>
+    </div>
+    {{end}}
+  </div>
+  {{template "pagination" .}}
+  {{else}}
+  <p class="empty">还没有发布过主题</p>
+  {{end}}
+{{else if .Activity}}
+  <div class="member-topics">
+    {{range .Activity}}
+    <div class="member-topic">
+      <a class="mt-title" href="/t/{{.ThreadID}}{{if .PostID.Valid}}#p{{.PostID.Int64}}{{end}}">{{.ThreadTitle}}</a>
+      {{if .Snippet}}<p class="mt-snippet">{{.Snippet}}</p>{{end}}
+      <div class="mt-meta">
+        <span class="bcat {{bcatColor .CategoryID}}">{{.CategoryName}}</span>
+        {{if eq .Kind "reply"}}<span>回复</span>{{else}}<span>主题</span>{{end}}
+        <span>{{relTime .CreatedAt}}</span>
+      </div>
+    </div>
+    {{end}}
+  </div>
+  {{template "pagination" .}}
 {{else}}
-<p class="empty">还没有发布过主题</p>
+  <p class="empty">{{if eq .Tab "replies"}}还没有写过回复{{else}}还没有发布过内容{{end}}</p>
 {{end}}
 
 {{if and .IsAdminViewer (not .IsSelf)}}
 <section class="member-admin">
-  <div class="replies-head">管理</div>
+  <div class="profile-sec">管理</div>
   {{if .Profile.BannedUntil.Valid}}
   <p class="page-sub">该账号封禁中,{{date .Profile.BannedUntil.Int64}} 解封</p>
   {{else}}

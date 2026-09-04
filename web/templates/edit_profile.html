@@ -3,15 +3,31 @@
 <div class="side-card compose-card">
   <div class="side-title">编辑资料</div>
   {{if .Error}}<p class="form-error">{{.Error}}</p>{{end}}
-  <form method="post" action="/u/{{.Profile.ID}}/edit" enctype="multipart/form-data" class="form-grid">
+  <form method="post" action="/u/{{.Profile.ID}}/edit" class="form-grid">
     {{csrfField .CSRF}}
-    <label>头像
-      <span class="avatar-line">
-        {{if .Profile.AvatarPath}}<img class="avatar-preview" src="{{.Profile.AvatarPath}}" alt="">{{else}}<span class="avatar-preview avatar av-46 c1" aria-hidden="true">{{initial .Profile.Name}}</span>{{end}}
-        <input type="file" name="avatar" accept="image/jpeg,image/png,image/gif,image/webp">
+
+    <div class="avatar-panel" data-avatar-panel>
+      <button type="button" class="avatar av-64 avatar-pick c1" data-avatar-pick aria-label="更换头像" title="更换头像">
+        {{if .AvatarNew}}<img src="{{.AvatarNew}}" alt="新头像预览">
+        {{else if .Profile.AvatarPath}}<img src="{{.Profile.AvatarPath}}" alt="当前头像">
+        {{else}}{{initial .Profile.Name}}{{end}}
+      </button>
+      <span hidden data-avatar-original>
+        {{if .Profile.AvatarPath}}<img src="{{.Profile.AvatarPath}}" alt="">{{else}}{{initial .Profile.Name}}{{end}}
       </span>
-      <span class="form-note">jpg/png/gif/webp,≤5MB;不选则保留当前头像</span>
-    </label>
+      <div class="avatar-panel-body">
+        <div class="avatar-panel-title">头像</div>
+        <p class="avatar-panel-note">jpg/png/gif/webp,≤5MB。点击头像或「更换头像」选择图片,选中即上传并预览,最后点「保存」生效。</p>
+        <div class="avatar-panel-actions">
+          <button type="button" class="btn btn-white btn-sm" data-avatar-pick>更换头像</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-avatar-reset{{if not .AvatarNew}} hidden{{end}}>恢复原头像</button>
+          <span class="upload-status" data-avatar-status role="status"></span>
+        </div>
+      </div>
+      <input type="file" name="avatar_file" accept="image/jpeg,image/png,image/gif,image/webp" hidden data-avatar-input>
+      <input type="hidden" name="avatar_url" value="{{.AvatarNew}}" data-avatar-url>
+    </div>
+
     <label>简介<textarea class="input textarea" name="bio" maxlength="200" rows="4" placeholder="写点介绍,让大家认识你(可选)">{{.Bio}}</textarea></label>
     <div class="form-actions">
       <button class="btn btn-primary" type="submit">保存</button>
