@@ -105,7 +105,9 @@ var funcs = template.FuncMap{
 }
 
 // roleBadge 渲染用户称号徽章:
-// badge NULL → 跟随身份(管理员/版主);” → 隐藏;自定义文本 → 替换身份文案。
+// badge NULL → 跟随身份(管理员/版主);"" → 隐藏;自定义文本 → 替换身份文案。
+// 自定义称号对所有人统一中性配色:同一种勋章不应因身份而异色;
+// 角色配色只用于「跟随身份」的默认标签(管理员/版主)。
 func roleBadge(role string, badge sql.NullString) template.HTML {
 	var label, cls string
 	if badge.Valid {
@@ -113,12 +115,6 @@ func roleBadge(role string, badge sql.NullString) template.HTML {
 			return ""
 		}
 		label, cls = badge.String, "badge"
-		switch role {
-		case "admin":
-			cls = "badge badge-admin"
-		case "mod":
-			cls = "badge badge-mod"
-		}
 	} else {
 		switch role {
 		case "admin":
