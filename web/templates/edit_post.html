@@ -6,7 +6,7 @@
     {{csrfField .CSRF}}
     <label>内容<textarea class="input textarea" name="content" maxlength="10000" required rows="8">{{.Content}}</textarea></label>
     <div class="upload-row">
-      <button type="button" class="btn btn-ghost btn-sm" data-upload="textarea[name=content]">插入图片</button>
+      <button type="button" class="btn btn-outline btn-sm" data-upload="textarea[name=content]">插入图片</button>
       <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" hidden>
       <span class="upload-status" aria-live="polite"></span>
     </div>

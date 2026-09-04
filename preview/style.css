@@ -103,6 +103,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .btn-primary { background: var(--accent); color: #fff; }
 .btn-primary:hover { background: var(--accent-dk); }
 .btn-white { background: var(--card); color: var(--ink); border: 1px solid var(--line); box-shadow: var(--shadow-card); }
+.btn-outline { background: var(--card); color: var(--ink-2); border: 1px solid var(--line-strong); }
+.btn-outline:hover { background: var(--hover-bg); color: var(--ink); border-color: var(--ink-4); }
+.btn-outline-danger { background: var(--card); color: var(--ink-2); border: 1px solid var(--line-strong); }
+.btn-outline-danger:hover { background: #f0f0f0; color: #000; border-color: #111; }
 .btn-ghost { background: transparent; color: var(--ink-3); }
 .btn-ghost:hover { background: var(--hover-bg); color: var(--ink); }
 .btn-ghost-danger { background: transparent; color: var(--ink-3); }
@@ -661,20 +665,26 @@ body.drawer-open { overflow: hidden; }
 .member-top { display: flex; gap: 12px; align-items: flex-start; }
 .member-top .avatar { flex: none; }
 .member-info { min-width: 0; }
+.member-name-row { display: flex; align-items: center; gap: 6px; }
 .member-name {
   margin: 0; font-size: 21px; font-weight: 800; color: var(--ink);
   line-height: 1.35; overflow-wrap: anywhere;
 }
 .member-name .badge { vertical-align: 3px; }
+.member-edit {
+  flex: none; width: 26px; height: 26px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--ink-3);
+}
+.member-edit:hover { background: var(--hover-bg); color: var(--ink); }
 .member-meta { margin: 4px 0 0; font-size: 11px; }
-.member-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+.member-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
 .member-chips .uc-chip { justify-content: flex-start; }
 .member-chips .uc-chip.on { background: var(--accent); color: #fff; }
 .member-bio {
-  margin: 13px 0 0; max-width: 560px;
+  margin: 12px 0 0; max-width: 560px;
   font-size: 13px; color: var(--ink-2); line-height: 1.6;
 }
-.member-actions { display: flex; gap: 6px; margin-top: 13px; }
 .profile-sec { margin: 14px 0 6px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
 .profile-sec b { color: var(--accent-dk); font-weight: 600; }
 .member-topics { display: block; }

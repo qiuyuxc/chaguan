@@ -21,7 +21,7 @@
     {{if eq .ThreadCount 0}}
     <form method="post" action="/admin/categories/{{.ID}}/delete" onsubmit="return confirm('删除版块「{{.Name}}」?')">
       {{csrfField $.CSRF}}
-      <button class="btn btn-ghost-danger btn-sm" type="submit">删除</button>
+      <button class="btn btn-outline-danger btn-sm" type="submit">删除</button>
     </form>
     {{else}}
     <span class="m" style="white-space:nowrap">不可删</span>

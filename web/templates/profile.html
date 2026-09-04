@@ -7,18 +7,20 @@
     <span class="avatar av-64 c1" aria-hidden="true">{{initial .Profile.Name}}</span>
     {{end}}
     <div class="member-info">
-      <h1 class="member-name">
-        {{.Profile.Name}}
-        {{if eq .Profile.Role "admin"}}<span class="badge badge-admin">管理员</span>
-        {{else if eq .Profile.Role "mod"}}<span class="badge badge-mod">版主</span>{{end}}
-        {{if .Profile.BannedUntil.Valid}}<span class="badge badge-lock">封禁中</span>{{end}}
-      </h1>
-      <p class="member-meta muted">论坛第 {{.Profile.ID}} 位成员 · {{date .Profile.CreatedAt}} 加入</p>
-      <div class="member-chips">
-        <a class="uc-chip{{if eq .Tab "topics"}} on{{end}}" href="/u/{{.Profile.ID}}?tab=topics"><svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>{{.Threads}} 主题</a>
-        <a class="uc-chip{{if eq .Tab "replies"}} on{{end}}" href="/u/{{.Profile.ID}}?tab=replies"><svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg>{{.Replies}} 回复</a>
-        <a class="uc-chip{{if eq .Tab "posts"}} on{{end}}" href="/u/{{.Profile.ID}}?tab=posts"><svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg>{{.Posts}} 帖子</a>
+      <div class="member-name-row">
+        <h1 class="member-name">
+          {{.Profile.Name}}
+          {{if eq .Profile.Role "admin"}}<span class="badge badge-admin">管理员</span>
+          {{else if eq .Profile.Role "mod"}}<span class="badge badge-mod">版主</span>{{end}}
+          {{if .Profile.BannedUntil.Valid}}<span class="badge badge-lock">封禁中</span>{{end}}
+        </h1>
+        {{if .IsSelf}}
+        <a class="member-edit" href="/u/{{.Profile.ID}}/edit" title="编辑资料" aria-label="编辑资料">
+          <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>
+        </a>
+        {{end}}
       </div>
+      <p class="member-meta muted">论坛第 {{.Profile.ID}} 位成员 · {{date .Profile.CreatedAt}} 加入</p>
     </div>
   </div>
   {{if .Profile.Bio}}
@@ -26,12 +28,11 @@
   {{else}}
   <p class="member-bio muted">这个人很低调,还没有写简介</p>
   {{end}}
-  {{if .IsSelf}}
-  <div class="member-actions">
-    <a class="btn btn-ghost btn-sm" href="/u/{{.Profile.ID}}/edit">编辑资料</a>
-    <a class="btn btn-ghost btn-sm" href="/notifications">我的通知</a>
+  <div class="member-chips">
+    <a class="uc-chip{{if eq .Tab "topics"}} on{{end}}" href="/u/{{.Profile.ID}}?tab=topics"><svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>{{.Threads}} 主题</a>
+    <a class="uc-chip{{if eq .Tab "replies"}} on{{end}}" href="/u/{{.Profile.ID}}?tab=replies"><svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg>{{.Replies}} 回复</a>
+    <a class="uc-chip{{if eq .Tab "posts"}} on{{end}}" href="/u/{{.Profile.ID}}?tab=posts"><svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg>{{.Posts}} 帖子</a>
   </div>
-  {{end}}
 </header>
 
 <div class="profile-sec">
@@ -93,9 +94,9 @@
   <form method="post" action="/admin/users/{{.Profile.ID}}/role" class="inline-form">
     {{csrfField .CSRF}}
     {{if eq .Profile.Role "mod"}}
-    <input type="hidden" name="role" value="user"><button class="btn btn-ghost btn-sm" type="submit">撤销版主</button>
+    <input type="hidden" name="role" value="user"><button class="btn btn-outline btn-sm" type="submit">撤销版主</button>
     {{else}}
-    <input type="hidden" name="role" value="mod"><button class="btn btn-ghost btn-sm" type="submit">设为版主</button>
+    <input type="hidden" name="role" value="mod"><button class="btn btn-outline btn-sm" type="submit">设为版主</button>
     {{end}}
   </form>
   {{end}}
@@ -108,12 +109,12 @@
       <option value="30">30 天</option>
       <option value="3650">10 年</option>
     </select>
-    <button class="btn btn-ghost-danger btn-sm" type="submit" onclick="return confirm('确认封禁该用户?')">封禁</button>
+    <button class="btn btn-outline-danger btn-sm" type="submit" onclick="return confirm('确认封禁该用户?')">封禁</button>
   </form>
   {{if .Profile.BannedUntil.Valid}}
   <form method="post" action="/admin/users/{{.Profile.ID}}/unban" class="inline-form">
     {{csrfField .CSRF}}
-    <button class="btn btn-ghost btn-sm" type="submit">解除封禁</button>
+    <button class="btn btn-outline btn-sm" type="submit">解除封禁</button>
   </form>
   {{end}}
 </section>

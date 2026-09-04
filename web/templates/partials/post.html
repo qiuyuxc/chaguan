@@ -13,10 +13,10 @@
       {{if .IsOP}}<span class="badge">楼主</span>{{end}}
       <span class="reply-floor">#{{.Floor}}</span>
       {{if and (not .Post.IsFirst) (canEditPost .Post .Viewer)}}
-      <a class="btn btn-ghost btn-sm" href="/p/{{.Post.ID}}/edit">编辑</a>
+      <a class="btn btn-outline btn-sm" href="/p/{{.Post.ID}}/edit">编辑</a>
       {{end}}
       {{if and (not .Post.IsFirst) (canDeletePost .Post .Viewer)}}
-      <button class="btn btn-ghost-danger btn-sm" hx-post="/p/{{.Post.ID}}/delete" hx-confirm="确定删除这条回复?" hx-target="closest .reply" hx-swap="delete">删除</button>
+      <button class="btn btn-outline-danger btn-sm" hx-post="/p/{{.Post.ID}}/delete" hx-confirm="确定删除这条回复?" hx-target="closest .reply" hx-swap="delete">删除</button>
       {{end}}
       <span class="reply-time"><a href="#p{{.Post.ID}}">{{relTime .Post.CreatedAt}}</a>{{if .Post.EditedAt.Valid}} · 编辑于 {{relTime .Post.EditedAt.Int64}}{{end}}</span>
     </div>

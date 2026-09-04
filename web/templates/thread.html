@@ -28,20 +28,20 @@
   {{if .User}}
   <div class="thread-actions">
     {{if or (eq .User.ID .Thread.AuthorID) .User.IsAdmin}}
-    <a class="btn btn-ghost btn-sm" href="/t/{{.Thread.ID}}/edit">编辑主题</a>
+    <a class="btn btn-outline btn-sm" href="/t/{{.Thread.ID}}/edit">编辑主题</a>
     <form method="post" action="/t/{{.Thread.ID}}/delete" class="inline" onsubmit="return confirm('删除整个主题及其全部回复?')">
       {{csrfField .CSRF}}
-      <button class="btn btn-ghost-danger btn-sm" type="submit">删除主题</button>
+      <button class="btn btn-outline-danger btn-sm" type="submit">删除主题</button>
     </form>
     {{end}}
     {{if .User.IsMod}}
     <form method="post" action="/t/{{.Thread.ID}}/pin" class="inline">
       {{csrfField .CSRF}}
-      <button class="btn btn-ghost btn-sm" type="submit">{{if .Thread.IsPinned}}取消置顶{{else}}置顶{{end}}</button>
+      <button class="btn btn-outline btn-sm" type="submit">{{if .Thread.IsPinned}}取消置顶{{else}}置顶{{end}}</button>
     </form>
     <form method="post" action="/t/{{.Thread.ID}}/lock" class="inline">
       {{csrfField .CSRF}}
-      <button class="btn btn-ghost btn-sm" type="submit">{{if .Thread.IsLocked}}解锁{{else}}锁定{{end}}</button>
+      <button class="btn btn-outline btn-sm" type="submit">{{if .Thread.IsLocked}}解锁{{else}}锁定{{end}}</button>
     </form>
     {{end}}
   </div>
@@ -66,7 +66,7 @@
     <div class="form-grid">
       <textarea class="input textarea" name="content" id="reply-content" maxlength="10000" rows="5" required placeholder="写下你的回复…"></textarea>
       <div class="upload-row">
-        <button type="button" class="btn btn-ghost btn-sm" data-upload="#reply-content">插入图片</button>
+        <button type="button" class="btn btn-outline btn-sm" data-upload="#reply-content">插入图片</button>
         <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" hidden>
         <span class="upload-status" aria-live="polite"></span>
       </div>
