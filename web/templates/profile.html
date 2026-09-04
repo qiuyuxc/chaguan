@@ -1,35 +1,35 @@
 {{define "content"}}
-<div class="side-card profile-hero">
-  <div class="user-card">
-    {{if .Profile.AvatarPath}}
-    <span class="avatar av-64"><img src="{{.Profile.AvatarPath}}" alt="{{.Profile.Name}}"></span>
-    {{else}}
-    <span class="avatar av-64 c1" aria-hidden="true">{{initial .Profile.Name}}</span>
-    {{end}}
-    <div class="uc-name">
-      {{.Profile.Name}}
-      {{if eq .Profile.Role "admin"}}<span class="badge badge-admin">管理员</span>
-      {{else if eq .Profile.Role "mod"}}<span class="badge badge-mod">版主</span>{{end}}
-      {{if .Profile.BannedUntil.Valid}}<span class="badge badge-lock">封禁中</span>{{end}}
-    </div>
-    {{if .Profile.Bio}}
-    <div class="uc-bio">{{.Profile.Bio}}</div>
-    {{else}}
-    <div class="uc-bio muted">这个人很低调,还没有写简介</div>
-    {{end}}
-    <p class="profile-meta muted">论坛第 {{.Profile.ID}} 位成员 · {{date .Profile.CreatedAt}} 加入</p>
-    <div class="profile-stats">
-      <div><b>{{.Threads}}</b><span>主题</span></div>
-      <div><b>{{.Replies}}</b><span>回复</span></div>
-      <div><b>{{.Posts}}</b><span>帖子</span></div>
-    </div>
-    {{if .IsSelf}}
-    <div class="uc-actions"><a class="btn btn-primary" href="/u/{{.Profile.ID}}/edit">编辑资料</a></div>
-    {{end}}
-  </div>
-</div>
+<nav class="crumb"><a href="/">首页</a><svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg><span>{{.Profile.Name}} 的资料</span></nav>
 
-<div class="profile-h">TA 的主题{{if .Threads}} · <b>{{.Threads}}</b>{{end}}</div>
+<header class="member-head">
+  {{if .Profile.AvatarPath}}
+  <span class="avatar av-64"><img src="{{.Profile.AvatarPath}}" alt="{{.Profile.Name}}"></span>
+  {{else}}
+  <span class="avatar av-64 c1" aria-hidden="true">{{initial .Profile.Name}}</span>
+  {{end}}
+  <h1 class="member-name">
+    {{.Profile.Name}}
+    {{if eq .Profile.Role "admin"}}<span class="badge badge-admin">管理员</span>
+    {{else if eq .Profile.Role "mod"}}<span class="badge badge-mod">版主</span>{{end}}
+    {{if .Profile.BannedUntil.Valid}}<span class="badge badge-lock">封禁中</span>{{end}}
+  </h1>
+  <p class="member-meta muted">论坛第 {{.Profile.ID}} 位成员 · {{date .Profile.CreatedAt}} 加入</p>
+  {{if .Profile.Bio}}
+  <p class="member-bio">{{.Profile.Bio}}</p>
+  {{else}}
+  <p class="member-bio muted">这个人很低调,还没有写简介</p>
+  {{end}}
+  <div class="member-stats">
+    <div><b>{{.Threads}}</b><span>主题</span></div>
+    <div><b>{{.Replies}}</b><span>回复</span></div>
+    <div><b>{{.Posts}}</b><span>帖子</span></div>
+  </div>
+  {{if .IsSelf}}
+  <div class="member-actions"><a class="btn btn-ghost btn-sm" href="/u/{{.Profile.ID}}/edit">编辑资料</a></div>
+  {{end}}
+</header>
+
+<div class="replies-head">TA 的主题{{if .Threads}} · <b>{{.Threads}}</b>{{end}}</div>
 {{if .Topics}}
 <div class="thread-card">
   {{range .Topics}}{{template "thread_row" .}}{{end}}
@@ -40,8 +40,8 @@
 {{end}}
 
 {{if and .IsAdminViewer (not .IsSelf)}}
-<div class="side-card profile-admin">
-  <div class="side-title">管理</div>
+<section class="member-admin">
+  <div class="replies-head">管理</div>
   {{if .Profile.BannedUntil.Valid}}
   <p class="page-sub">该账号封禁中,{{date .Profile.BannedUntil.Int64}} 解封</p>
   {{else}}
@@ -74,6 +74,6 @@
     <button class="btn btn-ghost btn-sm" type="submit">解除封禁</button>
   </form>
   {{end}}
-</div>
+</section>
 {{end}}
 {{end}}

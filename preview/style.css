@@ -638,19 +638,30 @@ body.drawer-open { overflow: hidden; }
 .drawer .side-link .cnt { display: none; }
 .drawer .side-title { font-size: 12px; }
 
-/* ---------- 个人中心 ---------- */
+/* ---------- 个人中心(平铺,与主题页同一底面) ---------- */
 .av-64 { width: 56px; height: 56px; font-size: 20px; }
-.profile-hero { padding: 18px 14px 14px; }
-.profile-meta { margin: 7px 0 0; font-size: 11px; }
-.profile-stats {
+.member-head { padding: 4px 0 0; }
+.member-head .avatar { margin: 0 auto; }
+.member-name {
+  margin: 10px 0 0; font-size: 20px; font-weight: 800; color: var(--ink);
+  line-height: 1.35; text-align: center;
+}
+.member-name .badge { vertical-align: 3px; }
+.member-meta { margin: 5px 0 0; font-size: 11px; text-align: center; }
+.member-bio {
+  margin: 12px auto 0; max-width: 480px; text-align: center;
+  font-size: 13px; color: var(--ink-2); line-height: 1.6;
+}
+.member-stats {
   display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
-  text-align: center; margin-top: 13px; padding-top: 12px;
+  text-align: center; margin-top: 16px; padding: 13px 0 2px;
   border-top: 1px solid var(--line);
 }
-.profile-stats b { display: block; font-size: 18px; color: var(--ink); font-weight: 700; }
-.profile-stats span { font-size: 11px; color: var(--ink-3); }
-.profile-h {
-  margin: 18px 0 8px; font-size: 13px; font-weight: 600; color: var(--ink);
+.member-stats b { display: block; font-size: 18px; color: var(--ink); font-weight: 700; }
+.member-stats span { font-size: 11px; color: var(--ink-3); }
+.member-actions { display: flex; justify-content: center; margin-top: 14px; }
+.member-admin .page-sub { margin: 0 0 8px; }
+.member-admin .inline-form { margin-top: 6px; }
+@media (min-width: 900px) {
+  .member-head { max-width: 640px; margin: 0 auto; padding-bottom: 6px; }
 }
-.profile-h b { color: var(--accent-dk); font-weight: 600; }
-.profile-admin .inline-form { margin-top: 6px; }

@@ -167,7 +167,7 @@ check "资料页可访问" "200" "$code"
 P=$(curl -s -b "$JAR" "$BASE/u/1")
 contains "资料页含用户名" "$P" "admin"
 contains "资料页含管理员徽章" "$P" "管理员"
-contains "资料页含统计卡" "$P" "profile-stats"
+contains "资料页含统计行" "$P" "member-stats"
 contains "资料页含成员序号" "$P" "位成员"
 contains "资料页含TA的主题" "$P" "TA 的主题"
 code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR2" "$BASE/u/1/edit")
