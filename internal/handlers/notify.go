@@ -37,7 +37,7 @@ func (s *Server) notifications(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.rend.Render(w, 200, "notifications", notifyData{
-		Base:          base(r, "通知"),
+		Base:          s.base(r, "通知"),
 		Notifications: list,
 	})
 }

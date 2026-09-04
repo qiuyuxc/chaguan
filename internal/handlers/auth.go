@@ -58,7 +58,7 @@ func (s *Server) loginForm(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
-	s.rend.Render(w, 200, "login", loginData{Base: base(r, "登录")})
+	s.rend.Render(w, 200, "login", loginData{Base: s.base(r, "登录")})
 }
 
 func (s *Server) login(w http.ResponseWriter, r *http.Request) {
@@ -67,7 +67,7 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 
 	fail := func(msg string) {
 		s.rend.Render(w, 200, "login", loginData{
-			Base:  web.Base{Title: "登录", CSRF: auth.From(r.Context()).CSRF},
+			Base:  s.base(r, "登录"),
 			Error: msg, Name: name,
 		})
 	}
@@ -107,7 +107,7 @@ func (s *Server) registerForm(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
-	s.rend.Render(w, 200, "register", registerData{Base: base(r, "注册")})
+	s.rend.Render(w, 200, "register", registerData{Base: s.base(r, "注册")})
 }
 
 func (s *Server) register(w http.ResponseWriter, r *http.Request) {
@@ -116,7 +116,7 @@ func (s *Server) register(w http.ResponseWriter, r *http.Request) {
 
 	fail := func(msg string) {
 		s.rend.Render(w, 200, "register", registerData{
-			Base:  web.Base{Title: "注册", CSRF: auth.From(r.Context()).CSRF},
+			Base:  s.base(r, "注册"),
 			Error: msg, Name: name,
 		})
 	}

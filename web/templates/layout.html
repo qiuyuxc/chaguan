@@ -9,33 +9,99 @@
 <script src="/static/app.js" defer></script>
 </head>
 <body hx-headers='{"X-CSRF-Token": "{{.CSRF}}"}'>
-<header class="topbar">
-  <div class="topbar-inner">
-    <a class="logo" href="/">
-      <span class="logo-mark"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg></span>
-      <span>BBS</span>
+<header class="topbar"><div class="topbar-inner">
+  <button class="icon-btn menu-btn" id="menu-btn" aria-label="菜单" title="菜单">
+    <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+  </button>
+  <a class="logo" href="/">
+    <span class="logo-mark"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg></span>
+    <span>BBS</span>
+  </a>
+  <a class="icon-btn" href="/search" aria-label="搜索" title="搜索">
+    <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+  </a>
+  <div class="topbar-right">
+    {{if .User}}
+    <a class="icon-btn notif-btn" href="/notifications" aria-label="通知" title="通知">
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+      <span class="notif-count" id="notif-count" hidden></span>
     </a>
-    <a class="icon-btn" href="/search" aria-label="搜索" title="搜索">
-      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-    </a>
-    <div class="topbar-right">
-      {{if .User}}
-        <a class="icon-btn notif-btn" href="/notifications" aria-label="通知" title="通知">
-          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
-          <span class="notif-count" id="notif-count" hidden></span>
-        </a>
-        <span class="nav-user">{{.User.Name}}</span>
-        <form method="post" action="/logout" class="inline">{{csrfField .CSRF}}<button class="btn btn-ghost btn-sm" type="submit">退出</button></form>
-      {{else}}
-        <a class="nav-link" href="/login">登录</a>
-        <a class="btn btn-primary btn-sm" href="/register">注册</a>
-      {{end}}
-    </div>
+    {{if .User.AvatarPath}}<a class="avatar av-32 nav-user" href="/u/{{.User.ID}}" title="{{.User.Name}}"><img src="{{.User.AvatarPath}}" alt=""></a>
+    {{else}}<a class="avatar av-32 c1 nav-user" href="/u/{{.User.ID}}" title="{{.User.Name}}">{{initial .User.Name}}</a>{{end}}
+    {{else}}
+    <a class="nav-link" href="/login">登录</a>
+    <a class="btn btn-primary btn-sm" href="/register">注册</a>
+    {{end}}
   </div>
-</header>
-<main class="layout"><div class="layout-main">
+</div></header>
+
+<div class="layout">
+  <aside class="sidebar">
+    {{template "sidenav" .}}
+  </aside>
+  <main class="layout-main">
 {{template "content" .}}
-</div></main>
+  </main>
+</div>
+
+<div class="drawer-shell" id="drawer-shell">
+  <div class="scrim" data-drawer-close></div>
+  <aside class="drawer">
+    {{template "sidenav" .}}
+  </aside>
+</div>
+
 <footer class="footer">Powered by bbs</footer>
 </body>
 </html>{{end}}
+{{define "sidenav"}}
+{{if .User}}
+<div class="side-card">
+  <div class="user-card">
+    {{if .User.AvatarPath}}<a class="avatar av-46" href="/u/{{.User.ID}}"><img src="{{.User.AvatarPath}}" alt=""></a>
+    {{else}}<a class="avatar av-46 c1" href="/u/{{.User.ID}}">{{initial .User.Name}}</a>{{end}}
+    <div class="uc-name">
+      {{.User.Name}}
+      {{if .User.IsAdmin}}<span class="badge badge-admin">管理员</span>
+      {{else if .User.IsMod}}<span class="badge badge-mod">版主</span>{{end}}
+    </div>
+    <div class="uc-chips">
+      <a class="uc-chip" href="/u/{{.User.ID}}">我的资料</a>
+      <a class="uc-chip" href="/notifications">通知</a>
+    </div>
+    <form method="post" action="/logout" class="uc-actions">
+      {{csrfField .CSRF}}
+      <button class="btn btn-ghost btn-sm" type="submit">退出登录</button>
+    </form>
+  </div>
+</div>
+{{else}}
+<div class="side-card">
+  <div class="user-card">
+    <span class="avatar av-46 c1" aria-hidden="true">?</span>
+    <div class="uc-name">未登录</div>
+    <div class="uc-bio muted">登录后即可发帖、回复与接收通知</div>
+    <div class="uc-chips">
+      <a class="uc-chip" href="/login">登录</a>
+      <a class="uc-chip" href="/register">注册</a>
+    </div>
+  </div>
+</div>
+{{end}}
+<div class="side-card">
+  <div class="side-title">版块</div>
+  <nav class="side-links">
+    <a class="side-link" href="/"><span class="dot c1"></span>全部<span class="cnt">{{.Threads}}</span></a>
+    {{range $i, $c := .Categories}}
+    <a class="side-link" href="/c/{{$c.Slug}}"><span class="dot {{catColor $i}}"></span>{{$c.Name}}<span class="cnt">{{$c.ThreadCount}}</span></a>
+    {{end}}
+  </nav>
+</div>
+<div class="side-card">
+  <div class="side-title">社区</div>
+  <div class="side-stats">
+    <div><b>{{.Members}}</b><span>成员</span></div>
+    <div><b>{{.Threads}}</b><span>主题</span></div>
+  </div>
+</div>
+{{end}}

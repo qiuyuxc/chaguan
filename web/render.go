@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/fs"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -31,9 +32,12 @@ func Static() fs.FS {
 
 // Base 是所有页面数据结构的公共头。
 type Base struct {
-	Title string
-	User  *db.User // 可能为 nil(未登录)
-	CSRF  string
+	Title      string
+	User       *db.User // 可能为 nil(未登录)
+	CSRF       string
+	Categories []db.Category // 抽屉/侧栏导航
+	Members    int64         // 社区统计
+	Threads    int64
 }
 
 // PostView 是帖子 partial 的数据:帖子 + 当前查看者(决定是否显示删除按钮)。
@@ -48,6 +52,7 @@ var funcs = template.FuncMap{
 		return template.HTML(`<input type="hidden" name="_csrf" value="` + token + `">`)
 	},
 	"initial":  Initial,
+	"catColor": func(i int) string { return "c" + strconv.Itoa(i%6+1) },
 	"date":     func(ts int64) string { return time.Unix(ts, 0).Format("2006-01-02") },
 	"safeHTML": func(s string) template.HTML { return template.HTML(s) },
 	"postView": func(p db.Post, viewer *db.User) PostView {

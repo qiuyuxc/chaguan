@@ -58,7 +58,7 @@ func (s *Server) profile(w http.ResponseWriter, r *http.Request) {
 	}
 	viewer := auth.From(r.Context()).User
 	s.rend.Render(w, 200, "profile", profileData{
-		Base:          base(r, u.Name+" 的资料"),
+		Base:          s.base(r, u.Name+" 的资料"),
 		Profile:       u,
 		Threads:       threads,
 		Replies:       replies,
@@ -96,7 +96,7 @@ func (s *Server) editProfileForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.rend.Render(w, 200, "edit_profile", editProfileData{
-		Base:    base(r, "编辑资料"),
+		Base:    s.base(r, "编辑资料"),
 		Profile: u,
 		Bio:     u.Bio,
 	})
@@ -127,7 +127,7 @@ func (s *Server) editProfile(w http.ResponseWriter, r *http.Request) {
 	bio := strings.TrimSpace(r.FormValue("bio"))
 	fail := func(msg string) {
 		s.rend.Render(w, 200, "edit_profile", editProfileData{
-			Base:    base(r, "编辑资料"),
+			Base:    s.base(r, "编辑资料"),
 			Profile: u,
 			Bio:     bio,
 			Error:   msg,

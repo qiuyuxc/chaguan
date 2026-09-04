@@ -13,10 +13,20 @@ import (
 	"bbs/web"
 )
 
-// base 从请求上下文构造页面公共头。
-func base(r *http.Request, title string) web.Base {
+// base 从请求上下文构造页面公共头,顺带加载抽屉/侧栏数据(导航与社区统计)。
+func (s *Server) base(r *http.Request, title string) web.Base {
 	i := auth.From(r.Context())
-	return web.Base{Title: title, User: i.User, CSRF: i.CSRF}
+	b := web.Base{Title: title, User: i.User, CSRF: i.CSRF}
+	if cats, err := s.store.ListCategories(); err == nil {
+		b.Categories = cats
+	}
+	if n, err := s.store.CountUsers(); err == nil {
+		b.Members = n
+	}
+	if n, err := s.store.CountAllThreads(); err == nil {
+		b.Threads = n
+	}
+	return b
 }
 
 // ---------- 搜索 ----------
@@ -39,7 +49,7 @@ func (s *Server) search(w http.ResponseWriter, r *http.Request) {
 	}
 	page := pageParam(r)
 	data := searchData{
-		Base:     base(r, "搜索"),
+		Base:     s.base(r, "搜索"),
 		Query:    q,
 		HasQuery: q != "",
 		Page:     page,
@@ -124,7 +134,7 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 		baseURL += "?" + strings.Join(q, "&")
 	}
 	s.rend.Render(w, 200, "home", homeData{
-		Base:       base(r, "首页"),
+		Base:       s.base(r, "首页"),
 		Threads:    threads,
 		Categories: cats,
 		ActiveCat:  catSlug,
@@ -160,7 +170,7 @@ func (s *Server) adminCategories(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.rend.Render(w, 200, "admin_categories", adminCatsData{
-		Base:       base(r, "版块管理"),
+		Base:       s.base(r, "版块管理"),
 		Categories: cats,
 	})
 }
@@ -256,7 +266,7 @@ func (s *Server) category(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.rend.Render(w, 200, "category", categoryData{
-		Base:     base(r, cat.Name),
+		Base:     s.base(r, cat.Name),
 		Category: cat,
 		Threads:  threads,
 		Page:     page,
@@ -290,7 +300,7 @@ func (s *Server) newThreadForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.rend.Render(w, 200, "new_thread", newThreadData{
-		Base: base(r, "发新帖 · "+cat.Name), Category: cat,
+		Base: s.base(r, "发新帖 · "+cat.Name), Category: cat,
 	})
 }
 
@@ -314,7 +324,7 @@ func (s *Server) newThread(w http.ResponseWriter, r *http.Request) {
 
 	fail := func(msg string) {
 		s.rend.Render(w, 200, "new_thread", newThreadData{
-			Base: base(r, "发新帖 · "+cat.Name), Category: cat,
+			Base: s.base(r, "发新帖 · "+cat.Name), Category: cat,
 			Error: msg, Title: title, Content: content,
 		})
 	}
@@ -389,7 +399,7 @@ func (s *Server) thread(w http.ResponseWriter, r *http.Request) {
 		pvs[i] = web.PostView{Post: p, Viewer: viewer}
 	}
 	s.rend.Render(w, 200, "thread", threadData{
-		Base:      base(r, t.Title),
+		Base:      s.base(r, t.Title),
 		Thread:    t,
 		Category:  cat,
 		PostViews: pvs,
@@ -585,7 +595,7 @@ func (s *Server) editThreadForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.rend.Render(w, 200, "edit_thread", editThreadData{
-		Base:     base(r, "编辑主题"),
+		Base:     s.base(r, "编辑主题"),
 		Category: cat,
 		Thread:   t,
 		Title:    t.Title,
@@ -625,7 +635,7 @@ func (s *Server) editThread(w http.ResponseWriter, r *http.Request) {
 	content := strings.TrimSpace(r.FormValue("content"))
 	fail := func(msg string) {
 		s.rend.Render(w, 200, "edit_thread", editThreadData{
-			Base:     base(r, "编辑主题"),
+			Base:     s.base(r, "编辑主题"),
 			Category: cat,
 			Thread:   t,
 			Title:    title,
@@ -693,7 +703,7 @@ func (s *Server) editPostForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.rend.Render(w, 200, "edit_post", editPostData{
-		Base:    base(r, "编辑回复"),
+		Base:    s.base(r, "编辑回复"),
 		Thread:  t,
 		PostID:  p.ID,
 		Content: p.ContentMD,
@@ -736,7 +746,7 @@ func (s *Server) editPost(w http.ResponseWriter, r *http.Request) {
 	content := strings.TrimSpace(r.FormValue("content"))
 	if utf8.RuneCountInString(content) < 1 || utf8.RuneCountInString(content) > maxPostLen {
 		s.rend.Render(w, 200, "edit_post", editPostData{
-			Base:    base(r, "编辑回复"),
+			Base:    s.base(r, "编辑回复"),
 			Thread:  t,
 			PostID:  p.ID,
 			Content: content,

@@ -175,6 +175,12 @@ func (s *Store) CountUsers() (int64, error) {
 	return n, err
 }
 
+func (s *Store) CountAllThreads() (int64, error) {
+	var n int64
+	err := s.DB.QueryRow(`SELECT COUNT(*) FROM threads`).Scan(&n)
+	return n, err
+}
+
 func (s *Store) CreateUser(name, email, passwordHash string) (int64, error) {
 	n, err := s.CountUsers()
 	if err != nil {

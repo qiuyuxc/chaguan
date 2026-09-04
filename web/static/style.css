@@ -307,13 +307,36 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .hint a { color: var(--accent-dk); font-weight: 500; }
 
 /* ---------- 抽屉 ---------- */
-.scrim { position: absolute; inset: 0; background: rgba(23, 27, 33, 0.4); }
-.drawer {
+.drawer-demo { position: relative; height: 560px; overflow: hidden; background: var(--bg); }
+.drawer-demo .scrim { position: absolute; inset: 0; background: rgba(23, 27, 33, 0.4); }
+.drawer-demo .drawer {
   position: absolute; top: 0; bottom: 0; left: 0; width: 268px;
   background: var(--card); border-right: 1px solid var(--line);
   padding: 12px; overflow-y: auto;
 }
-.drawer-demo { position: relative; height: 560px; overflow: hidden; background: var(--bg); }
+/* 移动端抽屉壳:默认离屏,开合做位移/淡入 */
+.drawer-shell {
+  position: fixed; inset: 0; z-index: 40;
+  visibility: hidden;
+  transition: visibility 0s linear 220ms;
+}
+.drawer-shell.open { visibility: visible; transition-delay: 0s; }
+.drawer-shell .scrim {
+  position: absolute; inset: 0; background: rgba(23, 27, 33, 0.4);
+  opacity: 0; transition: opacity 200ms ease;
+}
+.drawer-shell .drawer {
+  position: absolute; top: 0; bottom: 0; left: 0;
+  width: min(272px, 86vw);
+  background: var(--card); border-right: 1px solid var(--line);
+  padding: 12px; overflow-y: auto;
+  box-shadow: 2px 0 18px rgba(23, 27, 33, 0.12);
+  transform: translateX(-103%);
+  transition: transform 220ms ease;
+}
+.drawer-shell.open .scrim { opacity: 1; }
+.drawer-shell.open .drawer { transform: translateX(0); }
+body.drawer-open { overflow: hidden; }
 
 .empty { color: var(--ink-4); text-align: center; padding: 36px 0; }
 .empty a { color: var(--accent-dk); }
@@ -321,7 +344,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 
 /* ---------- 响应式:桌面显示侧栏 ---------- */
 @media (min-width: 900px) {
+  .layout { grid-template-columns: 240px minmax(0, 1fr); }
   .sidebar { display: block; position: sticky; top: 64px; }
+  .drawer-shell { display: none; }
   .menu-btn { display: none; }
   .tr-right { display: block; }
   .cat-pills { display: none; }

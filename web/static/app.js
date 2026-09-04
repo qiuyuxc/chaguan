@@ -87,3 +87,20 @@
     });
   });
 })();
+
+// 抽屉导航(移动端):菜单按钮开合,点 scrim/Esc/链接后关闭
+(function () {
+  var shell = document.getElementById("drawer-shell");
+  var btn = document.getElementById("menu-btn");
+  if (!shell || !btn) return;
+  function setOpen(open) {
+    shell.classList.toggle("open", open);
+    document.body.classList.toggle("drawer-open", open);
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+  }
+  btn.addEventListener("click", function () { setOpen(!shell.classList.contains("open")); });
+  shell.addEventListener("click", function (e) {
+    if (e.target.closest("[data-drawer-close]") || e.target.closest("a")) setOpen(false);
+  });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") setOpen(false); });
+})();
