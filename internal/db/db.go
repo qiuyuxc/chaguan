@@ -404,6 +404,49 @@ func (s *Store) ListUserActivity(userID int64, limit, offset int) ([]UserActivit
 	return out, rows.Err()
 }
 
+// LikeItem 我收到过赞的帖子(资料页「点赞」分区,按最近点赞排序)。
+type LikeItem struct {
+	ThreadID     int64
+	PostID       int64 // 点赞落在哪一层;首帖为 0
+	ThreadTitle  string
+	CategoryID   int64
+	CategoryName string
+	IsFirst      bool
+	Snippet      string // 被赞内容预览(content_md)
+	Likes        int64  // 收到的赞数
+	CreatedAt    int64  // 最近一次收到赞的时间
+}
+
+// ListLikedPosts 某用户收到的赞:列出 ta 名下被赞过的帖子与各自获赞数。
+func (s *Store) ListLikedPosts(userID int64, limit, offset int) ([]LikeItem, error) {
+	rows, err := s.DB.Query(`
+		SELECT p.thread_id, p.id, t.title, c.id, c.name, p.is_first, p.content_md,
+		       COUNT(pl.id), MAX(pl.created_at)
+		FROM posts p
+		JOIN post_likes pl ON pl.post_id = p.id
+		JOIN threads t ON t.id = p.thread_id
+		JOIN categories c ON c.id = t.category_id
+		WHERE p.author_id = ?
+		GROUP BY p.id
+		ORDER BY MAX(pl.created_at) DESC LIMIT ? OFFSET ?`, userID, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []LikeItem
+	for rows.Next() {
+		var it LikeItem
+		var first int64
+		if err := rows.Scan(&it.ThreadID, &it.PostID, &it.ThreadTitle, &it.CategoryID,
+			&it.CategoryName, &first, &it.Snippet, &it.Likes, &it.CreatedAt); err != nil {
+			return nil, err
+		}
+		it.IsFirst = first != 0
+		out = append(out, it)
+	}
+	return out, rows.Err()
+}
+
 func (s *Store) UpdateUserBio(userID int64, bio string) error {
 	_, err := s.DB.Exec(`UPDATE users SET bio = ? WHERE id = ?`, bio, userID)
 	return err

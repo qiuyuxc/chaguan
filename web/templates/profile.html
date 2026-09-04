@@ -48,19 +48,32 @@
     <span class="lv-exp">经验 {{.Exp}} / {{.ExpNext}}</span>
   </div>
   <p class="member-meta muted">UID {{.Profile.ID}} · {{date .Profile.CreatedAt}} 加入</p>
-  <div class="member-chips">
-    <a class="uc-chip{{if eq .Tab "topics"}} on{{end}}" href="/u/{{.Profile.ID}}?tab=topics"><svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>{{.Threads}} 主题</a>
-    <a class="uc-chip{{if eq .Tab "replies"}} on{{end}}" href="/u/{{.Profile.ID}}?tab=replies"><svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg>{{.Replies}} 回复</a>
-    <a class="uc-chip{{if eq .Tab "posts"}} on{{end}}" href="/u/{{.Profile.ID}}?tab=posts"><svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg>{{.Posts}} 帖子</a>
-  </div>
+  <nav class="member-tabs">
+    <a class="mt-tab{{if eq .Tab "posts"}} on{{end}}" href="/u/{{.Profile.ID}}?tab=posts">
+      <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg>
+      帖子<b>{{.Threads}}</b>
+    </a>
+    <span class="mt-sep"></span>
+    <a class="mt-tab{{if eq .Tab "likes"}} on{{end}}" href="/u/{{.Profile.ID}}?tab=likes">
+      <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+      点赞<b>{{.Liked}}</b>
+    </a>
+    <span class="mt-sep"></span>
+    <a class="mt-tab{{if eq .Tab "favorites"}} on{{end}}" href="/u/{{.Profile.ID}}?tab=favorites">
+      <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      收藏
+    </a>
+  </nav>
 </header>
 
 <div class="profile-sec">
-  {{if .IsSelf}}我的{{else}}TA 的{{end}}{{if eq .Tab "replies"}}回复{{else if eq .Tab "posts"}}全部帖子{{else}}主题{{end}}
+  {{if eq .Tab "posts"}}{{if .IsSelf}}我的帖子{{else}}TA 的帖子{{end}}
+  {{else if eq .Tab "likes"}}{{if .IsSelf}}我的点赞{{else}}TA 的点赞{{end}}
+  {{else}}{{if .IsSelf}}我的收藏{{else}}TA 的收藏{{end}}{{end}}
   {{if .Count}} · <b>{{.Count}}</b>{{end}}
 </div>
 
-{{if eq .Tab "topics"}}
+{{if eq .Tab "posts"}}
   {{if .Topics}}
   <div class="member-topics">
     {{range .Topics}}
@@ -81,25 +94,30 @@
   </div>
   {{template "pagination" .}}
   {{else}}
-  <p class="empty">{{if .IsSelf}}你还没有发布过主题{{else}}还没有发布过主题{{end}}</p>
+  <p class="empty">{{if .IsSelf}}你还没有发布过帖子{{else}}TA 还没有发布过帖子{{end}}</p>
   {{end}}
-{{else if .Activity}}
+{{else if eq .Tab "likes"}}
+  {{if .LikeItems}}
   <div class="member-topics">
-    {{range .Activity}}
+    {{range .LikeItems}}
     <div class="member-topic">
-      <a class="mt-title" href="/t/{{.ThreadID}}{{if .PostID.Valid}}#p{{.PostID.Int64}}{{end}}">{{.ThreadTitle}}</a>
+      <a class="mt-title" href="/t/{{.ThreadID}}#p{{.PostID}}">{{.ThreadTitle}}</a>
       {{if .Snippet}}<p class="mt-snippet">{{.Snippet}}</p>{{end}}
       <div class="mt-meta">
         <span class="bcat {{bcatColor .CategoryID}}">{{.CategoryName}}</span>
-        {{if eq .Kind "reply"}}<span>回复</span>{{else}}<span>主题</span>{{end}}
+        <span>{{if .IsFirst}}主题{{else}}回复{{end}}</span>
+        <span>获赞 {{.Likes}}</span>
         <span>{{relTime .CreatedAt}}</span>
       </div>
     </div>
     {{end}}
   </div>
   {{template "pagination" .}}
+  {{else}}
+  <p class="empty">{{if .IsSelf}}你还没有收到过赞{{else}}TA 还没有收到过赞{{end}}</p>
+  {{end}}
 {{else}}
-  <p class="empty">{{if eq .Tab "replies"}}{{if .IsSelf}}你还没有写过回复{{else}}还没有写过回复{{end}}{{else}}{{if .IsSelf}}你还没有发布过内容{{else}}还没有发布过内容{{end}}{{end}}</p>
+  <p class="empty">收藏功能即将上线,敬请期待</p>
 {{end}}
 
 {{if and .IsAdminViewer (not .IsSelf)}}

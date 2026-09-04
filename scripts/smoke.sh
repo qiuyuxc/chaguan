@@ -182,14 +182,14 @@ P=$(curl -s -b "$JAR" "$BASE/u/1")
 contains "资料页含用户名" "$P" "admin"
 contains "资料页含管理员徽章" "$P" "管理员"
 contains "资料页含资料区" "$P" "member-top"
-contains "资料页含统计chips" "$P" "member-chips"
+contains "资料页含分区分割条" "$P" "member-tabs"
 contains "资料页含 UID" "$P" "UID 1"
 contains "资料页含等级徽章" "$P" 'class="lv-badge"'
 contains "资料页含经验条" "$P" 'lv-fill'
 contains "资料页含社交三区块" "$P" "获赞"
-contains "资料页自视角文案" "$P" "我的主题"
+contains "资料页自视角文案" "$P" "我的帖子"
 P_OTHER=$(curl -s -b "$JAR2" "$BASE/u/1")
-contains "访客视角文案" "$P_OTHER" "TA 的主题"
+contains "访客视角文案" "$P_OTHER" "TA 的帖子"
 code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR2" "$BASE/u/1/edit")
 check "他人资料编辑页被拒" "403" "$code"
 

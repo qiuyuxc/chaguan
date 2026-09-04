@@ -24,14 +24,15 @@ type profileData struct {
 	Threads       int64
 	Replies       int64
 	Posts         int64
-	Following     int64 // 关注
-	Followers     int64 // 粉丝
-	Liked         int64 // 获赞
-	Exp           int64 // 等级经验
-	Level         int   // LV0..LV6
-	ExpStart      int64 // 当前等级起始经验
-	ExpNext       int64 // 升下一级所需经验(LV6 时等于 ExpStart,经验条满)
-	ExpPct        int   // 经验条百分比 0..100
+	Following     int64         // 关注
+	Followers     int64         // 粉丝
+	Liked         int64         // 获赞
+	LikeItems     []db.LikeItem // 「点赞」分区:收到过赞的帖子列表
+	Exp           int64         // 等级经验
+	Level         int           // LV0..LV6
+	ExpStart      int64         // 当前等级起始经验
+	ExpNext       int64         // 升下一级所需经验(LV6 时等于 ExpStart,经验条满)
+	ExpPct        int           // 经验条百分比 0..100
 	IsSelf        bool
 	IsAdminViewer bool
 	Page, Pages   int
@@ -129,22 +130,21 @@ func (s *Server) profile(w http.ResponseWriter, r *http.Request) {
 	}
 	tab := r.URL.Query().Get("tab")
 	switch tab {
-	case "replies", "posts":
+	case "likes", "favorites":
 	default:
-		tab = "topics"
+		tab = "posts"
 	}
 	page := pageParam(r)
 	offset := (page - 1) * profileItemsPerPage
 	var topics []db.Thread
-	var activity []db.UserActivity
+	var likeItems []db.LikeItem
 	var total int64
 	switch tab {
-	case "replies":
-		activity, err = s.store.ListUserReplies(u.ID, profileItemsPerPage, offset)
-		total = replies
-	case "posts":
-		activity, err = s.store.ListUserActivity(u.ID, profileItemsPerPage, offset)
-		total = threads + replies
+	case "likes":
+		likeItems, err = s.store.ListLikedPosts(u.ID, profileItemsPerPage, offset)
+		total = stats.Liked
+	case "favorites":
+		total = 0 // 收藏功能尚未接入,分区先占位
 	default:
 		topics, err = s.store.ListUserThreads(u.ID, profileItemsPerPage, offset)
 		total = threads
@@ -155,8 +155,8 @@ func (s *Server) profile(w http.ResponseWriter, r *http.Request) {
 	}
 	viewer := auth.From(r.Context()).User
 	baseURL := "/u/" + strconv.FormatInt(u.ID, 10) + "?tab=" + tab
-	for i := range activity {
-		activity[i].Snippet = clipRunes(activity[i].Snippet, 90)
+	for i := range likeItems {
+		likeItems[i].Snippet = clipRunes(likeItems[i].Snippet, 90)
 	}
 	title := u.Name + " 的资料"
 	if viewer != nil && viewer.ID == u.ID {
@@ -166,7 +166,7 @@ func (s *Server) profile(w http.ResponseWriter, r *http.Request) {
 		Base:          s.base(r, title),
 		Profile:       u,
 		Topics:        topics,
-		Activity:      activity,
+		LikeItems:     likeItems,
 		Tab:           tab,
 		Threads:       threads,
 		Replies:       replies,

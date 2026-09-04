@@ -721,9 +721,26 @@ body.drawer-open { overflow: hidden; }
 }
 .lv-fill { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
 .lv-exp { flex: none; font-size: 10px; color: var(--ink-4); font-variant-numeric: tabular-nums; }
-.member-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
-.member-chips .uc-chip { justify-content: flex-start; }
-.member-chips .uc-chip.on { background: var(--accent); color: var(--on-accent); }
+/* 个人主页分区:一体分割条(不再用独立小按钮) */
+.member-tabs {
+  display: inline-flex; align-items: stretch; margin-top: 14px; max-width: 100%;
+  border: 1px solid var(--line); border-radius: var(--r-ctl);
+  background: var(--card); overflow: hidden;
+}
+.mt-tab {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 6px 13px; font-size: 12px; color: var(--ink-3); white-space: nowrap;
+}
+.mt-tab .ic { width: 13px; height: 13px; }
+.mt-tab b { font-weight: 600; color: var(--ink-4); font-variant-numeric: tabular-nums; }
+.mt-tab:hover { background: var(--hover-bg); color: var(--ink); }
+.mt-tab.on { background: var(--accent); color: var(--on-accent); }
+.mt-tab.on b { color: inherit; }
+.mt-sep { width: 1px; background: var(--line); flex: none; }
+@media (max-width: 420px) {
+  .member-tabs { width: 100%; }
+  .mt-tab { flex: 1; justify-content: center; }
+}
 .member-stats {
   display: flex; align-items: baseline; flex-wrap: wrap;
   gap: 4px 16px; margin-top: 6px;
