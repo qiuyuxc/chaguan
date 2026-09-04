@@ -1,0 +1,88 @@
+package handlers
+
+import (
+	"net/http"
+
+	"bbs/internal/db"
+	"bbs/web"
+)
+
+// reactsData 帖子页「点赞 / 收藏」反应条(整页渲染与 htmx 局部刷新共用)。
+type reactsData struct {
+	web.Base
+	Thread    *db.Thread
+	LikeCount int64
+	LikedByMe bool
+	FavCount  int64
+	FavedByMe bool
+}
+
+// toggleLike POST /t/{id}/like:点赞 / 取消点赞文章(仅首帖文章,评论不加赞)。
+func (s *Server) toggleLike(w http.ResponseWriter, r *http.Request) {
+	user := s.currentUser(w, r)
+	if user == nil {
+		return
+	}
+	id, ok := pathID(r, "id")
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	t, err := s.store.GetThread(id)
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	if t == nil {
+		http.NotFound(w, r)
+		return
+	}
+	if _, err := s.store.ToggleThreadLike(id, user.ID); err != nil {
+		s.serverError(w, err)
+		return
+	}
+	s.renderReacts(w, t, user)
+}
+
+// toggleFavorite POST /t/{id}/favorite:收藏 / 取消收藏主题。
+func (s *Server) toggleFavorite(w http.ResponseWriter, r *http.Request) {
+	user := s.currentUser(w, r)
+	if user == nil {
+		return
+	}
+	id, ok := pathID(r, "id")
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	t, err := s.store.GetThread(id)
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	if t == nil {
+		http.NotFound(w, r)
+		return
+	}
+	if _, err := s.store.ToggleFavorite(id, user.ID); err != nil {
+		s.serverError(w, err)
+		return
+	}
+	s.renderReacts(w, t, user)
+}
+
+func (s *Server) renderReacts(w http.ResponseWriter, t *db.Thread, user *db.User) {
+	likeCount, favCount, liked, faved, err := s.store.ThreadReacts(t.ID, user.ID)
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	s.rend.Partial(w, 200, "thread", "reacts", reactsData{
+		Base:      web.Base{User: user},
+		Thread:    t,
+		LikeCount: likeCount,
+		LikedByMe: liked,
+		FavCount:  favCount,
+		FavedByMe: faved,
+	})
+}

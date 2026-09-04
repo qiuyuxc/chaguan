@@ -1,0 +1,19 @@
+{{define "reacts"}}<span class="op-reacts" id="op-reacts">
+  {{if .User}}
+  <button type="button" class="react-btn{{if .LikedByMe}} on{{end}}" hx-post="/t/{{.Thread.ID}}/like" hx-target="#op-reacts" hx-swap="outerHTML" title="{{if .LikedByMe}}取消点赞{{else}}点赞这篇文章{{end}}" aria-label="{{if .LikedByMe}}取消点赞{{else}}点赞这篇文章{{end}}">
+    <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+    <b>{{.LikeCount}}</b>
+  </button>
+  <button type="button" class="react-btn{{if .FavedByMe}} on{{end}}" hx-post="/t/{{.Thread.ID}}/favorite" hx-target="#op-reacts" hx-swap="outerHTML" title="{{if .FavedByMe}}取消收藏{{else}}收藏这个主题{{end}}" aria-label="{{if .FavedByMe}}取消收藏{{else}}收藏这个主题{{end}}">
+    <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+    <b>{{.FavCount}}</b>
+  </button>
+  {{else}}
+  <span class="react-note" title="登录后可点赞、收藏">
+    <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+    <b>{{.LikeCount}}</b>
+    <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+    <b>{{.FavCount}}</b>
+  </span>
+  {{end}}
+</span>{{end}}

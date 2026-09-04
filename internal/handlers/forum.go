@@ -436,6 +436,10 @@ type threadData struct {
 	Page, Pages int
 	BaseURL     string
 	HasQ        bool
+	LikeCount   int64 // 文章(首帖)获赞
+	LikedByMe   bool
+	FavCount    int64
+	FavedByMe   bool
 }
 
 func (s *Server) thread(w http.ResponseWriter, r *http.Request) {
@@ -489,6 +493,18 @@ func (s *Server) thread(w http.ResponseWriter, r *http.Request) {
 		}
 		pvs = append(pvs, web.PostView{Post: p, Viewer: viewer, Floor: floor, IsOP: p.AuthorID == t.AuthorID})
 	}
+	likeCount, favCount, liked, faved, err := s.store.ThreadReacts(t.ID, 0)
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	if viewer != nil {
+		likeCount, favCount, liked, faved, err = s.store.ThreadReacts(t.ID, viewer.ID)
+		if err != nil {
+			s.serverError(w, err)
+			return
+		}
+	}
 	s.rend.Render(w, 200, "thread", threadData{
 		Base:      s.base(r, t.Title),
 		Thread:    t,
@@ -498,6 +514,10 @@ func (s *Server) thread(w http.ResponseWriter, r *http.Request) {
 		Page:      page,
 		Pages:     totalPages(total, postsPerPage),
 		BaseURL:   "/t/" + strconv.FormatInt(t.ID, 10),
+		LikeCount: likeCount,
+		LikedByMe: liked,
+		FavCount:  favCount,
+		FavedByMe: faved,
 	})
 }
 

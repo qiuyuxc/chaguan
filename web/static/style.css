@@ -721,26 +721,10 @@ body.drawer-open { overflow: hidden; }
 }
 .lv-fill { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
 .lv-exp { flex: none; font-size: 10px; color: var(--ink-4); font-variant-numeric: tabular-nums; }
-/* 个人主页分区:一体分割条(不再用独立小按钮) */
-.member-tabs {
-  display: inline-flex; align-items: stretch; margin-top: 14px; max-width: 100%;
-  border: 1px solid var(--line); border-radius: var(--r-ctl);
-  background: var(--card); overflow: hidden;
-}
-.mt-tab {
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 6px 13px; font-size: 12px; color: var(--ink-3); white-space: nowrap;
-}
-.mt-tab .ic { width: 13px; height: 13px; }
-.mt-tab b { font-weight: 600; color: var(--ink-4); font-variant-numeric: tabular-nums; }
-.mt-tab:hover { background: var(--hover-bg); color: var(--ink); }
-.mt-tab.on { background: var(--accent); color: var(--on-accent); }
-.mt-tab.on b { color: inherit; }
-.mt-sep { width: 1px; background: var(--line); flex: none; }
-@media (max-width: 420px) {
-  .member-tabs { width: 100%; }
-  .mt-tab { flex: 1; justify-content: center; }
-}
+/* 个人主页分区:复用首页排序条同款 feed-tabs,不另做组件 */
+.member-head .feed-tabs { margin: 14px 0 0; }
+.member-feed-tabs .feed-tab { padding: 0 12px; }
+.member-feed-tabs .feed-tab b { font-weight: 600; font-variant-numeric: tabular-nums; }
 .member-stats {
   display: flex; align-items: baseline; flex-wrap: wrap;
   gap: 4px 16px; margin-top: 6px;
@@ -764,11 +748,6 @@ body.drawer-open { overflow: hidden; }
   padding: 11px 0; border-bottom: 1px solid var(--line);
 }
 .member-topic:last-child { border-bottom: 0; }
-.mt-snippet {
-  margin: 4px 0 0; font-size: 13px; color: var(--ink-3); line-height: 1.6;
-  overflow-wrap: anywhere;
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
-}
 .mt-title {
   display: block; font-size: 14px; font-weight: 600; color: var(--ink);
   line-height: 1.5; overflow-wrap: anywhere;
@@ -1066,3 +1045,23 @@ html[data-theme="dark"] .cp-at-av,
 html[data-theme="dark"] .avatar.c1, html[data-theme="dark"] .avatar.c2,
 html[data-theme="dark"] .avatar.c3, html[data-theme="dark"] .avatar.c4,
 html[data-theme="dark"] .avatar.c5, html[data-theme="dark"] .avatar.c6 { color: #fff; }
+
+/* ---------- 帖子页:文章点赞 + 主题收藏(仅首帖文章,不逐条回复) ---------- */
+.op-reacts { display: inline-flex; align-items: center; gap: 6px; }
+.op-reacts .react-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  height: 24px; padding: 0 9px;
+  border: 1px solid var(--line); border-radius: 9999px;
+  background: var(--card); color: var(--ink-3);
+  font-size: 11px; cursor: pointer;
+}
+.op-reacts .react-btn:hover { color: var(--ink); border-color: var(--line-strong); }
+.op-reacts .react-btn.on { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.op-reacts .react-btn.on .ic { fill: currentColor; }
+.op-reacts b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.react-note {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; color: var(--ink-4);
+}
+.react-note b { font-weight: 600; color: var(--ink-3); }
+.react-note .ic + b { margin-left: -3px; }

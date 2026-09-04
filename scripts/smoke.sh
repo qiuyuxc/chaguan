@@ -174,6 +174,36 @@ csrf "$BASE/"
 code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR2" \
   -d "_csrf=$CSRF&content=劫持" "$BASE/p/$POST_ID/edit")
 check "他人回复编辑被拒" "403" "$code"
+
+echo "== 点赞与收藏(仅文章首帖)=="
+CSRF=$(curl -s -b "$JAR2" -c "$JAR2" "$BASE/t/1" | grep -o 'name="_csrf" value="[^"]*"' | head -1 | sed 's/.*value="//;s/"//')
+LIKE=$(curl -s -b "$JAR2" -H "X-CSRF-Token: $CSRF" -X POST "$BASE/t/1/like")
+contains "点赞返回反应条" "$LIKE" 'id="op-reacts"'
+contains "点赞后计数 1" "$LIKE" '>1</b>'
+T=$(curl -s -b "$JAR2" "$BASE/t/1")
+contains "主题页含文章反应条" "$T" 'id="op-reacts"'
+contains "点赞态点亮" "$T" 'react-btn on'
+REPLY_HTML=$(curl -s -b "$JAR2" -H "X-CSRF-Token: $CSRF" -d "content=只测回复不该有赞" "$BASE/t/1/reply")
+if echo "$REPLY_HTML" | grep -q "react-btn"; then bad "回复出现点赞钮"; else ok "回复无点赞钮(仅限文章)"; fi
+LIKE2=$(curl -s -b "$JAR2" -H "X-CSRF-Token: $CSRF" -X POST "$BASE/t/1/like")
+if echo "$LIKE2" | grep -q 'react-btn on'; then bad "取消点赞仍点亮"; else ok "取消点赞熄灭"; fi
+contains "取消后计数回 0" "$LIKE2" '>0</b>'
+LIKE3=$(curl -s -b "$JAR2" -H "X-CSRF-Token: $CSRF" -X POST "$BASE/t/1/like")
+contains "再次点赞计数 1" "$LIKE3" '>1</b>'
+FAV=$(curl -s -b "$JAR2" -H "X-CSRF-Token: $CSRF" -X POST "$BASE/t/1/favorite")
+contains "收藏返回反应条" "$FAV" 'id="op-reacts"'
+contains "收藏计数 1" "$FAV" '>1</b>'
+T=$(curl -s -b "$JAR2" "$BASE/t/1")
+contains "收藏态点亮" "$T" 'react-btn on'
+PLIKE=$(curl -s -b "$JAR2" "$BASE/u/2?tab=likes")
+contains "点赞分区列出文章" "$PLIKE" "第一帖(改)"
+contains "点赞分区含动作时间" "$PLIKE" "点赞于"
+PFAV=$(curl -s -b "$JAR2" "$BASE/u/2?tab=favorites")
+contains "收藏分区列出文章" "$PFAV" "第一帖(改)"
+contains "收藏分区含动作时间" "$PFAV" "收藏于"
+code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/t/1/like")
+check "匿名点赞被拒" "403" "$code"
+
 echo "== 资料与头像 =="
 csrf "$BASE/u/1"
 code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" "$BASE/u/1")
@@ -182,7 +212,7 @@ P=$(curl -s -b "$JAR" "$BASE/u/1")
 contains "资料页含用户名" "$P" "admin"
 contains "资料页含管理员徽章" "$P" "管理员"
 contains "资料页含资料区" "$P" "member-top"
-contains "资料页含分区分割条" "$P" "member-tabs"
+contains "资料页分区分割条复用主页样式" "$P" "member-feed-tabs"
 contains "资料页含 UID" "$P" "UID 1"
 contains "资料页含等级徽章" "$P" 'class="lv-badge"'
 contains "资料页含经验条" "$P" 'lv-fill'

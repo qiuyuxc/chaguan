@@ -303,7 +303,8 @@ func (s *Store) SocialStats(userID int64) (SocialStats, error) {
 		SELECT
 			(SELECT COUNT(*) FROM follows WHERE follower_id = ?),
 			(SELECT COUNT(*) FROM follows WHERE followee_id = ?),
-			(SELECT COUNT(*) FROM post_likes pl JOIN posts p ON p.id = pl.post_id WHERE p.author_id = ?)`,
+			(SELECT COUNT(*) FROM post_likes pl JOIN posts p ON p.id = pl.post_id
+			 WHERE p.author_id = ? AND p.is_first = 1)`,
 		userID, userID, userID).Scan(&st.Following, &st.Followers, &st.Liked)
 	return st, err
 }
@@ -404,47 +405,166 @@ func (s *Store) ListUserActivity(userID int64, limit, offset int) ([]UserActivit
 	return out, rows.Err()
 }
 
-// LikeItem 我收到过赞的帖子(资料页「点赞」分区,按最近点赞排序)。
-type LikeItem struct {
-	ThreadID     int64
-	PostID       int64 // 点赞落在哪一层;首帖为 0
-	ThreadTitle  string
+// LikedThread 我点赞过的文章(资料页「点赞」分区;点赞只作用于首帖文章)。
+type LikedThread struct {
+	ID           int64
+	Title        string
 	CategoryID   int64
 	CategoryName string
-	IsFirst      bool
-	Snippet      string // 被赞内容预览(content_md)
-	Likes        int64  // 收到的赞数
-	CreatedAt    int64  // 最近一次收到赞的时间
+	ReplyCount   int64
+	ViewCount    int64
+	LikeCount    int64 // 这篇文章收到的赞
+	CreatedAt    int64 // 文章发布时间
+	ActionAt     int64 // 我点赞的时间
 }
 
-// ListLikedPosts 某用户收到的赞:列出 ta 名下被赞过的帖子与各自获赞数。
-func (s *Store) ListLikedPosts(userID int64, limit, offset int) ([]LikeItem, error) {
+// FavThread 我收藏的主题(资料页「收藏」分区)。
+type FavThread struct {
+	ID           int64
+	Title        string
+	CategoryID   int64
+	CategoryName string
+	ReplyCount   int64
+	ViewCount    int64
+	CreatedAt    int64 // 主题发布时间
+	ActionAt     int64 // 我收藏的时间
+}
+
+// ListLikedThreads 我点赞过的文章列表(按点赞时间倒序)。
+func (s *Store) ListLikedThreads(userID int64, limit, offset int) ([]LikedThread, error) {
 	rows, err := s.DB.Query(`
-		SELECT p.thread_id, p.id, t.title, c.id, c.name, p.is_first, p.content_md,
-		       COUNT(pl.id), MAX(pl.created_at)
-		FROM posts p
-		JOIN post_likes pl ON pl.post_id = p.id
+		SELECT t.id, t.title, c.id, c.name, t.post_count - 1, t.view_count,
+		       (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id), t.created_at, pl.created_at
+		FROM post_likes pl
+		JOIN posts p ON p.id = pl.post_id AND p.is_first = 1
 		JOIN threads t ON t.id = p.thread_id
 		JOIN categories c ON c.id = t.category_id
-		WHERE p.author_id = ?
-		GROUP BY p.id
-		ORDER BY MAX(pl.created_at) DESC LIMIT ? OFFSET ?`, userID, limit, offset)
+		WHERE pl.user_id = ?
+		ORDER BY pl.created_at DESC LIMIT ? OFFSET ?`, userID, limit, offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var out []LikeItem
+	var out []LikedThread
 	for rows.Next() {
-		var it LikeItem
-		var first int64
-		if err := rows.Scan(&it.ThreadID, &it.PostID, &it.ThreadTitle, &it.CategoryID,
-			&it.CategoryName, &first, &it.Snippet, &it.Likes, &it.CreatedAt); err != nil {
+		var it LikedThread
+		if err := rows.Scan(&it.ID, &it.Title, &it.CategoryID, &it.CategoryName,
+			&it.ReplyCount, &it.ViewCount, &it.LikeCount, &it.CreatedAt, &it.ActionAt); err != nil {
 			return nil, err
 		}
-		it.IsFirst = first != 0
 		out = append(out, it)
 	}
 	return out, rows.Err()
+}
+
+// CountLikedThreads 我点赞过的文章总数。
+func (s *Store) CountLikedThreads(userID int64) (int64, error) {
+	var n int64
+	err := s.DB.QueryRow(`
+		SELECT COUNT(*) FROM post_likes pl
+		JOIN posts p ON p.id = pl.post_id AND p.is_first = 1
+		WHERE pl.user_id = ?`, userID).Scan(&n)
+	return n, err
+}
+
+// ListFavThreads 我收藏的主题列表(按收藏时间倒序)。
+func (s *Store) ListFavThreads(userID int64, limit, offset int) ([]FavThread, error) {
+	rows, err := s.DB.Query(`
+		SELECT t.id, t.title, c.id, c.name, t.post_count - 1, t.view_count, t.created_at, f.created_at
+		FROM favorites f
+		JOIN threads t ON t.id = f.thread_id
+		JOIN categories c ON c.id = t.category_id
+		WHERE f.user_id = ?
+		ORDER BY f.created_at DESC LIMIT ? OFFSET ?`, userID, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []FavThread
+	for rows.Next() {
+		var it FavThread
+		if err := rows.Scan(&it.ID, &it.Title, &it.CategoryID, &it.CategoryName,
+			&it.ReplyCount, &it.ViewCount, &it.CreatedAt, &it.ActionAt); err != nil {
+			return nil, err
+		}
+		out = append(out, it)
+	}
+	return out, rows.Err()
+}
+
+// CountFavThreads 我收藏的主题总数。
+func (s *Store) CountFavThreads(userID int64) (int64, error) {
+	var n int64
+	err := s.DB.QueryRow(`SELECT COUNT(*) FROM favorites WHERE user_id = ?`, userID).Scan(&n)
+	return n, err
+}
+
+// ToggleThreadLike 点赞/取消点赞一篇文章(点赞挂在首帖 post_likes 上)。
+func (s *Store) ToggleThreadLike(threadID, userID int64) (bool, error) {
+	var postID int64
+	if err := s.DB.QueryRow(
+		`SELECT id FROM posts WHERE thread_id = ? AND is_first = 1`, threadID).Scan(&postID); err != nil {
+		return false, err
+	}
+	var exists int
+	if err := s.DB.QueryRow(
+		`SELECT COUNT(*) FROM post_likes WHERE post_id = ? AND user_id = ?`, postID, userID).Scan(&exists); err != nil {
+		return false, err
+	}
+	if exists > 0 {
+		_, err := s.DB.Exec(`DELETE FROM post_likes WHERE post_id = ? AND user_id = ?`, postID, userID)
+		return false, err
+	}
+	_, err := s.DB.Exec(
+		`INSERT INTO post_likes (post_id, user_id, created_at) VALUES (?, ?, ?)`,
+		postID, userID, time.Now().Unix())
+	return true, err
+}
+
+// ToggleFavorite 收藏/取消收藏一个主题。
+func (s *Store) ToggleFavorite(threadID, userID int64) (bool, error) {
+	var exists int
+	if err := s.DB.QueryRow(
+		`SELECT COUNT(*) FROM favorites WHERE thread_id = ? AND user_id = ?`, threadID, userID).Scan(&exists); err != nil {
+		return false, err
+	}
+	if exists > 0 {
+		_, err := s.DB.Exec(`DELETE FROM favorites WHERE thread_id = ? AND user_id = ?`, threadID, userID)
+		return false, err
+	}
+	_, err := s.DB.Exec(
+		`INSERT INTO favorites (thread_id, user_id, created_at) VALUES (?, ?, ?)`,
+		threadID, userID, time.Now().Unix())
+	return true, err
+}
+
+// ThreadReacts 帖子页反应数据:文章赞数/是否已赞、收藏数/是否已收藏。
+func (s *Store) ThreadReacts(threadID, viewerID int64) (likeCount, favCount int64, liked, faved bool, err error) {
+	err = s.DB.QueryRow(`
+		SELECT
+			(SELECT COUNT(*) FROM post_likes WHERE post_id =
+				(SELECT id FROM posts WHERE thread_id = ? AND is_first = 1)),
+			(SELECT COUNT(*) FROM favorites WHERE thread_id = ?)`, threadID, threadID).Scan(&likeCount, &favCount)
+	if err != nil {
+		return 0, 0, false, false, err
+	}
+	if viewerID > 0 {
+		err = s.DB.QueryRow(`
+			SELECT EXISTS(
+				SELECT 1 FROM post_likes pl
+				JOIN posts p ON p.id = pl.post_id
+				WHERE pl.user_id = ? AND p.thread_id = ? AND p.is_first = 1)`, viewerID, threadID).Scan(&liked)
+		if err != nil {
+			return 0, 0, false, false, err
+		}
+		err = s.DB.QueryRow(`
+			SELECT EXISTS(SELECT 1 FROM favorites WHERE user_id = ? AND thread_id = ?)`,
+			viewerID, threadID).Scan(&faved)
+		if err != nil {
+			return 0, 0, false, false, err
+		}
+	}
+	return likeCount, favCount, liked, faved, nil
 }
 
 func (s *Store) UpdateUserBio(userID int64, bio string) error {

@@ -19,20 +19,22 @@ type profileData struct {
 	web.Base
 	Profile       *db.User
 	Topics        []db.Thread
-	Activity      []db.UserActivity
-	Tab           string // topics | replies | posts
+	Tab           string // posts | likes | favorites
 	Threads       int64
 	Replies       int64
 	Posts         int64
-	Following     int64         // 关注
-	Followers     int64         // 粉丝
-	Liked         int64         // 获赞
-	LikeItems     []db.LikeItem // 「点赞」分区:收到过赞的帖子列表
-	Exp           int64         // 等级经验
-	Level         int           // LV0..LV6
-	ExpStart      int64         // 当前等级起始经验
-	ExpNext       int64         // 升下一级所需经验(LV6 时等于 ExpStart,经验条满)
-	ExpPct        int           // 经验条百分比 0..100
+	Following     int64            // 关注
+	Followers     int64            // 粉丝
+	Liked         int64            // 获赞(收到的赞)
+	LikeTotal     int64            // 导航计数:我点赞过的文章总数
+	FavTotal      int64            // 导航计数:我收藏的主题总数
+	LikedThreads  []db.LikedThread // 「点赞」分区:我点赞过的文章
+	FavThreads    []db.FavThread   // 「收藏」分区:我收藏的主题
+	Exp           int64            // 等级经验
+	Level         int              // LV0..LV6
+	ExpStart      int64            // 当前等级起始经验
+	ExpNext       int64            // 升下一级所需经验(LV6 时等于 ExpStart,经验条满)
+	ExpPct        int              // 经验条百分比 0..100
 	IsSelf        bool
 	IsAdminViewer bool
 	Page, Pages   int
@@ -129,6 +131,16 @@ func (s *Server) profile(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	tab := r.URL.Query().Get("tab")
+	likeTotal, err := s.store.CountLikedThreads(u.ID)
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	favTotal, err := s.store.CountFavThreads(u.ID)
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
 	switch tab {
 	case "likes", "favorites":
 	default:
@@ -137,14 +149,16 @@ func (s *Server) profile(w http.ResponseWriter, r *http.Request) {
 	page := pageParam(r)
 	offset := (page - 1) * profileItemsPerPage
 	var topics []db.Thread
-	var likeItems []db.LikeItem
+	var likedThreads []db.LikedThread
+	var favThreads []db.FavThread
 	var total int64
 	switch tab {
 	case "likes":
-		likeItems, err = s.store.ListLikedPosts(u.ID, profileItemsPerPage, offset)
-		total = stats.Liked
+		likedThreads, err = s.store.ListLikedThreads(u.ID, profileItemsPerPage, offset)
+		total = likeTotal
 	case "favorites":
-		total = 0 // 收藏功能尚未接入,分区先占位
+		favThreads, err = s.store.ListFavThreads(u.ID, profileItemsPerPage, offset)
+		total = favTotal
 	default:
 		topics, err = s.store.ListUserThreads(u.ID, profileItemsPerPage, offset)
 		total = threads
@@ -155,9 +169,6 @@ func (s *Server) profile(w http.ResponseWriter, r *http.Request) {
 	}
 	viewer := auth.From(r.Context()).User
 	baseURL := "/u/" + strconv.FormatInt(u.ID, 10) + "?tab=" + tab
-	for i := range likeItems {
-		likeItems[i].Snippet = clipRunes(likeItems[i].Snippet, 90)
-	}
 	title := u.Name + " 的资料"
 	if viewer != nil && viewer.ID == u.ID {
 		title = "我的资料"
@@ -166,7 +177,8 @@ func (s *Server) profile(w http.ResponseWriter, r *http.Request) {
 		Base:          s.base(r, title),
 		Profile:       u,
 		Topics:        topics,
-		LikeItems:     likeItems,
+		LikedThreads:  likedThreads,
+		FavThreads:    favThreads,
 		Tab:           tab,
 		Threads:       threads,
 		Replies:       replies,
@@ -174,6 +186,8 @@ func (s *Server) profile(w http.ResponseWriter, r *http.Request) {
 		Following:     stats.Following,
 		Followers:     stats.Followers,
 		Liked:         stats.Liked,
+		LikeTotal:     likeTotal,
+		FavTotal:      favTotal,
 		Exp:           exp,
 		Level:         level,
 		ExpStart:      expStart,

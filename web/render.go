@@ -206,6 +206,7 @@ func NewRenderer() (*Renderer, error) {
 			"templates/partials/composer.html",
 			"templates/partials/post.html",
 			"templates/partials/pagination.html",
+			"templates/partials/reacts.html",
 			"templates/partials/thread_row.html",
 			"templates/"+name+".html",
 		)

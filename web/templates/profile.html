@@ -48,20 +48,18 @@
     <span class="lv-exp">经验 {{.Exp}} / {{.ExpNext}}</span>
   </div>
   <p class="member-meta muted">UID {{.Profile.ID}} · {{date .Profile.CreatedAt}} 加入</p>
-  <nav class="member-tabs">
-    <a class="mt-tab{{if eq .Tab "posts"}} on{{end}}" href="/u/{{.Profile.ID}}?tab=posts">
+  <nav class="feed-tabs member-feed-tabs" aria-label="资料分区">
+    <a class="feed-tab{{if eq .Tab "posts"}} on{{end}}" href="/u/{{.Profile.ID}}?tab=posts">
       <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg>
       帖子<b>{{.Threads}}</b>
     </a>
-    <span class="mt-sep"></span>
-    <a class="mt-tab{{if eq .Tab "likes"}} on{{end}}" href="/u/{{.Profile.ID}}?tab=likes">
+    <a class="feed-tab{{if eq .Tab "likes"}} on{{end}}" href="/u/{{.Profile.ID}}?tab=likes">
       <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
-      点赞<b>{{.Liked}}</b>
+      点赞<b>{{.LikeTotal}}</b>
     </a>
-    <span class="mt-sep"></span>
-    <a class="mt-tab{{if eq .Tab "favorites"}} on{{end}}" href="/u/{{.Profile.ID}}?tab=favorites">
+    <a class="feed-tab{{if eq .Tab "favorites"}} on{{end}}" href="/u/{{.Profile.ID}}?tab=favorites">
       <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-      收藏
+      收藏<b>{{.FavTotal}}</b>
     </a>
   </nav>
 </header>
@@ -97,27 +95,44 @@
   <p class="empty">{{if .IsSelf}}你还没有发布过帖子{{else}}TA 还没有发布过帖子{{end}}</p>
   {{end}}
 {{else if eq .Tab "likes"}}
-  {{if .LikeItems}}
+  {{if .LikedThreads}}
   <div class="member-topics">
-    {{range .LikeItems}}
+    {{range .LikedThreads}}
     <div class="member-topic">
-      <a class="mt-title" href="/t/{{.ThreadID}}#p{{.PostID}}">{{.ThreadTitle}}</a>
-      {{if .Snippet}}<p class="mt-snippet">{{.Snippet}}</p>{{end}}
+      <a class="mt-title" href="/t/{{.ID}}">{{.Title}}</a>
       <div class="mt-meta">
         <span class="bcat {{bcatColor .CategoryID}}">{{.CategoryName}}</span>
-        <span>{{if .IsFirst}}主题{{else}}回复{{end}}</span>
-        <span>获赞 {{.Likes}}</span>
-        <span>{{relTime .CreatedAt}}</span>
+        <span>{{.LikeCount}} 人赞过</span>
+        <span>{{.ReplyCount}} 回复</span>
+        <span>{{.ViewCount}} 浏览</span>
+        <span>点赞于 {{relTime .ActionAt}}</span>
       </div>
     </div>
     {{end}}
   </div>
   {{template "pagination" .}}
   {{else}}
-  <p class="empty">{{if .IsSelf}}你还没有收到过赞{{else}}TA 还没有收到过赞{{end}}</p>
+  <p class="empty">{{if .IsSelf}}你还没有点赞过文章{{else}}TA 还没有点赞过文章{{end}}</p>
   {{end}}
 {{else}}
-  <p class="empty">收藏功能即将上线,敬请期待</p>
+  {{if .FavThreads}}
+  <div class="member-topics">
+    {{range .FavThreads}}
+    <div class="member-topic">
+      <a class="mt-title" href="/t/{{.ID}}">{{.Title}}</a>
+      <div class="mt-meta">
+        <span class="bcat {{bcatColor .CategoryID}}">{{.CategoryName}}</span>
+        <span>{{.ReplyCount}} 回复</span>
+        <span>{{.ViewCount}} 浏览</span>
+        <span>收藏于 {{relTime .ActionAt}}</span>
+      </div>
+    </div>
+    {{end}}
+  </div>
+  {{template "pagination" .}}
+  {{else}}
+  <p class="empty">{{if .IsSelf}}你还没有收藏过主题{{else}}TA 还没有收藏过主题{{end}}</p>
+  {{end}}
 {{end}}
 
 {{if and .IsAdminViewer (not .IsSelf)}}
