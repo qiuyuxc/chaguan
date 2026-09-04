@@ -283,20 +283,85 @@ func (s *Server) adminSetAvatar(w http.ResponseWriter, r *http.Request) {
 	s.redirectAfter(w, r, "/admin/users")
 }
 
-// setVerify POST /admin/users/{id}/verify:直接写入认证称号,可自定义任意文案
-// (官号 / 认证作者 / 具体对象等),用于同步预览主页、帖子与回复里的 V 标与认证行。
-// 空 title 表示清除:普通用户回到无认证,管理员/版主回到按身份自动认证。
+// setVerify POST /admin/users/{id}/verify:写入认证分类(kind:官方/厂商/作者)
+// 与自定义文案(title,如「米哈游官方」「游戏作者」)。分类决定 V 颜色,
+// 文案为空时按分类显示;kind 与 title 都为空表示取消认证
+// (管理员/版主回到按身份自动显示)。
 func (s *Server) setVerify(w http.ResponseWriter, r *http.Request) {
 	target, ok := s.adminTarget(w, r)
 	if !ok {
 		return
 	}
+	kind := strings.TrimSpace(r.FormValue("kind"))
 	title := strings.TrimSpace(r.FormValue("title"))
-	if runes := []rune(title); len(runes) > 20 {
-		http.Error(w, "认证称号最多 20 字", http.StatusBadRequest)
+	if kind != "" {
+		valid := false
+		for _, k := range verifyKinds {
+			if kind == k {
+				valid = true
+				break
+			}
+		}
+		if !valid {
+			http.Error(w, "认证分类仅支持 官方/厂商/作者", http.StatusBadRequest)
+			return
+		}
+	}
+	if runes := []rune(title); len(runes) > 80 {
+		http.Error(w, "认证文案最多 80 字", http.StatusBadRequest)
 		return
 	}
-	if err := s.store.SetVerifyTitle(target.ID, title); err != nil {
+	if err := s.store.SetVerify(target.ID, kind, title); err != nil {
+		s.serverError(w, err)
+		return
+	}
+	s.redirectAfter(w, r, "/admin/users")
+}
+
+// setUserLevel POST /admin/users/{id}/level:管理员手动指定等级(0..6),
+// 传 auto=1 表示恢复按经验自动计算。
+func (s *Server) setUserLevel(w http.ResponseWriter, r *http.Request) {
+	target, ok := s.adminTarget(w, r)
+	if !ok {
+		return
+	}
+	if r.FormValue("auto") == "1" {
+		if err := s.store.SetLevelOverride(target.ID, 0, false); err != nil {
+			s.serverError(w, err)
+			return
+		}
+		s.redirectAfter(w, r, "/admin/users")
+		return
+	}
+	lv, err := strconv.Atoi(strings.TrimSpace(r.FormValue("level")))
+	if err != nil || lv < 0 || lv > 6 {
+		http.Error(w, "等级需在 LV0–LV6 之间", http.StatusBadRequest)
+		return
+	}
+	if err := s.store.SetLevelOverride(target.ID, lv, true); err != nil {
+		s.serverError(w, err)
+		return
+	}
+	s.redirectAfter(w, r, "/admin/users")
+}
+
+// removeModCategory POST /admin/users/{id}/modcat/remove:撤销某版块的版主登记,
+// 只影响该版块;若用户已无任何管辖版块则自动整体降为普通用户。
+func (s *Server) removeModCategory(w http.ResponseWriter, r *http.Request) {
+	target, ok := s.adminTarget(w, r)
+	if !ok {
+		return
+	}
+	if target.Role != "mod" {
+		http.Error(w, "该用户不是版主", http.StatusBadRequest)
+		return
+	}
+	catID, err := strconv.ParseInt(strings.TrimSpace(r.FormValue("category")), 10, 64)
+	if err != nil || catID < 1 {
+		http.Error(w, "参数错误", http.StatusBadRequest)
+		return
+	}
+	if err := s.store.RemoveModCategory(target.ID, catID); err != nil {
 		s.serverError(w, err)
 		return
 	}

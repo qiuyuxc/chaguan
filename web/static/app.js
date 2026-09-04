@@ -814,41 +814,66 @@
       });
       sync();
     });
-    // 账号认证:快捷芯片 + 自定义称号 + 实时预览(自定义文案优先于按身份认证)
+    // 账号认证:分类芯片(官方/厂商红 V、作者黄 V)+ 自定义文案 + 实时预览。
+    // 分类决定 V 颜色,文案自由填写;两者都空 = 无认证(管理员/版主按身份显示)。
     root.querySelectorAll("[data-verify-edit]").forEach(function (box) {
-      var input = box.querySelector('input[name="title"]');
-      if (!input) return;
+      var kindInput = box.querySelector('input[name="kind"]');
+      var titleInput = box.querySelector('input[name="title"]');
+      if (!kindInput) return;
       var chips = Array.prototype.slice.call(box.querySelectorAll(".pick-chip"));
       var preview = box.querySelector("[data-verify-preview]");
       var seal = box.querySelector(".vb-seal");
       var auto = box.getAttribute("data-auto") || "";
-      function cur() {
-        var v = input.value.trim();
-        return v || auto;
+      function kindCls(k) {
+        if (k === "官方" || k === "厂商") return "v-red";
+        if (k === "作者") return "v-yellow";
+        return "";
       }
       function sync() {
-        var v = input.value.trim();
+        var k = kindInput.value;
+        var t = titleInput ? titleInput.value.trim() : "";
         chips.forEach(function (c) {
-          var on = c.getAttribute("data-val") === v;
+          var on = c.getAttribute("data-kind") === k;
           c.classList.toggle("on", on);
           c.setAttribute("aria-pressed", on ? "true" : "false");
         });
-        var c = cur();
-        if (preview) preview.textContent = c || "不显示 V 标";
+        var label = t || k || auto;
+        if (preview) preview.textContent = label || "不显示 V 标";
         if (seal) {
           seal.classList.remove("v-red", "v-yellow");
-          if (v === "官号") seal.classList.add("v-red");
-          else if (v === "认证作者") seal.classList.add("v-yellow");
+          var cls = kindCls(k);
+          if (cls) seal.classList.add(cls);
         }
-        box.classList.toggle("off", !c);
+        box.classList.toggle("off", !label);
       }
       chips.forEach(function (c) {
         c.addEventListener("click", function () {
-          input.value = c.getAttribute("data-val");
+          kindInput.value = c.getAttribute("data-kind");
           sync();
         });
       });
-      input.addEventListener("input", sync);
+      if (titleInput) titleInput.addEventListener("input", sync);
+      sync();
+    });
+    // 账号等级:LV0–LV6 / 跟随经验 单选,写入隐藏 level(auto 表示自动)
+    root.querySelectorAll("[data-lv-pick]").forEach(function (box) {
+      var form = box.closest("form");
+      var input = form ? form.querySelector('input[name="level"]') : null;
+      if (!input) return;
+      var chips = Array.prototype.slice.call(box.querySelectorAll(".pick-chip"));
+      function sync() {
+        chips.forEach(function (c) {
+          var on = c.getAttribute("data-lv") === input.value;
+          c.classList.toggle("on", on);
+          c.setAttribute("aria-pressed", on ? "true" : "false");
+        });
+      }
+      chips.forEach(function (c) {
+        c.addEventListener("click", function () {
+          input.value = c.getAttribute("data-lv");
+          sync();
+        });
+      });
       sync();
     });
     // 后台换头像:点击头像选图后立即上传

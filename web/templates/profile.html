@@ -7,7 +7,7 @@
       {{else}}
       <span class="avatar av-64 c1" aria-hidden="true">{{initial .Profile.Name}}</span>
       {{end}}
-      {{if .CertText}}<span class="v-mark{{vColorClass .Profile.VerifyTitle}}" title="{{.CertText}}">V</span>{{end}}
+      {{if .CertText}}<span class="v-mark{{vColorClass .Profile.VerifyKind .Profile.VerifyTitle}}" title="{{.CertText}}">V</span>{{end}}
     </div>
     <div class="member-info">
       <div class="member-name-row">
@@ -21,7 +21,7 @@
       <div class="member-tags">
         {{roleBadge .Profile.Role .Profile.BadgeText}}
         {{if .Profile.BannedUntil.Valid}}<span class="badge badge-lock">封禁中</span>{{end}}
-        <span class="lv-badge" title="经验 {{.Exp}}">LV{{.Level}}</span>
+        <span class="lv-badge lv{{.Level}}" title="经验 {{.Exp}}">LV{{.Level}}</span>
       </div>
       <div class="member-stats">
         <div class="ms-item">
@@ -52,7 +52,7 @@
   </div>
   <p class="member-meta muted">UID {{.Profile.ID}} · {{date .Profile.CreatedAt}} 加入</p>
   {{if .CertText}}
-  <p class="member-cert">{{vBadge .Profile.Role .Profile.VerifyTitle}}{{.CertText}}</p>
+  <p class="member-cert">{{vBadge .Profile.Role .Profile.VerifyKind .Profile.VerifyTitle}}{{.CertText}}</p>
   {{end}}
   <nav class="feed-tabs member-feed-tabs" aria-label="资料分区">
     <a class="feed-tab{{if eq .Tab "posts"}} on{{end}}" href="/u/{{.Profile.ID}}?tab=posts">

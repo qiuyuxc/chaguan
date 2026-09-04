@@ -9,7 +9,7 @@
         {{else}}
         <span class="avatar av-32 {{avColor .First.AuthorID}}" aria-hidden="true">{{initial .First.AuthorName}}</span>
         {{end}}
-        {{vSeal .First.AuthorRole .First.AuthorVerify}}
+        {{vSeal .First.AuthorRole .First.AuthorVerifyKind .First.AuthorVerify}}
       </span>
       <span class="name">{{.First.AuthorName}}</span>
     </a>

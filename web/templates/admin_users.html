@@ -131,10 +131,19 @@
     <section class="um-sec">
       <h3 class="um-sec-h">版主身份</h3>
       {{if eq .Target.Role "mod"}}
-      <p class="um-tip">当前是版主,管辖以下版块:</p>
+      <p class="um-tip">当前是版主,管辖以下版块(可逐块撤销):</p>
       {{if .ModCats}}
-      <div class="chip-list">
-        {{range .ModCats}}<span class="chip-static">{{.Name}}</span>{{end}}
+      <div class="mod-list">
+        {{range .ModCats}}
+        <form method="post" action="/admin/users/{{$.Target.ID}}/modcat/remove" class="mod-item">
+          {{csrfField $.CSRF}}<input type="hidden" name="next" value="{{$.Next}}">
+          <input type="hidden" name="category" value="{{.ID}}">
+          <span>{{.Name}}</span>
+          <button class="icon-btn mod-rm" type="submit" data-confirm="撤销 {{$.Target.Name}} 在「{{.Name}}」的版主?" title="撤销该版块的版主" aria-label="撤销 {{.Name}} 版主">
+            <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          </button>
+        </form>
+        {{end}}
       </div>
       {{else}}
       <p class="muted">尚未登记管辖版块(空头衔)</p>
@@ -142,7 +151,7 @@
       <form method="post" action="/admin/users/{{.Target.ID}}/role" class="um-act">
         {{csrfField .CSRF}}<input type="hidden" name="next" value="{{.Next}}">
         <input type="hidden" name="role" value="user">
-        <button class="btn btn-outline-danger btn-sm" type="submit" data-confirm="撤销 {{.Target.Name}} 的版主身份?">撤销版主</button>
+        <button class="btn btn-outline-danger btn-sm" type="submit" data-confirm="撤销 {{.Target.Name}} 的全部版主身份?">撤销全部版主</button>
       </form>
       {{else}}
       <p class="um-tip">设为版主前,先指定要管辖的版块:</p>
@@ -199,32 +208,50 @@
   {{end}}
 
   <section class="um-sec">
+    <h3 class="um-sec-h">账号等级</h3>
+    <p class="um-tip">默认按经验自动升级;也可由管理员直接指定 LV0–LV6,指定后不再随经验自动变化,可随时切回自动。</p>
+    <form method="post" action="/admin/users/{{.Target.ID}}/level">
+      {{csrfField .CSRF}}<input type="hidden" name="next" value="{{.Next}}">
+      <input type="hidden" name="level" value="{{if .Target.LevelOverride.Valid}}{{.Target.LevelOverride.Int64}}{{else}}auto{{end}}">
+      <div class="pick-chips lv-pick" data-lv-pick>
+        <button type="button" class="pick-chip{{if not .Target.LevelOverride.Valid}} on{{end}}" data-lv="auto">跟随经验</button>
+        <button type="button" class="pick-chip{{if and .Target.LevelOverride.Valid (eq .Target.LevelOverride.Int64 0)}} on{{end}}" data-lv="0"><span class="lv-dot lv0" aria-hidden="true"></span>LV0</button>
+        <button type="button" class="pick-chip{{if and .Target.LevelOverride.Valid (eq .Target.LevelOverride.Int64 1)}} on{{end}}" data-lv="1"><span class="lv-dot lv1" aria-hidden="true"></span>LV1</button>
+        <button type="button" class="pick-chip{{if and .Target.LevelOverride.Valid (eq .Target.LevelOverride.Int64 2)}} on{{end}}" data-lv="2"><span class="lv-dot lv2" aria-hidden="true"></span>LV2</button>
+        <button type="button" class="pick-chip{{if and .Target.LevelOverride.Valid (eq .Target.LevelOverride.Int64 3)}} on{{end}}" data-lv="3"><span class="lv-dot lv3" aria-hidden="true"></span>LV3</button>
+        <button type="button" class="pick-chip{{if and .Target.LevelOverride.Valid (eq .Target.LevelOverride.Int64 4)}} on{{end}}" data-lv="4"><span class="lv-dot lv4" aria-hidden="true"></span>LV4</button>
+        <button type="button" class="pick-chip{{if and .Target.LevelOverride.Valid (eq .Target.LevelOverride.Int64 5)}} on{{end}}" data-lv="5"><span class="lv-dot lv5" aria-hidden="true"></span>LV5</button>
+        <button type="button" class="pick-chip{{if and .Target.LevelOverride.Valid (eq .Target.LevelOverride.Int64 6)}} on{{end}}" data-lv="6"><span class="lv-dot lv6" aria-hidden="true"></span>LV6</button>
+      </div>
+      <div class="um-act">
+        <button class="btn btn-primary btn-sm" type="submit">保存等级</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="um-sec">
     <h3 class="um-sec-h">账号认证</h3>
-    {{if eq .Target.Role "admin"}}
-    <p class="um-tip">留空时按身份自动显示「管理员认证」;填入自定义称号可覆盖预览。</p>
-    {{else if eq .Target.Role "mod"}}
-    <p class="um-tip">留空时按身份自动显示「版主认证」;填入自定义称号可覆盖预览。</p>
-    {{else}}
-    <p class="um-tip">留空 = 无认证(不显示 V);填入后名字旁出现 V 标,并同步主页、帖子与回复。</p>
-    {{end}}
+    <p class="um-tip">选分类定 V 颜色:官方/厂商红 V、作者黄 V;文案写清具体对象,如「米哈游官方」「游戏作者」。不选分类即取消认证{{if or (eq .Target.Role "admin") (eq .Target.Role "mod")}}(管理员/版主可回到按身份自动显示){{end}}。</p>
     <form method="post" action="/admin/users/{{.Target.ID}}/verify">
       {{csrfField .CSRF}}<input type="hidden" name="next" value="{{.Next}}">
+      <input type="hidden" name="kind" value="{{if .Target.VerifyKind.Valid}}{{.Target.VerifyKind.String}}{{end}}">
       <div class="verify-edit" data-verify-edit
            data-auto="{{if eq .Target.Role "mod"}}版主认证{{else if eq .Target.Role "admin"}}管理员认证{{end}}">
-        <div class="pick-chips" role="group" aria-label="快捷认证">
-          <button type="button" class="pick-chip{{if not .Target.VerifyTitle.Valid}} on{{end}}" data-val="">无认证</button>
-          <button type="button" class="pick-chip{{if and .Target.VerifyTitle.Valid (eq .Target.VerifyTitle.String "官号")}} on{{end}}" data-val="官号"><span class="vdot v-red" aria-hidden="true">V</span>官号</button>
-          <button type="button" class="pick-chip{{if and .Target.VerifyTitle.Valid (eq .Target.VerifyTitle.String "认证作者")}} on{{end}}" data-val="认证作者"><span class="vdot v-yellow" aria-hidden="true">V</span>认证作者</button>
+        <div class="pick-chips" role="group" aria-label="认证分类">
+          <button type="button" class="pick-chip" data-kind="">无认证</button>
+          <button type="button" class="pick-chip" data-kind="官方"><span class="vdot v-red" aria-hidden="true">V</span>官方</button>
+          <button type="button" class="pick-chip" data-kind="厂商"><span class="vdot v-red" aria-hidden="true">V</span>厂商</button>
+          <button type="button" class="pick-chip" data-kind="作者"><span class="vdot v-yellow" aria-hidden="true">V</span>作者</button>
         </div>
         <div class="verify-edit-row">
-          <span class="pick-lb">或自定义</span>
-          <input class="input input-sm" type="text" name="title" maxlength="20"
+          <span class="pick-lb">认证文案</span>
+          <input class="input input-sm" type="text" name="title" maxlength="80"
                  value="{{if .Target.VerifyTitle.Valid}}{{.Target.VerifyTitle.String}}{{end}}"
-                 placeholder="直接输入:如 Figma 官方、某工作室、专栏作者" aria-label="自定义认证称号">
+                 placeholder="如:米哈游官方、任天堂官方、游戏作者、文学作者" aria-label="认证文案">
         </div>
         <div class="verify-preview">
-          <span class="vb-seal{{if and .Target.VerifyTitle.Valid (eq .Target.VerifyTitle.String "官号")}} v-red{{else if and .Target.VerifyTitle.Valid (eq .Target.VerifyTitle.String "认证作者")}} v-yellow{{end}}" aria-hidden="true">V</span>
-          <span class="verify-preview-txt" data-verify-preview>{{if .Target.VerifyTitle.Valid}}{{.Target.VerifyTitle.String}}{{else if eq .Target.Role "admin"}}管理员认证{{else if eq .Target.Role "mod"}}版主认证{{else}}不显示 V 标{{end}}</span>
+          <span class="vb-seal{{if eq .Target.VerifyKind.String "官方"}} v-red{{else if eq .Target.VerifyKind.String "厂商"}} v-red{{else if eq .Target.VerifyKind.String "作者"}} v-yellow{{end}}" aria-hidden="true">V</span>
+          <span class="verify-preview-txt" data-verify-preview>{{if .Target.VerifyTitle.Valid}}{{.Target.VerifyTitle.String}}{{else if eq .Target.VerifyKind.String "官方"}}官方{{else if eq .Target.VerifyKind.String "厂商"}}厂商{{else if eq .Target.VerifyKind.String "作者"}}作者{{else if eq .Target.Role "admin"}}管理员认证{{else if eq .Target.Role "mod"}}版主认证{{else}}不显示 V 标{{end}}</span>
         </div>
       </div>
       <div class="um-act">

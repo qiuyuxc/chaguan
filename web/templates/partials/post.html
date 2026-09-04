@@ -16,7 +16,7 @@
       {{else}}
       <span class="avatar av-32 {{avColor .Post.AuthorID}}" aria-hidden="true">{{initial .Post.AuthorName}}</span>
       {{end}}
-      {{vSeal .Post.AuthorRole .Post.AuthorVerify}}
+      {{vSeal .Post.AuthorRole .Post.AuthorVerifyKind .Post.AuthorVerify}}
     </span>
   </a>
   <div class="reply-main">

@@ -7,7 +7,7 @@
       {{else}}
       <span class="avatar av-40 {{avColor .AuthorID}}" aria-hidden="true">{{initial .AuthorName}}</span>
       {{end}}
-      {{vSeal .AuthorRole .AuthorVerify}}
+      {{vSeal .AuthorRole .AuthorVerifyKind .AuthorVerify}}
     </span>
   </a>
   <div class="tr-main">

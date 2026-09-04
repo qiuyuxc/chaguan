@@ -54,14 +54,25 @@ func socialExp(threads, replies, liked int64) int64 {
 // levelThresholds 仿 B 站成长曲线(简化):下标即等级 LV0..LV6。
 var levelThresholds = [...]int64{0, 60, 250, 800, 2200, 6000, 16000}
 
-// levelOf 由经验求等级与进度区间。
-func levelOf(exp int64) (lv int, start, next int64) {
+// levelOf 由经验求等级(等级进度区间另见 levelInfo)。
+func levelOf(exp int64) int {
+	lv := 0
 	for i := 1; i < len(levelThresholds); i++ {
 		if exp >= levelThresholds[i] {
 			lv = i
 		} else {
 			break
 		}
+	}
+	return lv
+}
+
+// levelInfo 求最终等级与经验条区间:管理员手动覆盖(0..6)优先,
+// 否则按经验自动;区间从最终等级对应的门槛起算。
+func levelInfo(exp int64, override sql.NullInt64) (lv int, start, next int64) {
+	lv = levelOf(exp)
+	if override.Valid && override.Int64 >= 0 && override.Int64 < int64(len(levelThresholds)) {
+		lv = int(override.Int64)
 	}
 	start = levelThresholds[lv]
 	next = levelThresholds[len(levelThresholds)-1]
@@ -123,7 +134,7 @@ func (s *Server) profile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	exp := socialExp(threads, replies, stats.Liked)
-	level, expStart, expNext := levelOf(exp)
+	level, expStart, expNext := levelInfo(exp, u.LevelOverride)
 	expPct := 100
 	if expNext > expStart {
 		expPct = int((exp - expStart) * 100 / (expNext - expStart))
@@ -428,6 +439,17 @@ func userCert(u *db.User, store *db.Store) string {
 	}
 	if u.VerifyTitle.Valid && strings.TrimSpace(u.VerifyTitle.String) != "" {
 		return strings.TrimSpace(u.VerifyTitle.String)
+	}
+	if u.VerifyKind.Valid {
+		switch strings.TrimSpace(u.VerifyKind.String) {
+		case "官号":
+			return "官方"
+		case "认证作者":
+			return "作者"
+		}
+		if strings.TrimSpace(u.VerifyKind.String) != "" {
+			return strings.TrimSpace(u.VerifyKind.String)
+		}
 	}
 	switch u.Role {
 	case "admin":

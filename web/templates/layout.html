@@ -40,7 +40,7 @@
           {{else}}<span class="avatar su-av {{avColor .User.ID}}" aria-hidden="true">{{initial .User.Name}}</span>{{end}}
           <span class="su-info">
             <span class="su-name-row"><span class="su-name">{{.User.Name}}</span>{{roleBadge .User.Role .User.BadgeText}}</span>
-            <span class="su-lv"><span class="lv-badge">LV{{.Level}}</span><span class="su-bar" title="经验 {{.Exp}}"><span class="su-bar-fill" style="width: {{.ExpPct}}%"></span></span><span class="su-exp">经验 {{.Exp}}</span></span>
+            <span class="su-lv"><span class="lv-badge lv{{.Base.Level}}">LV{{.Base.Level}}</span><span class="su-bar" title="经验 {{.Base.Exp}}"><span class="su-bar-fill" style="width: {{.Base.ExpPct}}%"></span></span><span class="su-exp">经验 {{.Base.Exp}}</span></span>
           </span>
         </a>
         <div class="su-body">

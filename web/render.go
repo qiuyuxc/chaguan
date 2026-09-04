@@ -132,24 +132,51 @@ func roleBadge(role string, badge sql.NullString) template.HTML {
 	return template.HTML(`<span class="` + cls + `">` + template.HTMLEscapeString(label) + `</span>`)
 }
 
-// vLabelOf 认证文案:自定义认证称号(官号/认证作者等)优先,
-// 其次管理员/版主按身份认证;普通用户返回空。
-func vLabelOf(role string, verify sql.NullString) string {
-	switch {
-	case verify.Valid && strings.TrimSpace(verify.String) != "":
-		return strings.TrimSpace(verify.String)
-	case role == "admin":
+// verifyKindName 归一化分类:官方/厂商=红 V(组织与品牌),作者=黄 V;
+// 兼容旧数据里的「官号」「认证作者」写法。
+func verifyKindName(kind sql.NullString) string {
+	if !kind.Valid {
+		return ""
+	}
+	k := strings.TrimSpace(kind.String)
+	switch k {
+	case "官号":
+		return "官方"
+	case "认证作者":
+		return "作者"
+	}
+	return k
+}
+
+// vLabelOf 认证文案:自定义文案(如「米哈游官方」「游戏作者」)优先,
+// 其次认证分类;管理员/版主未认证时按身份;其余返回空。
+func vLabelOf(role string, kind, title sql.NullString) string {
+	if title.Valid && strings.TrimSpace(title.String) != "" {
+		return strings.TrimSpace(title.String)
+	}
+	if k := verifyKindName(kind); k != "" {
+		return k
+	}
+	switch role {
+	case "admin":
 		return "管理员认证"
-	case role == "mod":
+	case "mod":
 		return "版主认证"
 	}
 	return ""
 }
 
-// vColorClass 认证 V 的配色:官号=红,认证作者=黄,其余(含按身份认证)默认蓝。
-func vColorClass(verify sql.NullString) string {
-	if verify.Valid {
-		switch strings.TrimSpace(verify.String) {
+// vColorClass 认证 V 的配色:官方/厂商=红,作者=黄,其余(含按身份认证)默认蓝。
+func vColorClass(kind, title sql.NullString) string {
+	switch verifyKindName(kind) {
+	case "官方", "厂商":
+		return " v-red"
+	case "作者":
+		return " v-yellow"
+	}
+	// 旧数据可能只有文案没有分类:按文案兜底配色
+	if title.Valid {
+		switch strings.TrimSpace(title.String) {
 		case "官号":
 			return " v-red"
 		case "认证作者":
@@ -159,24 +186,24 @@ func vColorClass(verify sql.NullString) string {
 	return ""
 }
 
-// vBadge 渲染行内「V」认证标(资料页认证行等),配色跟随认证类型。
-func vBadge(role string, verify sql.NullString) template.HTML {
-	label := vLabelOf(role, verify)
+// vBadge 渲染行内「V」认证标(资料页认证行等),配色跟随认证分类。
+func vBadge(role string, kind, title sql.NullString) template.HTML {
+	label := vLabelOf(role, kind, title)
 	if label == "" {
 		return ""
 	}
-	return template.HTML(`<span class="v-badge` + vColorClass(verify) + `" title="` +
+	return template.HTML(`<span class="v-badge` + vColorClass(kind, title) + `" title="` +
 		template.HTMLEscapeString(label) + `" aria-label="认证">V</span>`)
 }
 
 // vSeal 渲染压在作者头像上的「V」认证标(文章/回复等小头像场景);
 // 无认证时返回空串,由外层相对容器(.av-frame)定位。
-func vSeal(role string, verify sql.NullString) template.HTML {
-	label := vLabelOf(role, verify)
+func vSeal(role string, kind, title sql.NullString) template.HTML {
+	label := vLabelOf(role, kind, title)
 	if label == "" {
 		return ""
 	}
-	return template.HTML(`<span class="v-mark av-seal` + vColorClass(verify) + `" title="` +
+	return template.HTML(`<span class="v-mark av-seal` + vColorClass(kind, title) + `" title="` +
 		template.HTMLEscapeString(label) + `" aria-label="认证">V</span>`)
 }
 

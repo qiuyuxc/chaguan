@@ -1,4 +1,4 @@
-// 认证:用户申请(官号/认证作者)+ 管理员后台审批。
+// 认证:用户申请(官方/厂商/作者,文案自定义)+ 管理员后台审批。
 package handlers
 
 import (
@@ -17,6 +17,9 @@ const (
 	maxVerifyNote    = 500
 )
 
+// verifyKinds 可申请的认证分类:官方/厂商 红 V,作者 黄 V;文案由申请人自定义。
+var verifyKinds = []string{"官方", "厂商", "作者"}
+
 // verifyState 申请人当前状态文案;返回 form=true 表示可以填表申请。
 func verifyState(u *db.User, pending bool) (text string, form bool) {
 	if u == nil {
@@ -28,8 +31,21 @@ func verifyState(u *db.User, pending bool) (text string, form bool) {
 		}
 		return "版主按身份自动认证,无需申请。", false
 	}
+	label := ""
 	if u.VerifyTitle.Valid && strings.TrimSpace(u.VerifyTitle.String) != "" {
-		return "当前已认证:「" + strings.TrimSpace(u.VerifyTitle.String) + "」", false
+		label = strings.TrimSpace(u.VerifyTitle.String)
+	} else if u.VerifyKind.Valid {
+		switch k := strings.TrimSpace(u.VerifyKind.String); k {
+		case "官号":
+			label = "官方"
+		case "认证作者":
+			label = "作者"
+		default:
+			label = k
+		}
+	}
+	if label != "" {
+		return "当前已认证:「" + label + "」", false
 	}
 	if pending {
 		return "已提交申请,等待管理员审核。", false
@@ -86,7 +102,14 @@ func (s *Server) verifyApplyPost(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	if kind != "官号" && kind != "认证作者" {
+	okKind := false
+	for _, k := range verifyKinds {
+		if kind == k {
+			okKind = true
+			break
+		}
+	}
+	if !okKind {
 		s.renderVerifyError(w, r, kind, subject, note, "请选择认证类型")
 		return
 	}

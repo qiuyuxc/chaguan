@@ -1511,3 +1511,38 @@ html[data-theme="dark"] .avatar.c5, html[data-theme="dark"] .avatar.c6 { color: 
 .verify-note-txt .page-sub { margin-top: 2px; }
 .verify-note .btn { flex: none; }
 .vr-kind { display: inline-flex; align-items: center; gap: 5px; margin-left: 0; }
+
+/* ---------- 等级配色:LV1–LV5 渐变,LV6 红(管理员可在后台指定等级) ---------- */
+.lv-badge.lv1 { background: #5ba868; border-color: #5ba868; color: #fff; }
+.lv-badge.lv2 { background: #2ea69a; border-color: #2ea69a; color: #fff; }
+.lv-badge.lv3 { background: #4a90d9; border-color: #4a90d9; color: #fff; }
+.lv-badge.lv4 { background: #8a6fd1; border-color: #8a6fd1; color: #fff; }
+.lv-badge.lv5 { background: #e0892f; border-color: #e0892f; color: #fff; }
+.lv-badge.lv6 { background: #e0443e; border-color: #e0443e; color: #fff; }
+.lv-badge.lv1, .lv-badge.lv2, .lv-badge.lv3,
+.lv-badge.lv4, .lv-badge.lv5, .lv-badge.lv6 { border: 1px solid transparent; }
+
+/* 等级小圆点(后台选择 chip 内预览用) */
+.lv-dot {
+  flex: none; width: 10px; height: 10px; border-radius: 3px;
+  background: var(--line-strong); display: inline-block;
+}
+.lv-dot.lv1 { background: #5ba868; }
+.lv-dot.lv2 { background: #2ea69a; }
+.lv-dot.lv3 { background: #4a90d9; }
+.lv-dot.lv4 { background: #8a6fd1; }
+.lv-dot.lv5 { background: #e0892f; }
+.lv-dot.lv6 { background: #e0443e; }
+
+/* 管理后台:版主逐板块撤销 */
+.mod-list { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 10px; }
+.mod-item {
+  display: inline-flex; align-items: center; gap: 2px; margin: 0;
+  padding: 2px 3px 2px 9px;
+  background: var(--bg); border: 1px solid var(--line);
+  border-radius: 999px; font-size: 12px; color: var(--ink-2);
+}
+.mod-rm { width: 20px; height: 20px; }
+.mod-rm .ic { width: 12px; height: 12px; }
+.mod-rm:hover { color: var(--danger, #b23b33); background: transparent; }
+.lv-pick .pick-chip { gap: 6px; }

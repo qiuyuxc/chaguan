@@ -2,7 +2,7 @@
 <div class="page-head">
   <div>
     <h1>账号认证</h1>
-    <p class="page-sub">通过后名字旁出现 V 标并同步主页、帖子与回复;官号红 V、认证作者黄 V</p>
+    <p class="page-sub">通过后名字旁出现 V 标并同步主页、帖子与回复;官方/厂商红 V、作者黄 V,文案自定义</p>
   </div>
 </div>
 
@@ -29,25 +29,30 @@
 <form method="post" action="/verify/apply" class="form-grid compose-form">
   {{csrfField .CSRF}}
   <div class="compose-field">
-    <span class="flabel">认证类型</span>
-    <div class="vopts" role="radiogroup" aria-label="认证类型">
+    <span class="flabel">认证分类(决定 V 颜色)</span>
+    <div class="vopts" role="radiogroup" aria-label="认证分类">
       <label class="vopt">
-        <input type="radio" name="kind" value="官号"{{if ne .Kind "认证作者"}} checked{{end}}>
+        <input type="radio" name="kind" value="官方"{{if eq .Kind "官方"}} checked{{end}}>
         <span class="vdot v-red" aria-hidden="true">V</span>
-        <span class="vopt-txt"><b>官号</b><i>组织、产品或团队的官方账号</i></span>
+        <span class="vopt-txt"><b>官方</b><i>机构、组织、产品/项目的官方账号</i></span>
       </label>
       <label class="vopt">
-        <input type="radio" name="kind" value="认证作者"{{if eq .Kind "认证作者"}} checked{{end}}>
+        <input type="radio" name="kind" value="厂商"{{if eq .Kind "厂商"}} checked{{end}}>
+        <span class="vdot v-red" aria-hidden="true">V</span>
+        <span class="vopt-txt"><b>厂商</b><i>企业、品牌、工作室的官方账号</i></span>
+      </label>
+      <label class="vopt">
+        <input type="radio" name="kind" value="作者"{{if eq .Kind "作者"}} checked{{end}}>
         <span class="vdot v-yellow" aria-hidden="true">V</span>
-        <span class="vopt-txt"><b>认证作者</b><i>在某个领域持续创作的用户</i></span>
+        <span class="vopt-txt"><b>作者</b><i>游戏、文学、技术等领域的创作者</i></span>
       </label>
     </div>
-    <span class="form-note">官号对应红 V · 认证作者对应黄 V</span>
+    <span class="form-note">官方/厂商对应红 V · 作者对应黄 V;具体是什么,由下面的文案自定义</span>
   </div>
   <div class="compose-field">
-    <label class="flabel" for="verify-subject">认证对象</label>
-    <input class="input" name="subject" id="verify-subject" value="{{.Subject}}" maxlength="80" required placeholder="你是哪个官号 / 做什么内容,如:XX 工作室官方、前端工程作者">
-    <span class="form-note">1–80 字,管理员会据此核对身份</span>
+    <label class="flabel" for="verify-subject">认证文案</label>
+    <input class="input" name="subject" id="verify-subject" value="{{.Subject}}" maxlength="80" required placeholder="如:米哈游官方、任天堂官方、游戏作者、文学作者、某工作室">
+    <span class="form-note">1–80 字:写出你代表的对象或创作方向,展示时与 V 标一起出现,管理员会据此核对</span>
   </div>
   <div class="compose-field">
     <label class="flabel" for="verify-note">补充说明</label>

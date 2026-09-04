@@ -108,17 +108,19 @@ func (s *Store) withTx(fn func(*sql.Tx) error) error {
 // ---------- 模型 ----------
 
 type User struct {
-	ID           int64
-	Name         string
-	Email        string
-	PasswordHash string
-	Role         string // user | mod | admin
-	AvatarPath   string
-	Bio          string
-	CreatedAt    int64
-	BannedUntil  sql.NullInt64
-	BadgeText    sql.NullString // NULL=跟随身份; ''=隐藏; 非空=自定义称号
-	VerifyTitle  sql.NullString // NULL=无认证; 非空=官号/认证作者等认证称号
+	ID            int64
+	Name          string
+	Email         string
+	PasswordHash  string
+	Role          string // user | mod | admin
+	AvatarPath    string
+	Bio           string
+	CreatedAt     int64
+	BannedUntil   sql.NullInt64
+	BadgeText     sql.NullString // NULL=跟随身份; ''=隐藏; 非空=自定义称号
+	VerifyKind    sql.NullString // 认证分类:官方/厂商/作者; NULL=无认证(管理员/版主可按身份)
+	VerifyTitle   sql.NullString // 认证显示文案(自定义,如「米哈游官方」「游戏作者」;空则回退分类)
+	LevelOverride sql.NullInt64  // 管理员手动指定等级 0..6; NULL=按经验自动
 }
 
 func (u *User) IsAdmin() bool { return u != nil && u.Role == "admin" }
@@ -134,44 +136,46 @@ type Category struct {
 }
 
 type Thread struct {
-	ID           int64
-	CategoryID   int64
-	CategorySlug string
-	CategoryName string
-	AuthorID     int64
-	AuthorName   string
-	AuthorAvatar string
-	AuthorRole   string
-	AuthorVerify sql.NullString // 作者认证称号(官号/认证作者等)
-	Title        string
-	IsPinned     bool
-	IsLocked     bool
-	CreatedAt    int64
-	LastPostAt   int64
-	ViewCount    int64
-	PostCount    int64 // 含首帖
-	LastPostBy   string
-	LikeCount    int64 // 文章(首帖)获赞
-	FavCount     int64 // 主题被收藏数
+	ID               int64
+	CategoryID       int64
+	CategorySlug     string
+	CategoryName     string
+	AuthorID         int64
+	AuthorName       string
+	AuthorAvatar     string
+	AuthorRole       string
+	AuthorVerifyKind sql.NullString // 作者认证分类(官方/厂商/作者)
+	AuthorVerify     sql.NullString // 作者认证显示文案
+	Title            string
+	IsPinned         bool
+	IsLocked         bool
+	CreatedAt        int64
+	LastPostAt       int64
+	ViewCount        int64
+	PostCount        int64 // 含首帖
+	LastPostBy       string
+	LikeCount        int64 // 文章(首帖)获赞
+	FavCount         int64 // 主题被收藏数
 }
 
 // ReplyCount 是用户视角的"回复数"(不含首帖)。
 func (t *Thread) ReplyCount() int64 { return t.PostCount - 1 }
 
 type Post struct {
-	ID           int64
-	ThreadID     int64
-	AuthorID     int64
-	AuthorName   string
-	AuthorAvatar string
-	AuthorRole   string
-	AuthorBadge  sql.NullString
-	AuthorVerify sql.NullString // 作者认证称号(官号/认证作者等)
-	ContentMD    string
-	ContentHTML  string
-	IsFirst      bool
-	CreatedAt    int64
-	EditedAt     sql.NullInt64
+	ID               int64
+	ThreadID         int64
+	AuthorID         int64
+	AuthorName       string
+	AuthorAvatar     string
+	AuthorRole       string
+	AuthorBadge      sql.NullString
+	AuthorVerifyKind sql.NullString // 作者认证分类(官方/厂商/作者)
+	AuthorVerify     sql.NullString // 作者认证显示文案
+	ContentMD        string
+	ContentHTML      string
+	IsFirst          bool
+	CreatedAt        int64
+	EditedAt         sql.NullInt64
 }
 
 // UserSearch 是 @ 搜索接口返回的轻量用户信息(不携带邮箱/口令)。
@@ -256,12 +260,14 @@ func (s *Store) CreateUser(name, email, passwordHash string) (int64, error) {
 
 const userCols = `
 	id, name, COALESCE(email,''), password_hash, role, COALESCE(avatar_path,''),
-	COALESCE(bio,''), created_at, banned_until, badge_text, verify_title`
+	COALESCE(bio,''), created_at, banned_until, badge_text, verify_kind, verify_title,
+	level_override`
 
 func scanUser(row interface{ Scan(...any) error }) (*User, error) {
 	u := &User{}
 	err := row.Scan(&u.ID, &u.Name, &u.Email, &u.PasswordHash, &u.Role, &u.AvatarPath,
-		&u.Bio, &u.CreatedAt, &u.BannedUntil, &u.BadgeText, &u.VerifyTitle)
+		&u.Bio, &u.CreatedAt, &u.BannedUntil, &u.BadgeText, &u.VerifyKind, &u.VerifyTitle,
+		&u.LevelOverride)
 	return u, err
 }
 
@@ -803,11 +809,13 @@ func (s *Store) GetSessionUser(token string) (*User, string, error) {
 	var csrf string
 	now := time.Now().Unix()
 	err := s.DB.QueryRow(`
-		SELECT u.id, u.name, u.role, COALESCE(u.avatar_path,''), u.badge_text, u.verify_title, s.csrf_token
+		SELECT u.id, u.name, u.role, COALESCE(u.avatar_path,''), u.badge_text,
+		       u.verify_kind, u.verify_title, u.level_override, s.csrf_token
 		FROM sessions s JOIN users u ON u.id = s.user_id
 		WHERE s.token = ? AND s.expires_at > ?
 		  AND (u.banned_until IS NULL OR u.banned_until <= ?)`, token, now, now).
-		Scan(&u.ID, &u.Name, &u.Role, &u.AvatarPath, &u.BadgeText, &u.VerifyTitle, &csrf)
+		Scan(&u.ID, &u.Name, &u.Role, &u.AvatarPath, &u.BadgeText,
+			&u.VerifyKind, &u.VerifyTitle, &u.LevelOverride, &csrf)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, "", nil
 	}
@@ -888,7 +896,7 @@ func (s *Store) CreateCategory(slug, name, description string) (int64, error) {
 
 const threadCols = `
 	t.id, t.category_id, c.slug, c.name, t.author_id, u.name, COALESCE(u.avatar_path,''),
-	u.role, u.verify_title, t.title, t.is_pinned, t.is_locked,
+	u.role, u.verify_kind, u.verify_title, t.title, t.is_pinned, t.is_locked,
 	t.created_at, t.last_post_at, t.view_count, t.post_count,
 	COALESCE((SELECT lu.name FROM posts lp JOIN users lu ON lu.id = lp.author_id
 	          WHERE lp.thread_id = t.id ORDER BY lp.id DESC LIMIT 1), u.name),
@@ -905,7 +913,7 @@ func scanThread(row interface{ Scan(...any) error }) (*Thread, error) {
 	var pinned, locked int64
 	err := row.Scan(&t.ID, &t.CategoryID, &t.CategorySlug, &t.CategoryName,
 		&t.AuthorID, &t.AuthorName, &t.AuthorAvatar,
-		&t.AuthorRole, &t.AuthorVerify, &t.Title, &pinned, &locked,
+		&t.AuthorRole, &t.AuthorVerifyKind, &t.AuthorVerify, &t.Title, &pinned, &locked,
 		&t.CreatedAt, &t.LastPostAt, &t.ViewCount, &t.PostCount, &t.LastPostBy,
 		&t.LikeCount, &t.FavCount)
 	if err != nil {
@@ -1146,7 +1154,7 @@ func (s *Store) CreateThread(catID, authorID int64, title, contentMD, contentHTM
 
 const postCols = `
 	p.id, p.thread_id, p.author_id, u.name, COALESCE(u.avatar_path,''), u.role, u.badge_text,
-	u.verify_title,
+	u.verify_kind, u.verify_title,
 	p.content_md, p.content_html,
 	p.is_first, p.created_at, p.edited_at`
 
@@ -1154,8 +1162,8 @@ func scanPost(row interface{ Scan(...any) error }) (*Post, error) {
 	p := &Post{}
 	var first int64
 	err := row.Scan(&p.ID, &p.ThreadID, &p.AuthorID, &p.AuthorName, &p.AuthorAvatar,
-		&p.AuthorRole, &p.AuthorBadge, &p.AuthorVerify, &p.ContentMD, &p.ContentHTML,
-		&first, &p.CreatedAt, &p.EditedAt)
+		&p.AuthorRole, &p.AuthorBadge, &p.AuthorVerifyKind, &p.AuthorVerify,
+		&p.ContentMD, &p.ContentHTML, &first, &p.CreatedAt, &p.EditedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -1274,22 +1282,23 @@ func (s *Store) SetUserRole(userID int64, role string) error {
 	return err
 }
 
-// VerifyRequest 认证申请(官号/认证作者),管理员通过后写入 users.verify_title。
+// VerifyRequest 认证申请(官方/厂商/作者),管理员通过后写入 users.verify_kind/verify_title。
 type VerifyRequest struct {
-	ID            int64
-	UserID        int64
-	Kind          string // 官号 | 认证作者
-	Subject       string // 哪个官号 / 认证领域(申请人自述)
-	Note          string // 补充说明
-	Status        string // pending | approved | rejected
-	CreatedAt     int64
-	HandledAt     sql.NullInt64
-	HandledBy     sql.NullInt64
-	UserName      string
-	UserRole      string
-	UserAvatar    sql.NullString
-	UserVerify    sql.NullString
-	HandledByName sql.NullString
+	ID             int64
+	UserID         int64
+	Kind           string // 官方 | 厂商 | 作者(兼容旧数据:官号/认证作者)
+	Subject        string // 认证文案:具体对象/创作方向(申请人自述)
+	Note           string // 补充说明
+	Status         string // pending | approved | rejected
+	CreatedAt      int64
+	HandledAt      sql.NullInt64
+	HandledBy      sql.NullInt64
+	UserName       string
+	UserRole       string
+	UserAvatar     sql.NullString
+	UserVerify     sql.NullString
+	UserVerifyKind sql.NullString // 申请人当前认证分类(审批列表头像 V 用)
+	HandledByName  sql.NullString
 }
 
 // CreateVerifyRequest 提交认证申请;同一用户存在 pending 时返回 false。
@@ -1315,7 +1324,7 @@ func (s *Store) ListVerifyRequests() ([]VerifyRequest, error) {
 	rows, err := s.DB.Query(`
 		SELECT vr.id, vr.user_id, vr.kind, vr.subject, vr.note, vr.status,
 		       vr.created_at, vr.handled_at, vr.handled_by,
-		       u.name, u.role, u.avatar_path, u.verify_title, h.name
+		       u.name, u.role, u.avatar_path, u.verify_kind, u.verify_title, h.name
 		FROM verify_requests vr
 		JOIN users u ON u.id = vr.user_id
 		LEFT JOIN users h ON h.id = vr.handled_by
@@ -1329,7 +1338,8 @@ func (s *Store) ListVerifyRequests() ([]VerifyRequest, error) {
 		var r VerifyRequest
 		if err := rows.Scan(&r.ID, &r.UserID, &r.Kind, &r.Subject, &r.Note, &r.Status,
 			&r.CreatedAt, &r.HandledAt, &r.HandledBy,
-			&r.UserName, &r.UserRole, &r.UserAvatar, &r.UserVerify, &r.HandledByName); err != nil {
+			&r.UserName, &r.UserRole, &r.UserAvatar, &r.UserVerifyKind, &r.UserVerify,
+			&r.HandledByName); err != nil {
 			return nil, err
 		}
 		out = append(out, r)
@@ -1346,14 +1356,14 @@ func (s *Store) PendingVerify(userID int64) (bool, error) {
 	return n > 0, err
 }
 
-// ResolveVerify 处理申请:approved 把称号写入 users.verify_title;
-// rejected 不改称号。幂等:已处理的申请再次操作直接跳过。
+// ResolveVerify 处理申请:approved 把分类写入 verify_kind、文案写入 verify_title;
+// rejected 不改认证。幂等:已处理的申请再次操作直接跳过。
 func (s *Store) ResolveVerify(reqID, adminID int64, approve bool) error {
 	return s.withTx(func(tx *sql.Tx) error {
-		var status, kind string
+		var status, kind, subject string
 		var userID int64
-		err := tx.QueryRow(`SELECT status, kind, user_id FROM verify_requests WHERE id = ?`,
-			reqID).Scan(&status, &kind, &userID)
+		err := tx.QueryRow(`SELECT status, kind, subject, user_id FROM verify_requests WHERE id = ?`,
+			reqID).Scan(&status, &kind, &subject, &userID)
 		if err != nil {
 			return err
 		}
@@ -1371,21 +1381,61 @@ func (s *Store) ResolveVerify(reqID, adminID int64, approve bool) error {
 			return err
 		}
 		if approve {
-			_, err := tx.Exec(`UPDATE users SET verify_title = ? WHERE id = ?`, kind, userID)
+			_, err := tx.Exec(`UPDATE users SET verify_kind = ?, verify_title = ? WHERE id = ?`,
+				kind, subject, userID)
 			return err
 		}
 		return nil
 	})
 }
 
-// SetVerifyTitle 设置用户认证称号(官号/认证作者等);title 为空表示取消认证。
-func (s *Store) SetVerifyTitle(userID int64, title string) error {
-	if title = strings.TrimSpace(title); title == "" {
-		_, err := s.DB.Exec(`UPDATE users SET verify_title = NULL WHERE id = ?`, userID)
+// SetVerify 设置用户认证:kind=分类(官方/厂商/作者),title=显示文案。
+// kind 与 title 都为空表示取消认证(管理员/版主回到按身份自动显示)。
+func (s *Store) SetVerify(userID int64, kind, title string) error {
+	kind = strings.TrimSpace(kind)
+	title = strings.TrimSpace(title)
+	var k, t any
+	if kind != "" {
+		k = kind
+	}
+	if title != "" {
+		t = title
+	}
+	if kind == "" && title == "" {
+		_, err := s.DB.Exec(`UPDATE users SET verify_kind = NULL, verify_title = NULL WHERE id = ?`, userID)
 		return err
 	}
-	_, err := s.DB.Exec(`UPDATE users SET verify_title = ? WHERE id = ?`, title, userID)
+	_, err := s.DB.Exec(`UPDATE users SET verify_kind = ?, verify_title = ? WHERE id = ?`, k, t, userID)
 	return err
+}
+
+// SetLevelOverride 管理员手动指定等级(0..6);lvValid=false 表示回到按经验自动。
+func (s *Store) SetLevelOverride(userID int64, lv int, set bool) error {
+	if !set {
+		_, err := s.DB.Exec(`UPDATE users SET level_override = NULL WHERE id = ?`, userID)
+		return err
+	}
+	_, err := s.DB.Exec(`UPDATE users SET level_override = ? WHERE id = ?`, lv, userID)
+	return err
+}
+
+// RemoveModCategory 撤销某版块的版主登记;若已无任何管辖版块则整体降为普通用户。
+func (s *Store) RemoveModCategory(userID, categoryID int64) error {
+	return s.withTx(func(tx *sql.Tx) error {
+		if _, err := tx.Exec(`DELETE FROM category_mods WHERE user_id = ? AND category_id = ?`,
+			userID, categoryID); err != nil {
+			return err
+		}
+		var n int64
+		if err := tx.QueryRow(`SELECT COUNT(*) FROM category_mods WHERE user_id = ?`, userID).Scan(&n); err != nil {
+			return err
+		}
+		if n == 0 {
+			_, err := tx.Exec(`UPDATE users SET role = 'user' WHERE id = ? AND role = 'mod'`, userID)
+			return err
+		}
+		return nil
+	})
 }
 
 // AddModCategory 把用户登记为某版块的版主(role 置 mod;管理员自动全站,不做登记)。
