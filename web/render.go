@@ -98,6 +98,7 @@ var funcs = template.FuncMap{
 		return out
 	},
 	"roleBadge":    roleBadge,
+	"vBadge":       vBadge,
 	"quotePreview": quotePreview,
 }
 
@@ -127,6 +128,24 @@ func roleBadge(role string, badge sql.NullString) template.HTML {
 		}
 	}
 	return template.HTML(`<span class="` + cls + `">` + template.HTMLEscapeString(label) + `</span>`)
+}
+
+// vBadge 渲染蓝色「V」认证标:自定义认证称号(官号/认证作者等)优先,
+// 其次管理员/版主按身份认证;普通用户返回空。
+func vBadge(role string, verify sql.NullString) template.HTML {
+	var label string
+	switch {
+	case verify.Valid && strings.TrimSpace(verify.String) != "":
+		label = strings.TrimSpace(verify.String)
+	case role == "admin":
+		label = "管理员认证"
+	case role == "mod":
+		label = "版主认证"
+	default:
+		return ""
+	}
+	return template.HTML(`<span class="v-badge" title="` +
+		template.HTMLEscapeString(label) + `" aria-label="认证">V</span>`)
 }
 
 // quotePreview 取帖子「自己写的正文」压成一行并截前 120 字,作为「引用回复」的预览。

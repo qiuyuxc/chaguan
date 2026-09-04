@@ -118,6 +118,7 @@ type User struct {
 	CreatedAt    int64
 	BannedUntil  sql.NullInt64
 	BadgeText    sql.NullString // NULL=跟随身份; ''=隐藏; 非空=自定义称号
+	VerifyTitle  sql.NullString // NULL=无认证; 非空=官号/认证作者等认证称号
 }
 
 func (u *User) IsAdmin() bool { return u != nil && u.Role == "admin" }
@@ -163,6 +164,7 @@ type Post struct {
 	AuthorAvatar string
 	AuthorRole   string
 	AuthorBadge  sql.NullString
+	AuthorVerify sql.NullString // 作者认证称号(官号/认证作者等)
 	ContentMD    string
 	ContentHTML  string
 	IsFirst      bool
@@ -252,12 +254,12 @@ func (s *Store) CreateUser(name, email, passwordHash string) (int64, error) {
 
 const userCols = `
 	id, name, COALESCE(email,''), password_hash, role, COALESCE(avatar_path,''),
-	COALESCE(bio,''), created_at, banned_until, badge_text`
+	COALESCE(bio,''), created_at, banned_until, badge_text, verify_title`
 
 func scanUser(row interface{ Scan(...any) error }) (*User, error) {
 	u := &User{}
 	err := row.Scan(&u.ID, &u.Name, &u.Email, &u.PasswordHash, &u.Role, &u.AvatarPath,
-		&u.Bio, &u.CreatedAt, &u.BannedUntil, &u.BadgeText)
+		&u.Bio, &u.CreatedAt, &u.BannedUntil, &u.BadgeText, &u.VerifyTitle)
 	return u, err
 }
 
@@ -793,11 +795,11 @@ func (s *Store) GetSessionUser(token string) (*User, string, error) {
 	var csrf string
 	now := time.Now().Unix()
 	err := s.DB.QueryRow(`
-		SELECT u.id, u.name, u.role, COALESCE(u.avatar_path,''), u.badge_text, s.csrf_token
+		SELECT u.id, u.name, u.role, COALESCE(u.avatar_path,''), u.badge_text, u.verify_title, s.csrf_token
 		FROM sessions s JOIN users u ON u.id = s.user_id
 		WHERE s.token = ? AND s.expires_at > ?
 		  AND (u.banned_until IS NULL OR u.banned_until <= ?)`, token, now, now).
-		Scan(&u.ID, &u.Name, &u.Role, &u.AvatarPath, &u.BadgeText, &csrf)
+		Scan(&u.ID, &u.Name, &u.Role, &u.AvatarPath, &u.BadgeText, &u.VerifyTitle, &csrf)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, "", nil
 	}
@@ -1135,6 +1137,7 @@ func (s *Store) CreateThread(catID, authorID int64, title, contentMD, contentHTM
 
 const postCols = `
 	p.id, p.thread_id, p.author_id, u.name, COALESCE(u.avatar_path,''), u.role, u.badge_text,
+	u.verify_title,
 	p.content_md, p.content_html,
 	p.is_first, p.created_at, p.edited_at`
 
@@ -1142,7 +1145,7 @@ func scanPost(row interface{ Scan(...any) error }) (*Post, error) {
 	p := &Post{}
 	var first int64
 	err := row.Scan(&p.ID, &p.ThreadID, &p.AuthorID, &p.AuthorName, &p.AuthorAvatar,
-		&p.AuthorRole, &p.AuthorBadge, &p.ContentMD, &p.ContentHTML,
+		&p.AuthorRole, &p.AuthorBadge, &p.AuthorVerify, &p.ContentMD, &p.ContentHTML,
 		&first, &p.CreatedAt, &p.EditedAt)
 	if err != nil {
 		return nil, err
@@ -1259,6 +1262,16 @@ func (s *Store) SetThreadLocked(threadID int64, locked bool) error {
 
 func (s *Store) SetUserRole(userID int64, role string) error {
 	_, err := s.DB.Exec(`UPDATE users SET role = ? WHERE id = ?`, role, userID)
+	return err
+}
+
+// SetVerifyTitle 设置用户认证称号(官号/认证作者等);title 为空表示取消认证。
+func (s *Store) SetVerifyTitle(userID int64, title string) error {
+	if title = strings.TrimSpace(title); title == "" {
+		_, err := s.DB.Exec(`UPDATE users SET verify_title = NULL WHERE id = ?`, userID)
+		return err
+	}
+	_, err := s.DB.Exec(`UPDATE users SET verify_title = ? WHERE id = ?`, title, userID)
 	return err
 }
 

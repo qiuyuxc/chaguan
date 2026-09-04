@@ -152,6 +152,27 @@
       {{end}}
     </section>
   </div>
+
+  <section class="um-sec">
+    <h3 class="um-sec-h">账号认证</h3>
+    {{if eq .Target.Role "mod"}}
+    <p class="um-tip">版主已按身份自动认证(蓝色 V 标),无需额外设置。</p>
+    {{else}}
+    <p class="um-tip">设置后,名字旁会显示蓝色 V 标,并同步出现在主页、帖子与回复中。</p>
+    <form method="post" action="/admin/users/{{.Target.ID}}/verify">
+      {{csrfField .CSRF}}<input type="hidden" name="next" value="{{.Next}}">
+      <input type="hidden" name="title" value="{{.Target.VerifyTitle.String}}">
+      <div class="pick-chips" data-pick="title" data-optional="1">
+        <button type="button" class="pick-chip{{if not .Target.VerifyTitle.Valid}} on{{end}}" data-val="">无认证</button>
+        <button type="button" class="pick-chip{{if and .Target.VerifyTitle.Valid (eq .Target.VerifyTitle.String "官号")}} on{{end}}" data-val="官号">官号</button>
+        <button type="button" class="pick-chip{{if and .Target.VerifyTitle.Valid (eq .Target.VerifyTitle.String "认证作者")}} on{{end}}" data-val="认证作者">认证作者</button>
+      </div>
+      <div class="um-act">
+        <button class="btn btn-primary btn-sm" type="submit">保存认证</button>
+      </div>
+    </form>
+    {{end}}
+  </section>
   {{end}}
 </div>
 {{end}}

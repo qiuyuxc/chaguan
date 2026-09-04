@@ -10,6 +10,7 @@
       {{end}}
       <span class="name">{{.First.AuthorName}}</span>
     </a>
+    {{vBadge .First.AuthorRole .First.AuthorVerify}}
     {{roleBadge .First.AuthorRole .First.AuthorBadge}}
     <span class="badge">楼主</span>
     {{if .User}}

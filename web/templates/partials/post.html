@@ -19,6 +19,7 @@
   <div class="reply-main">
     <div class="reply-head">
       <a class="reply-name" href="/u/{{.Post.AuthorID}}">{{.Post.AuthorName}}</a>
+      {{vBadge .Post.AuthorRole .Post.AuthorVerify}}
       {{roleBadge .Post.AuthorRole .Post.AuthorBadge}}
       {{if .IsOP}}<span class="badge">楼主</span>{{end}}
       <span class="reply-floor">#{{.Floor}}</span>

@@ -426,6 +426,9 @@ func userCert(u *db.User, store *db.Store) string {
 	if u == nil {
 		return ""
 	}
+	if u.VerifyTitle.Valid && strings.TrimSpace(u.VerifyTitle.String) != "" {
+		return strings.TrimSpace(u.VerifyTitle.String)
+	}
 	switch u.Role {
 	case "admin":
 		return "管理员认证"

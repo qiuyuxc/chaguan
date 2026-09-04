@@ -161,6 +161,29 @@ func (s *Server) setUserRole(w http.ResponseWriter, r *http.Request) {
 	s.redirectAfter(w, r, "/admin/users")
 }
 
+// setVerify POST /admin/users/{id}/verify:为普通成员设置认证称号(官号/认证作者等),
+// 空 title 表示取消认证。管理员/版主按身份自动认证,不走此字段。
+func (s *Server) setVerify(w http.ResponseWriter, r *http.Request) {
+	target, ok := s.adminTarget(w, r)
+	if !ok {
+		return
+	}
+	if target.Role != "user" {
+		http.Error(w, "管理员/版主已按身份自动认证", http.StatusBadRequest)
+		return
+	}
+	title := strings.TrimSpace(r.FormValue("title"))
+	if runes := []rune(title); len(runes) > 20 {
+		http.Error(w, "认证称号最多 20 字", http.StatusBadRequest)
+		return
+	}
+	if err := s.store.SetVerifyTitle(target.ID, title); err != nil {
+		s.serverError(w, err)
+		return
+	}
+	s.redirectAfter(w, r, "/admin/users")
+}
+
 // banUser POST /admin/users/{id}/ban:按天数封禁(days: 1–3650,10 年约等于永久)。
 func (s *Server) banUser(w http.ResponseWriter, r *http.Request) {
 	target, ok := s.adminTarget(w, r)

@@ -729,7 +729,7 @@
     });
     if (input) {
       form.addEventListener("submit", function (e) {
-        if (!input.value) {
+        if (!input.value && box.getAttribute("data-optional") === null) {
           e.preventDefault();
           box.classList.add("need");
           setTimeout(function () { box.classList.remove("need"); }, 600);
@@ -806,7 +806,7 @@
       input.addEventListener("input", sync);
       input.addEventListener("change", sync);
       form.addEventListener("submit", function (e) {
-        if (!input.value) {
+        if (!input.value && box.getAttribute("data-optional") === null) {
           e.preventDefault();
           box.classList.add("need");
           setTimeout(function () { box.classList.remove("need"); }, 600);

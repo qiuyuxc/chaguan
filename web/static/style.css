@@ -1348,26 +1348,25 @@ html[data-theme="dark"] .avatar.c5, html[data-theme="dark"] .avatar.c6 { color: 
   .ct-row > .ct-acts { grid-column: 1 / -1; justify-content: flex-start; border-top: 1px dashed var(--line); padding-top: 8px; }
 }
 
-/* ---------- 认证蓝标(个人主页:头像角标 + UID 下认证行) ---------- */
+/* ---------- 认证蓝标:蓝色「V」,个人主页角标 + UID 下认证行 + 帖内作者同步 ---------- */
 .member-av { position: relative; flex: none; display: inline-flex; }
 .v-mark {
   position: absolute; right: -3px; bottom: -3px;
-  width: 20px; height: 20px; border-radius: 50%;
+  width: 21px; height: 21px; border-radius: 5px;
   background: #1f7bff; border: 2px solid var(--card);
+  color: #fff; font-size: 11px; font-weight: 900; line-height: 1;
   display: inline-flex; align-items: center; justify-content: center;
 }
-.v-mark .v-mark-ic { width: 12px; height: 12px; }
-.v-mark-ic {
-  stroke: #fff; stroke-width: 2.4; fill: none;
-  stroke-linecap: round; stroke-linejoin: round;
+.v-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 15px; height: 15px; border-radius: 4px; flex: none;
+  background: #1f7bff; color: #fff;
+  font-size: 9px; font-weight: 900; line-height: 1;
+  vertical-align: 1px; cursor: default;
 }
 .member-cert {
   margin: 6px 0 0; font-size: 12px; font-weight: 600; color: var(--ink-2);
   display: flex; align-items: center; gap: 6px;
-}
-.member-cert .v-mark-ic {
-  width: 14px; height: 14px; flex: none;
-  fill: none; stroke: #1f7bff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
 }
 
 /* ---------- 管理后台:内容管理行尾「⋯」菜单(低频操作收拢) ---------- */
