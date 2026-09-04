@@ -10,16 +10,18 @@
 {{define "post"}}
 <div class="reply" id="p{{.Post.ID}}">
   <a class="reply-av" href="/u/{{.Post.AuthorID}}" title="查看 {{.Post.AuthorName}} 的主页" aria-label="查看 {{.Post.AuthorName}} 的主页">
-    {{if .Post.AuthorAvatar}}
-    <span class="avatar av-32"><img src="{{.Post.AuthorAvatar}}" alt="" aria-hidden="true"></span>
-    {{else}}
-    <span class="avatar av-32 {{avColor .Post.AuthorID}}" aria-hidden="true">{{initial .Post.AuthorName}}</span>
-    {{end}}
+    <span class="av-frame">
+      {{if .Post.AuthorAvatar}}
+      <span class="avatar av-32"><img src="{{.Post.AuthorAvatar}}" alt="" aria-hidden="true"></span>
+      {{else}}
+      <span class="avatar av-32 {{avColor .Post.AuthorID}}" aria-hidden="true">{{initial .Post.AuthorName}}</span>
+      {{end}}
+      {{vSeal .Post.AuthorRole .Post.AuthorVerify}}
+    </span>
   </a>
   <div class="reply-main">
     <div class="reply-head">
       <a class="reply-name" href="/u/{{.Post.AuthorID}}">{{.Post.AuthorName}}</a>
-      {{vBadge .Post.AuthorRole .Post.AuthorVerify}}
       {{roleBadge .Post.AuthorRole .Post.AuthorBadge}}
       {{if .IsOP}}<span class="badge">楼主</span>{{end}}
       <span class="reply-floor">#{{.Floor}}</span>

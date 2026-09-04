@@ -835,6 +835,11 @@
         });
         var c = cur();
         if (preview) preview.textContent = c || "不显示 V 标";
+        if (seal) {
+          seal.classList.remove("v-red", "v-yellow");
+          if (v === "官号") seal.classList.add("v-red");
+          else if (v === "认证作者") seal.classList.add("v-yellow");
+        }
         box.classList.toggle("off", !c);
       }
       chips.forEach(function (c) {
@@ -844,6 +849,27 @@
         });
       });
       input.addEventListener("input", sync);
+      sync();
+    });
+    // 后台换头像:点击头像选图后立即上传
+    root.querySelectorAll("[data-um-avatar]").forEach(function (btn) {
+      var form = btn.closest("form");
+      var input = form ? form.querySelector('input[type="file"][name="avatar"]') : null;
+      if (!input) return;
+      btn.addEventListener("click", function () { input.click(); });
+      input.addEventListener("change", function () {
+        if (input.files && input.files.length) form.submit();
+      });
+    });
+    // 称号标签:选中「自定义」时启用输入框
+    root.querySelectorAll("[data-um-badge]").forEach(function (box) {
+      var text = box.querySelector('input[name="badge_text"]');
+      function sync() {
+        var custom = box.querySelector('input[name="badge_mode"]:checked');
+        var on = custom && custom.value === "custom";
+        if (text) text.disabled = !on;
+      }
+      box.addEventListener("change", sync);
       sync();
     });
     // 聚焦第一个可交互控件,方便键盘操作

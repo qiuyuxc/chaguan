@@ -3,14 +3,16 @@
 <article class="op-card" id="p{{.First.ID}}">
   <div class="op-top">
     <a class="op-user" href="/u/{{.First.AuthorID}}" title="查看 {{.First.AuthorName}} 的主页">
-      {{if .First.AuthorAvatar}}
-      <span class="avatar av-32"><img src="{{.First.AuthorAvatar}}" alt="" aria-hidden="true"></span>
-      {{else}}
-      <span class="avatar av-32 {{avColor .First.AuthorID}}" aria-hidden="true">{{initial .First.AuthorName}}</span>
-      {{end}}
+      <span class="av-frame">
+        {{if .First.AuthorAvatar}}
+        <span class="avatar av-32"><img src="{{.First.AuthorAvatar}}" alt="" aria-hidden="true"></span>
+        {{else}}
+        <span class="avatar av-32 {{avColor .First.AuthorID}}" aria-hidden="true">{{initial .First.AuthorName}}</span>
+        {{end}}
+        {{vSeal .First.AuthorRole .First.AuthorVerify}}
+      </span>
       <span class="name">{{.First.AuthorName}}</span>
     </a>
-    {{vBadge .First.AuthorRole .First.AuthorVerify}}
     {{roleBadge .First.AuthorRole .First.AuthorBadge}}
     <span class="badge">楼主</span>
     {{if .User}}

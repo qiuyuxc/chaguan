@@ -99,6 +99,8 @@ var funcs = template.FuncMap{
 	},
 	"roleBadge":    roleBadge,
 	"vBadge":       vBadge,
+	"vSeal":        vSeal,
+	"vColorClass":  vColorClass,
 	"quotePreview": quotePreview,
 }
 
@@ -130,21 +132,51 @@ func roleBadge(role string, badge sql.NullString) template.HTML {
 	return template.HTML(`<span class="` + cls + `">` + template.HTMLEscapeString(label) + `</span>`)
 }
 
-// vBadge 渲染蓝色「V」认证标:自定义认证称号(官号/认证作者等)优先,
+// vLabelOf 认证文案:自定义认证称号(官号/认证作者等)优先,
 // 其次管理员/版主按身份认证;普通用户返回空。
-func vBadge(role string, verify sql.NullString) template.HTML {
-	var label string
+func vLabelOf(role string, verify sql.NullString) string {
 	switch {
 	case verify.Valid && strings.TrimSpace(verify.String) != "":
-		label = strings.TrimSpace(verify.String)
+		return strings.TrimSpace(verify.String)
 	case role == "admin":
-		label = "管理员认证"
+		return "管理员认证"
 	case role == "mod":
-		label = "版主认证"
-	default:
+		return "版主认证"
+	}
+	return ""
+}
+
+// vColorClass 认证 V 的配色:官号=红,认证作者=黄,其余(含按身份认证)默认蓝。
+func vColorClass(verify sql.NullString) string {
+	if verify.Valid {
+		switch strings.TrimSpace(verify.String) {
+		case "官号":
+			return " v-red"
+		case "认证作者":
+			return " v-yellow"
+		}
+	}
+	return ""
+}
+
+// vBadge 渲染行内「V」认证标(资料页认证行等),配色跟随认证类型。
+func vBadge(role string, verify sql.NullString) template.HTML {
+	label := vLabelOf(role, verify)
+	if label == "" {
 		return ""
 	}
-	return template.HTML(`<span class="v-badge" title="` +
+	return template.HTML(`<span class="v-badge` + vColorClass(verify) + `" title="` +
+		template.HTMLEscapeString(label) + `" aria-label="认证">V</span>`)
+}
+
+// vSeal 渲染压在作者头像上的「V」认证标(文章/回复等小头像场景);
+// 无认证时返回空串,由外层相对容器(.av-frame)定位。
+func vSeal(role string, verify sql.NullString) template.HTML {
+	label := vLabelOf(role, verify)
+	if label == "" {
+		return ""
+	}
+	return template.HTML(`<span class="v-mark av-seal` + vColorClass(verify) + `" title="` +
 		template.HTMLEscapeString(label) + `" aria-label="认证">V</span>`)
 }
 

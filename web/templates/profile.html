@@ -7,7 +7,7 @@
       {{else}}
       <span class="avatar av-64 c1" aria-hidden="true">{{initial .Profile.Name}}</span>
       {{end}}
-      {{if .CertText}}<span class="v-mark" title="{{.CertText}}">V</span>{{end}}
+      {{if .CertText}}<span class="v-mark{{vColorClass .Profile.VerifyTitle}}" title="{{.CertText}}">V</span>{{end}}
     </div>
     <div class="member-info">
       <div class="member-name-row">
@@ -52,7 +52,7 @@
   </div>
   <p class="member-meta muted">UID {{.Profile.ID}} · {{date .Profile.CreatedAt}} 加入</p>
   {{if .CertText}}
-  <p class="member-cert"><span class="v-badge" aria-label="认证">V</span>{{.CertText}}</p>
+  <p class="member-cert">{{vBadge .Profile.Role .Profile.VerifyTitle}}{{.CertText}}</p>
   {{end}}
   <nav class="feed-tabs member-feed-tabs" aria-label="资料分区">
     <a class="feed-tab{{if eq .Tab "posts"}} on{{end}}" href="/u/{{.Profile.ID}}?tab=posts">

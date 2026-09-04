@@ -1439,3 +1439,75 @@ html[data-theme="dark"] .avatar.c5, html[data-theme="dark"] .avatar.c6 { color: 
 .verify-preview-txt { font-size: 12px; font-weight: 600; color: var(--ink-2); }
 .verify-edit.off .verify-preview-txt { color: var(--ink-4); font-weight: 400; }
 .verify-edit.off .vb-seal { background: #9c9c9c; }
+
+/* 认证配色:官号红 / 认证作者黄 / 其余(按身份等)默认蓝 */
+.v-mark.v-red, .v-badge.v-red, .vb-seal.v-red, .vdot.v-red { background: #e0443e; }
+.v-mark.v-yellow, .v-badge.v-yellow, .vb-seal.v-yellow, .vdot.v-yellow { background: #f0a500; }
+
+/* 认证小圆点(申请页类型选择等) */
+.vdot {
+  flex: none; width: 18px; height: 18px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: #1f7bff; color: #fff; font-size: 9px; font-weight: 900; line-height: 1;
+}
+
+/* 作者头像容器:文章/回复里把 V 压在头像右下弧线,不再单独占位 */
+.av-frame { position: relative; display: inline-flex; flex: none; }
+.av-frame .av-seal,
+.reply-av > .av-frame .av-seal {
+  position: absolute; right: -2px; bottom: -2px;
+  width: 13px; height: 13px; border-radius: 50%;
+  font-size: 8px; line-height: 1;
+}
+
+/* 管理后台:基础资料(头像/名称/简介/称号标签/密码) */
+.um-profile { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px; align-items: start; }
+.um-avatar { display: flex; flex-direction: column; align-items: center; gap: 7px; }
+.um-av-btn { border: none; padding: 0; cursor: pointer; background: transparent; }
+.um-av-btn img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.um-av-btn:hover { box-shadow: 0 0 0 3px var(--hover-bg); }
+.um-av-tip { font-size: 11px; text-align: center; line-height: 1.5; }
+.um-fields { display: grid; gap: 10px; }
+.um-f { display: grid; gap: 4px; }
+.um-f-lb { font-size: 11px; color: var(--ink-4); }
+.um-f-bio { min-height: 58px; resize: vertical; }
+.um-badge {
+  display: grid; gap: 5px; padding: 9px 10px;
+  background: var(--bg); border: 1px dashed var(--line-strong); border-radius: var(--r-card);
+}
+.um-badge .opt {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 12px; color: var(--ink-2); cursor: pointer;
+}
+.um-badge .opt input { margin: 0; accent-color: var(--accent); }
+.um-badge-text { margin-top: 2px; }
+.verify-edit .pick-chip { gap: 6px; }
+@media (max-width: 560px) {
+  .um-profile { grid-template-columns: 1fr; }
+  .um-avatar { flex-direction: row; justify-content: flex-start; }
+}
+
+/* 认证申请页:类型选择卡片与状态条(贴合黑白扁平主题) */
+.vopts { display: grid; gap: 8px; }
+.vopt {
+  position: relative; display: flex; align-items: center; gap: 10px;
+  padding: 11px 13px; border: 1px solid var(--line); border-radius: var(--r-card);
+  background: var(--card); cursor: pointer;
+}
+.vopt:hover { border-color: var(--line-strong); }
+.vopt:has(input:checked) { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
+.vopt input { position: absolute; opacity: 0; pointer-events: none; }
+.vopt-txt { display: grid; gap: 2px; min-width: 0; }
+.vopt-txt b { font-size: 13px; font-weight: 600; color: var(--ink); }
+.vopt-txt i { font-size: 12px; font-style: normal; color: var(--ink-3); }
+.verify-note {
+  display: flex; align-items: flex-start; gap: 11px;
+  padding: 12px 14px; margin-bottom: 14px;
+  background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-card);
+}
+.verify-note .vdot { margin-top: 2px; }
+.verify-note-txt { flex: 1; min-width: 0; }
+.verify-note-txt b { display: block; font-size: 14px; color: var(--ink); }
+.verify-note-txt .page-sub { margin-top: 2px; }
+.verify-note .btn { flex: none; }
+.vr-kind { display: inline-flex; align-items: center; gap: 5px; margin-left: 0; }

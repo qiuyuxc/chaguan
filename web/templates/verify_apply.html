@@ -2,23 +2,23 @@
 <div class="page-head">
   <div>
     <h1>账号认证</h1>
-    <p class="page-sub">通过后名字旁会显示蓝色 V 标,并同步出现在主页、帖子与回复中</p>
+    <p class="page-sub">通过后名字旁出现 V 标并同步主页、帖子与回复;官号红 V、认证作者黄 V</p>
   </div>
 </div>
 
 {{if .Done}}
-<div class="verify-banner">
-  <span class="vb-seal" aria-hidden="true">V</span>
-  <div class="verify-banner-txt">
+<div class="verify-note">
+  <span class="vdot" aria-hidden="true">V</span>
+  <div class="verify-note-txt">
     <b>申请已提交</b>
-    <p class="page-sub">管理员会尽快审核,结果将在此页面更新;审核期间无需重复提交。</p>
+    <p class="page-sub">管理员会尽快审核,结果会在此页面更新;审核期间无需重复提交。</p>
   </div>
   <a class="btn btn-white btn-sm" href="/u/{{.User.ID}}">查看我的主页</a>
 </div>
 {{else if .State}}
-<div class="verify-banner">
-  <span class="vb-seal" aria-hidden="true">V</span>
-  <div class="verify-banner-txt">
+<div class="verify-note">
+  <span class="vdot" aria-hidden="true">V</span>
+  <div class="verify-note-txt">
     <b>{{.State}}</b>
     <p class="page-sub">认证 V 标会与你的身份一起展示,无需手动申请。</p>
   </div>
@@ -30,12 +30,19 @@
   {{csrfField .CSRF}}
   <div class="compose-field">
     <span class="flabel">认证类型</span>
-    <div class="pick-chips" data-pick="kind">
-      <button type="button" class="pick-chip{{if ne .Kind "认证作者"}} on{{end}}" data-val="官号">官号</button>
-      <button type="button" class="pick-chip{{if eq .Kind "认证作者"}} on{{end}}" data-val="认证作者">认证作者</button>
+    <div class="vopts" role="radiogroup" aria-label="认证类型">
+      <label class="vopt">
+        <input type="radio" name="kind" value="官号"{{if ne .Kind "认证作者"}} checked{{end}}>
+        <span class="vdot v-red" aria-hidden="true">V</span>
+        <span class="vopt-txt"><b>官号</b><i>组织、产品或团队的官方账号</i></span>
+      </label>
+      <label class="vopt">
+        <input type="radio" name="kind" value="认证作者"{{if eq .Kind "认证作者"}} checked{{end}}>
+        <span class="vdot v-yellow" aria-hidden="true">V</span>
+        <span class="vopt-txt"><b>认证作者</b><i>在某个领域持续创作的用户</i></span>
+      </label>
     </div>
-    <input type="hidden" name="kind" value="{{if eq .Kind "认证作者"}}认证作者{{else}}官号{{end}}">
-    <span class="form-note">官号:组织、产品或团队的官方账号 · 认证作者:在某领域持续创作的用户</span>
+    <span class="form-note">官号对应红 V · 认证作者对应黄 V</span>
   </div>
   <div class="compose-field">
     <label class="flabel" for="verify-subject">认证对象</label>

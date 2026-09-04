@@ -2,11 +2,14 @@
 package handlers
 
 import (
+	"database/sql"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
+	"bbs/internal/auth"
 	"bbs/internal/db"
 )
 
@@ -157,6 +160,125 @@ func (s *Server) setUserRole(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.Error(w, "非法角色", http.StatusBadRequest)
 		return
+	}
+	s.redirectAfter(w, r, "/admin/users")
+}
+
+// adminEditUser POST /admin/users/{id}/edit:后台编辑基础资料(名称/简介/称号标签),
+// 可选重置密码(留空不改)。与本人资料页同一套校验规则。
+func (s *Server) adminEditUser(w http.ResponseWriter, r *http.Request) {
+	target, ok := s.adminTarget(w, r)
+	if !ok {
+		return
+	}
+	r.ParseForm()
+	name := strings.TrimSpace(r.FormValue("name"))
+	if name == "" {
+		name = target.Name
+	}
+	bio := strings.TrimSpace(r.FormValue("bio"))
+	badgeMode := r.FormValue("badge_mode")
+	badgeText := strings.TrimSpace(r.FormValue("badge_text"))
+	password := r.FormValue("password")
+
+	fail := func(msg string) {
+		http.Error(w, msg, http.StatusBadRequest)
+	}
+	if name != target.Name {
+		switch {
+		case utf8.RuneCountInString(name) < 2 || utf8.RuneCountInString(name) > 24:
+			fail("账号名称需要 2–24 个字符")
+			return
+		case strings.ContainsAny(name, " \t\r\n@/"):
+			fail("账号名称不能包含空格、@ 或斜杠")
+			return
+		}
+		if clash, _ := s.store.GetUserByName(name); clash != nil && clash.ID != target.ID {
+			fail("用户名已被占用")
+			return
+		}
+	}
+	if utf8.RuneCountInString(bio) > maxBioLen {
+		fail("简介最多 200 字")
+		return
+	}
+	if utf8.RuneCountInString(badgeText) > 12 {
+		fail("自定义称号最多 12 个字符")
+		return
+	}
+	if password != "" {
+		if utf8.RuneCountInString(password) < 8 {
+			fail("新密码至少 8 位")
+			return
+		}
+		hash, err := auth.HashPassword(password)
+		if err != nil {
+			s.serverError(w, err)
+			return
+		}
+		if err := s.store.UpdateUserPassword(target.ID, hash); err != nil {
+			s.serverError(w, err)
+			return
+		}
+	}
+
+	if name != target.Name {
+		if err := s.store.UpdateUserName(target.ID, name); err != nil {
+			if err == db.ErrDuplicateName {
+				fail("用户名已被占用")
+			} else {
+				s.serverError(w, err)
+			}
+			return
+		}
+	}
+	if bio != target.Bio {
+		if err := s.store.UpdateUserBio(target.ID, bio); err != nil {
+			s.serverError(w, err)
+			return
+		}
+	}
+	badge := sql.NullString{}
+	switch badgeMode {
+	case "custom":
+		badge = sql.NullString{String: badgeText, Valid: true}
+	case "hide":
+		badge = sql.NullString{String: "", Valid: true}
+	}
+	if badge.Valid != target.BadgeText.Valid || badge.String != target.BadgeText.String {
+		if err := s.store.UpdateUserBadge(target.ID, badge); err != nil {
+			s.serverError(w, err)
+			return
+		}
+	}
+	s.redirectAfter(w, r, "/admin/users")
+}
+
+// adminSetAvatar POST /admin/users/{id}/avatar:后台直接换头像(multipart field: avatar)。
+func (s *Server) adminSetAvatar(w http.ResponseWriter, r *http.Request) {
+	target, ok := s.adminTarget(w, r)
+	if !ok {
+		return
+	}
+	if err := r.ParseMultipartForm(maxImageBytes + 1<<20); err != nil {
+		http.Error(w, "请求格式错误", http.StatusBadRequest)
+		return
+	}
+	if len(r.MultipartForm.File["avatar"]) == 0 {
+		http.Error(w, "请选择图片", http.StatusBadRequest)
+		return
+	}
+	uploadID, ok := s.saveImageUpload(w, r, "avatar", target.ID)
+	if !ok {
+		return
+	}
+	newPath := "/uploads/" + strconv.FormatInt(uploadID, 10)
+	if err := s.store.UpdateUserAvatar(target.ID, newPath); err != nil {
+		s.serverError(w, err)
+		return
+	}
+	if oldID, ok := uploadPathID(target.AvatarPath); ok {
+		s.removeUploadFile(oldID) // 清理旧头像,失败静默
 	}
 	s.redirectAfter(w, r, "/admin/users")
 }

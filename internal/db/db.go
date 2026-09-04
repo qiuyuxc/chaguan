@@ -141,6 +141,8 @@ type Thread struct {
 	AuthorID     int64
 	AuthorName   string
 	AuthorAvatar string
+	AuthorRole   string
+	AuthorVerify sql.NullString // 作者认证称号(官号/认证作者等)
 	Title        string
 	IsPinned     bool
 	IsLocked     bool
@@ -781,6 +783,12 @@ func (s *Store) UpdateUserAvatar(userID int64, avatarPath string) error {
 	return err
 }
 
+// UpdateUserPassword 直接写入新密码哈希(管理员重置用)。
+func (s *Store) UpdateUserPassword(userID int64, hash string) error {
+	_, err := s.DB.Exec(`UPDATE users SET password_hash = ? WHERE id = ?`, hash, userID)
+	return err
+}
+
 func (s *Store) CreateSession(userID int64, token, csrfToken string, ttl time.Duration) error {
 	now := time.Now().Unix()
 	_, err := s.DB.Exec(
@@ -880,7 +888,7 @@ func (s *Store) CreateCategory(slug, name, description string) (int64, error) {
 
 const threadCols = `
 	t.id, t.category_id, c.slug, c.name, t.author_id, u.name, COALESCE(u.avatar_path,''),
-	t.title, t.is_pinned, t.is_locked,
+	u.role, u.verify_title, t.title, t.is_pinned, t.is_locked,
 	t.created_at, t.last_post_at, t.view_count, t.post_count,
 	COALESCE((SELECT lu.name FROM posts lp JOIN users lu ON lu.id = lp.author_id
 	          WHERE lp.thread_id = t.id ORDER BY lp.id DESC LIMIT 1), u.name),
@@ -897,7 +905,8 @@ func scanThread(row interface{ Scan(...any) error }) (*Thread, error) {
 	var pinned, locked int64
 	err := row.Scan(&t.ID, &t.CategoryID, &t.CategorySlug, &t.CategoryName,
 		&t.AuthorID, &t.AuthorName, &t.AuthorAvatar,
-		&t.Title, &pinned, &locked, &t.CreatedAt, &t.LastPostAt, &t.ViewCount, &t.PostCount, &t.LastPostBy,
+		&t.AuthorRole, &t.AuthorVerify, &t.Title, &pinned, &locked,
+		&t.CreatedAt, &t.LastPostAt, &t.ViewCount, &t.PostCount, &t.LastPostBy,
 		&t.LikeCount, &t.FavCount)
 	if err != nil {
 		return nil, err

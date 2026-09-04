@@ -2,7 +2,7 @@
 <div class="page-head">
   <div>
     <h1>认证申请</h1>
-    <p class="page-sub">共 {{len .List}} 条 · 通过后申请人的名字旁会出现蓝色 V 标</p>
+    <p class="page-sub">共 {{len .List}} 条 · 通过后名字旁出现 V 标:官号红 V、认证作者黄 V</p>
   </div>
 </div>
 
@@ -11,13 +11,16 @@
   {{range .List}}
   <div class="tr vr-row">
     <a class="tr-av" href="/u/{{.UserID}}" title="查看资料">
-      {{if .UserAvatar.Valid}}{{if .UserAvatar.String}}<span class="avatar av-40"><img src="{{.UserAvatar.String}}" alt=""></span>
-      {{else}}<span class="avatar av-40 {{avColor .UserID}}" aria-hidden="true">{{initial .UserName}}</span>{{end}}
-      {{else}}<span class="avatar av-40 {{avColor .UserID}}" aria-hidden="true">{{initial .UserName}}</span>{{end}}
+      <span class="av-frame">
+        {{if .UserAvatar.Valid}}{{if .UserAvatar.String}}<span class="avatar av-40"><img src="{{.UserAvatar.String}}" alt=""></span>
+        {{else}}<span class="avatar av-40 {{avColor .UserID}}" aria-hidden="true">{{initial .UserName}}</span>{{end}}
+        {{else}}<span class="avatar av-40 {{avColor .UserID}}" aria-hidden="true">{{initial .UserName}}</span>{{end}}
+        {{vSeal .UserRole .UserVerify}}
+      </span>
     </a>
     <div class="tr-main">
       <div class="tr-top">
-        <span class="badge vr-kind">{{.Kind}}</span>
+        <span class="badge vr-kind"><span class="vdot{{if eq .Kind "官号"}} v-red{{else if eq .Kind "认证作者"}} v-yellow{{end}}" aria-hidden="true">V</span>{{.Kind}}</span>
         <a class="author" href="/u/{{.UserID}}">{{.UserName}}</a>
         {{if eq .Status "pending"}}<span class="badge badge-admin">待审核</span>
         {{else if eq .Status "approved"}}<span class="badge">已通过</span>

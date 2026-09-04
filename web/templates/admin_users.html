@@ -81,8 +81,52 @@
   </div>
 
   {{if eq .Target.Role "admin"}}
-  <p class="muted um-note">管理员账号拥有全站权限,不设版主身份、不可封禁。</p>
-  {{else}}
+  <p class="muted um-note">管理员账号拥有全站权限,不设版主身份、不可封禁;基础资料与认证仍可调整。</p>
+  {{end}}
+
+  <section class="um-sec">
+    <h3 class="um-sec-h">基础资料</h3>
+    <div class="um-profile">
+      <form method="post" action="/admin/users/{{.Target.ID}}/avatar" enctype="multipart/form-data" class="um-avatar">
+        {{csrfField .CSRF}}<input type="hidden" name="next" value="{{.Next}}">
+        <button type="button" class="avatar av-46 {{avColor .Target.ID}} um-av-btn" data-um-avatar title="更换头像" aria-label="更换头像">
+          {{if .Target.AvatarPath}}<img src="{{.Target.AvatarPath}}" alt="">{{else}}{{initial .Target.Name}}{{end}}
+        </button>
+        <input type="file" name="avatar" accept="image/jpeg,image/png,image/gif,image/webp" hidden data-um-avatar-input>
+        <span class="muted um-av-tip">点击头像换图<br>jpg/png/gif/webp,≤5MB</span>
+      </form>
+
+      <form method="post" action="/admin/users/{{.Target.ID}}/edit" class="um-fields">
+        {{csrfField .CSRF}}<input type="hidden" name="next" value="{{.Next}}">
+        <label class="um-f">
+          <span class="um-f-lb">账号名称</span>
+          <input class="input input-sm" name="name" value="{{.Target.Name}}" maxlength="24" required autocomplete="off">
+        </label>
+        <label class="um-f">
+          <span class="um-f-lb">个人简介</span>
+          <textarea class="input input-sm um-f-bio" name="bio" rows="2" maxlength="200" placeholder="还没有写简介">{{.Target.Bio}}</textarea>
+        </label>
+        <div class="um-f">
+          <span class="um-f-lb">称号标签</span>
+          <div class="um-badge" data-um-badge>
+            <label class="opt"><input type="radio" name="badge_mode" value="follow"{{if eq .BadgeMode "follow"}} checked{{end}}>跟随身份{{if or (eq .Target.Role "admin") (eq .Target.Role "mod")}}(管理员/版主){{else}}(暂无){{end}}</label>
+            <label class="opt"><input type="radio" name="badge_mode" value="custom"{{if eq .BadgeMode "custom"}} checked{{end}}>自定义</label>
+            <input class="input input-sm um-badge-text" name="badge_text" value="{{.BadgeText}}" maxlength="12" placeholder="如:站长、老司机"{{if ne .BadgeMode "custom"}} disabled{{end}}>
+            <label class="opt"><input type="radio" name="badge_mode" value="hide"{{if eq .BadgeMode "hide"}} checked{{end}}>隐藏标签</label>
+          </div>
+        </div>
+        <label class="um-f">
+          <span class="um-f-lb">重置密码</span>
+          <input class="input input-sm" type="password" name="password" maxlength="72" autocomplete="new-password" placeholder="留空则不修改,至少 8 位">
+        </label>
+        <div class="um-act">
+          <button class="btn btn-primary btn-sm" type="submit">保存资料</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  {{if ne .Target.Role "admin"}}
   <div class="um-cols">
     <section class="um-sec">
       <h3 class="um-sec-h">版主身份</h3>
@@ -161,17 +205,16 @@
     {{else if eq .Target.Role "mod"}}
     <p class="um-tip">留空时按身份自动显示「版主认证」;填入自定义称号可覆盖预览。</p>
     {{else}}
-    <p class="um-tip">留空 = 无认证(不显示 V);填入后名字旁出现蓝色 V 标,并同步主页、帖子与回复。</p>
+    <p class="um-tip">留空 = 无认证(不显示 V);填入后名字旁出现 V 标,并同步主页、帖子与回复。</p>
     {{end}}
     <form method="post" action="/admin/users/{{.Target.ID}}/verify">
       {{csrfField .CSRF}}<input type="hidden" name="next" value="{{.Next}}">
       <div class="verify-edit" data-verify-edit
-           data-auto="{{if eq .Target.Role "mod"}}版主认证{{else if eq .Target.Role "admin"}}管理员认证{{end}}"
-           data-role="{{.Target.Role}}">
+           data-auto="{{if eq .Target.Role "mod"}}版主认证{{else if eq .Target.Role "admin"}}管理员认证{{end}}">
         <div class="pick-chips" role="group" aria-label="快捷认证">
           <button type="button" class="pick-chip{{if not .Target.VerifyTitle.Valid}} on{{end}}" data-val="">无认证</button>
-          <button type="button" class="pick-chip{{if and .Target.VerifyTitle.Valid (eq .Target.VerifyTitle.String "官号")}} on{{end}}" data-val="官号">官号</button>
-          <button type="button" class="pick-chip{{if and .Target.VerifyTitle.Valid (eq .Target.VerifyTitle.String "认证作者")}} on{{end}}" data-val="认证作者">认证作者</button>
+          <button type="button" class="pick-chip{{if and .Target.VerifyTitle.Valid (eq .Target.VerifyTitle.String "官号")}} on{{end}}" data-val="官号"><span class="vdot v-red" aria-hidden="true">V</span>官号</button>
+          <button type="button" class="pick-chip{{if and .Target.VerifyTitle.Valid (eq .Target.VerifyTitle.String "认证作者")}} on{{end}}" data-val="认证作者"><span class="vdot v-yellow" aria-hidden="true">V</span>认证作者</button>
         </div>
         <div class="verify-edit-row">
           <span class="pick-lb">或自定义</span>
@@ -180,7 +223,7 @@
                  placeholder="直接输入:如 Figma 官方、某工作室、专栏作者" aria-label="自定义认证称号">
         </div>
         <div class="verify-preview">
-          <span class="vb-seal" aria-hidden="true">V</span>
+          <span class="vb-seal{{if and .Target.VerifyTitle.Valid (eq .Target.VerifyTitle.String "官号")}} v-red{{else if and .Target.VerifyTitle.Valid (eq .Target.VerifyTitle.String "认证作者")}} v-yellow{{end}}" aria-hidden="true">V</span>
           <span class="verify-preview-txt" data-verify-preview>{{if .Target.VerifyTitle.Valid}}{{.Target.VerifyTitle.String}}{{else if eq .Target.Role "admin"}}管理员认证{{else if eq .Target.Role "mod"}}版主认证{{else}}不显示 V 标{{end}}</span>
         </div>
       </div>

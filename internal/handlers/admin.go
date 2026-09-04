@@ -201,15 +201,17 @@ type adminPanelCat struct {
 }
 
 type adminUserPanelData struct {
-	CSRF     string
-	ViewerID int64
-	Target   *db.User
-	ModCats  []db.Category
-	Cats     []adminPanelCat
-	Threads  int64
-	Replies  int64
-	Likes    int64
-	Next     string
+	CSRF      string
+	ViewerID  int64
+	Target    *db.User
+	ModCats   []db.Category
+	Cats      []adminPanelCat
+	Threads   int64
+	Replies   int64
+	Likes     int64
+	BadgeMode string // 称号标签当前模式:follow/custom/hide
+	BadgeText string // 自定义称号文案
+	Next      string
 }
 
 // adminUserPanel GET /admin/users/{id}/panel:返回用户管理弹窗片段。
@@ -273,16 +275,19 @@ func (s *Server) adminUserPanel(w http.ResponseWriter, r *http.Request) {
 	if info.User != nil {
 		viewerID = info.User.ID
 	}
+	mode, text := badgeState(target)
 	s.rend.Partial(w, 200, "admin_users", "admin_user_panel", adminUserPanelData{
-		CSRF:     info.CSRF,
-		ViewerID: viewerID,
-		Target:   target,
-		ModCats:  modCats,
-		Cats:     opts,
-		Threads:  threads,
-		Replies:  replies,
-		Likes:    stats.Liked,
-		Next:     usersReturnURL(id, q, pageParam(r)),
+		CSRF:      info.CSRF,
+		ViewerID:  viewerID,
+		Target:    target,
+		ModCats:   modCats,
+		Cats:      opts,
+		Threads:   threads,
+		Replies:   replies,
+		Likes:     stats.Liked,
+		BadgeMode: mode,
+		BadgeText: text,
+		Next:      usersReturnURL(id, q, pageParam(r)),
 	})
 }
 
