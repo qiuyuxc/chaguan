@@ -1,12 +1,7 @@
 {{define "content"}}
-<div class="page-head">
-  <div>
-    <h1>编辑资料</h1>
-    <p class="page-sub">更新简介或更换头像</p>
-  </div>
-</div>
-
-<div class="card form-card">
+<nav class="crumb"><a href="/">首页</a><svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg><a href="/u/{{.Profile.ID}}">{{.Profile.Name}}</a><svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg><span>编辑资料</span></nav>
+<div class="side-card compose-card">
+  <div class="side-title">编辑资料</div>
   {{if .Error}}<p class="form-error">{{.Error}}</p>{{end}}
   <form method="post" action="/u/{{.Profile.ID}}/edit" enctype="multipart/form-data" class="form-grid">
     {{csrfField .CSRF}}
@@ -20,7 +15,7 @@
     <label>简介<textarea class="input textarea" name="bio" maxlength="200" rows="4" placeholder="写点介绍,让大家认识你(可选)">{{.Bio}}</textarea></label>
     <div class="form-actions">
       <button class="btn btn-primary" type="submit">保存</button>
-      <a class="btn btn-secondary" href="/u/{{.Profile.ID}}">取消</a>
+      <a class="btn btn-white" href="/u/{{.Profile.ID}}">取消</a>
     </div>
   </form>
 </div>

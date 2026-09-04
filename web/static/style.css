@@ -637,3 +637,20 @@ body.drawer-open { overflow: hidden; }
 .reply-form-card .form-grid { display: grid; gap: 8px; }
 .drawer .side-link .cnt { display: none; }
 .drawer .side-title { font-size: 12px; }
+
+/* ---------- 个人中心 ---------- */
+.av-64 { width: 56px; height: 56px; font-size: 20px; }
+.profile-hero { padding: 18px 14px 14px; }
+.profile-meta { margin: 7px 0 0; font-size: 11px; }
+.profile-stats {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+  text-align: center; margin-top: 13px; padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.profile-stats b { display: block; font-size: 18px; color: var(--ink); font-weight: 700; }
+.profile-stats span { font-size: 11px; color: var(--ink-3); }
+.profile-h {
+  margin: 18px 0 8px; font-size: 13px; font-weight: 600; color: var(--ink);
+}
+.profile-h b { color: var(--accent-dk); font-weight: 600; }
+.profile-admin .inline-form { margin-top: 6px; }

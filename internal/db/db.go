@@ -255,6 +255,27 @@ func (s *Store) CountUserReplies(userID int64) (int64, error) {
 	return n, err
 }
 
+// ListUserThreads 某用户发起过的主题(资料页「TA 的主题」)。
+func (s *Store) ListUserThreads(userID int64, limit, offset int) ([]Thread, error) {
+	rows, err := s.DB.Query(`SELECT `+threadCols+threadFrom+`
+		WHERE t.author_id = ?
+		ORDER BY t.is_pinned DESC, t.last_post_at DESC LIMIT ? OFFSET ?`,
+		userID, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Thread
+	for rows.Next() {
+		t, err := scanThread(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *t)
+	}
+	return out, rows.Err()
+}
+
 func (s *Store) UpdateUserBio(userID int64, bio string) error {
 	_, err := s.DB.Exec(`UPDATE users SET bio = ? WHERE id = ?`, bio, userID)
 	return err

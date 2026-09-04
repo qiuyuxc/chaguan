@@ -17,11 +17,17 @@ const maxBioLen = 200
 type profileData struct {
 	web.Base
 	Profile       *db.User
+	Topics        []db.Thread
 	Threads       int64
 	Replies       int64
+	Posts         int64
 	IsSelf        bool
 	IsAdminViewer bool
+	Page, Pages   int
+	BaseURL       string
 }
+
+const profileTopicsPerPage = 10
 
 type editProfileData struct {
 	web.Base
@@ -56,14 +62,25 @@ func (s *Server) profile(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, err)
 		return
 	}
+	page := pageParam(r)
+	topics, err := s.store.ListUserThreads(u.ID, profileTopicsPerPage, (page-1)*profileTopicsPerPage)
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
 	viewer := auth.From(r.Context()).User
 	s.rend.Render(w, 200, "profile", profileData{
 		Base:          s.base(r, u.Name+" 的资料"),
 		Profile:       u,
+		Topics:        topics,
 		Threads:       threads,
 		Replies:       replies,
+		Posts:         threads + replies,
 		IsSelf:        viewer != nil && viewer.ID == u.ID,
 		IsAdminViewer: viewer != nil && viewer.IsAdmin(),
+		Page:          page,
+		Pages:         totalPages(threads, profileTopicsPerPage),
+		BaseURL:       "/u/" + strconv.FormatInt(u.ID, 10),
 	})
 }
 
