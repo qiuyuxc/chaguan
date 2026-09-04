@@ -53,6 +53,7 @@ type PostView struct {
 	IsOP      bool  // 是否为楼主本人(回复区显示「楼主」徽章)
 	LikeCount int64 // 该楼获赞(回复点赞;不进「我的点赞」列表)
 	LikedByMe bool  // 我是否赞过该楼
+	CanDelete bool  // 该查看者可删此回复:作者本人 / 管理员 / 管辖该版块的版主
 }
 
 var funcs = template.FuncMap{
@@ -88,8 +89,7 @@ var funcs = template.FuncMap{
 		}
 		return fmt.Sprintf("%s%spage=%d", baseURL, sep, page)
 	},
-	"canDeletePost": canDeletePost,
-	"canEditPost":   canEditPost,
+	"canEditPost": canEditPost,
 	"pages": func(n int) []int {
 		out := make([]int, n)
 		for i := range out {
@@ -154,14 +154,7 @@ func quotePreview(src string) string {
 	return trim(txt)
 }
 
-func canDeletePost(p db.Post, viewer *db.User) bool {
-	if viewer == nil || p.IsFirst {
-		return false // 首帖的删除 = 删主题,走独立入口
-	}
-	return viewer.ID == p.AuthorID || viewer.IsAdmin()
-}
-
-// canEditPost 与删除同权:作者本人或管理员可编辑。
+// canEditPost 编辑权限:作者本人或管理员可编辑。
 func canEditPost(p db.Post, viewer *db.User) bool {
 	return viewer != nil && (viewer.ID == p.AuthorID || viewer.IsAdmin())
 }

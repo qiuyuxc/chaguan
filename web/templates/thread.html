@@ -21,6 +21,8 @@
       <a class="ic-act" href="/t/{{.Thread.ID}}/edit" title="编辑主题" aria-label="编辑主题">
         <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>
       </a>
+      {{end}}
+      {{if or (eq .User.ID .Thread.AuthorID) .User.IsAdmin .CanModerate}}
       <form method="post" action="/t/{{.Thread.ID}}/delete" class="inline" data-confirm="删除整个主题及其全部回复?">
         {{csrfField .CSRF}}
         <button class="ic-act ic-act-danger" type="submit" title="删除主题" aria-label="删除主题">

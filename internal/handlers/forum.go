@@ -503,6 +503,18 @@ func (s *Server) thread(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, err)
 		return
 	}
+	canMod := false
+	if viewer != nil {
+		if viewer.IsAdmin() {
+			canMod = true
+		} else if viewer.IsMod() {
+			canMod, err = s.store.IsModOf(viewer.ID, t.CategoryID)
+			if err != nil {
+				s.serverError(w, err)
+				return
+			}
+		}
+	}
 	pvs := make([]web.PostView, 0, len(posts))
 	for _, p := range posts {
 		if p.IsFirst {
@@ -514,8 +526,10 @@ func (s *Server) thread(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		likes := likeMap[p.ID]
+		canDelete := viewer != nil && (p.AuthorID == viewer.ID || canMod)
 		pvs = append(pvs, web.PostView{Post: p, Viewer: viewer, Floor: floor,
-			IsOP: p.AuthorID == t.AuthorID, LikeCount: likes.Count, LikedByMe: likes.Liked})
+			IsOP: p.AuthorID == t.AuthorID, LikeCount: likes.Count, LikedByMe: likes.Liked,
+			CanDelete: canDelete})
 	}
 	likeCount, favCount, liked, faved, err := s.store.ThreadReacts(t.ID, 0)
 	if err != nil {
@@ -527,18 +541,6 @@ func (s *Server) thread(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			s.serverError(w, err)
 			return
-		}
-	}
-	canMod := false
-	if viewer != nil {
-		if viewer.IsAdmin() {
-			canMod = true
-		} else if viewer.IsMod() {
-			canMod, err = s.store.IsModOf(viewer.ID, t.CategoryID)
-			if err != nil {
-				s.serverError(w, err)
-				return
-			}
 		}
 	}
 	s.rend.Render(w, 200, "thread", threadData{
@@ -606,6 +608,7 @@ func (s *Server) reply(w http.ResponseWriter, r *http.Request) {
 	}
 	s.rend.Partial(w, 200, "thread", "post", web.PostView{
 		Post: *p, Viewer: user, Floor: floor, IsOP: user.ID == t.AuthorID,
+		CanDelete: user.ID == p.AuthorID,
 	})
 }
 
@@ -631,12 +634,12 @@ func (s *Server) deletePost(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r) // 已删过,幂等处理:htmx 会收到 404 并保留元素,可接受
 		return
 	}
-	if !user.IsAdmin() && user.ID != p.AuthorID {
-		http.Error(w, "只能删除自己的帖子", http.StatusForbidden)
-		return
-	}
 	if p.IsFirst {
 		http.Error(w, "首帖需通过「删除主题」移除整个主题", http.StatusBadRequest)
+		return
+	}
+	if !user.IsAdmin() && user.ID != p.AuthorID && !s.canModeratePost(user, p) {
+		http.Error(w, "只能删除自己的帖子", http.StatusForbidden)
 		return
 	}
 	if err := s.store.DeletePost(p.ID); err != nil {
@@ -667,8 +670,19 @@ func (s *Server) deleteThread(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !user.IsAdmin() && user.ID != t.AuthorID {
-		http.Error(w, "只能删除自己的主题", http.StatusForbidden)
-		return
+		if !user.IsMod() {
+			http.Error(w, "只能删除自己的主题", http.StatusForbidden)
+			return
+		}
+		mod, err := s.store.IsModOf(user.ID, t.CategoryID)
+		if err != nil {
+			s.serverError(w, err)
+			return
+		}
+		if !mod {
+			http.Error(w, "仅该版块的版主/管理员可删除", http.StatusForbidden)
+			return
+		}
 	}
 	if err := s.store.DeleteThread(t.ID); err != nil {
 		s.serverError(w, err)
@@ -685,6 +699,23 @@ func (s *Server) deleteThread(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) canEditPost(user *db.User, p *db.Post) bool {
 	return user != nil && p != nil && (user.ID == p.AuthorID || user.IsAdmin())
+}
+
+// canModeratePost 该用户能否以管理身份删这条回复:管理员,或回复所在主题
+// 的管辖版主。帖子归属查询失败一律按无权处理。
+func (s *Server) canModeratePost(user *db.User, p *db.Post) bool {
+	if user == nil || p == nil || !user.IsMod() {
+		return false
+	}
+	t, err := s.store.GetThread(p.ThreadID)
+	if err != nil || t == nil {
+		return false
+	}
+	if user.IsAdmin() {
+		return true
+	}
+	mod, err := s.store.IsModOf(user.ID, t.CategoryID)
+	return err == nil && mod
 }
 
 // lockedText 锁定主题的编辑限制:作者之外仅版主/管理员可继续操作。
