@@ -145,7 +145,13 @@ func (s *Server) profile(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, err)
 		return
 	}
-	exp := socialExp(threads, replies, stats.Liked)
+	// 等级经验只看真实获赞,后台覆盖的展示获赞不参与,避免经验被手动数值带飞
+	likedReal, err := s.store.LikesReceived(u.ID)
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	exp := socialExp(threads, replies, likedReal)
 	level, expShown, expStart, expNext := levelInfo(exp, u.LevelOverride)
 	expPct := 100
 	if expNext > expStart {

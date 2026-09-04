@@ -29,8 +29,9 @@ func (s *Server) base(r *http.Request, title string) web.Base {
 	if u := i.User; u != nil {
 		if threads, err := s.store.CountUserThreads(u.ID); err == nil {
 			if replies, err := s.store.CountUserReplies(u.ID); err == nil {
-				if stats, err := s.store.SocialStats(u.ID); err == nil {
-					exp := socialExp(threads, replies, stats.Liked)
+				// 等级经验只看真实获赞,后台覆盖的展示获赞不参与
+				if likedReal, err := s.store.LikesReceived(u.ID); err == nil {
+					exp := socialExp(threads, replies, likedReal)
 					level, shown, start, next := levelInfo(exp, u.LevelOverride)
 					b.Exp = shown
 					b.Level = level

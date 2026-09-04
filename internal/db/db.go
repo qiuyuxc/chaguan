@@ -432,29 +432,62 @@ type SocialStats struct {
 
 func (s *Store) SocialStats(userID int64) (SocialStats, error) {
 	var st SocialStats
-	// 管理员设置过覆盖值时优先展示,否则按真实统计聚合。
+	// 设置过的社交值作为「起点基准」:展示 = 设置值 + 之后的真实增量(只增不减);
+	// 未设置则按真实统计聚合。
 	err := s.DB.QueryRow(`
 		SELECT
-			COALESCE(u.stat_following, (SELECT COUNT(*) FROM follows WHERE follower_id = u.id)),
-			COALESCE(u.stat_followers, (SELECT COUNT(*) FROM follows WHERE followee_id = u.id)),
-			COALESCE(u.stat_liked, (SELECT COUNT(*) FROM post_likes pl JOIN posts p ON p.id = pl.post_id
-			 WHERE p.author_id = u.id))
+			CASE WHEN u.stat_following IS NOT NULL THEN
+				u.stat_following + MAX(0, (SELECT COUNT(*) FROM follows WHERE follower_id = u.id) - u.stat_following_base)
+			ELSE (SELECT COUNT(*) FROM follows WHERE follower_id = u.id) END,
+			CASE WHEN u.stat_followers IS NOT NULL THEN
+				u.stat_followers + MAX(0, (SELECT COUNT(*) FROM follows WHERE followee_id = u.id) - u.stat_followers_base)
+			ELSE (SELECT COUNT(*) FROM follows WHERE followee_id = u.id) END,
+			CASE WHEN u.stat_liked IS NOT NULL THEN
+				u.stat_liked + MAX(0, (SELECT COUNT(*) FROM post_likes pl JOIN posts p ON p.id = pl.post_id
+				 WHERE p.author_id = u.id) - u.stat_liked_base)
+			ELSE (SELECT COUNT(*) FROM post_likes pl JOIN posts p ON p.id = pl.post_id
+			 WHERE p.author_id = u.id) END
 		FROM users u WHERE u.id = ?`, userID).Scan(&st.Following, &st.Followers, &st.Liked)
 	return st, err
 }
 
-// SetSocialStats 后台覆盖展示用社交数据;NullInt64 无效值表示恢复真实统计。
+// SetSocialStats 后台设置社交数据起点基准;NullInt64 无效值表示恢复真实统计。
+// 设置时记录当时的真实统计为基准,之后真实新增会继续累计到展示值上。
 func (s *Store) SetSocialStats(userID int64, following, followers, liked sql.NullInt64) error {
-	arg := func(v sql.NullInt64) any {
-		if v.Valid {
-			return v.Int64
-		}
-		return nil
+	var rf, rfo, rl int64
+	if err := s.DB.QueryRow(`
+		SELECT
+			(SELECT COUNT(*) FROM follows WHERE follower_id = ?),
+			(SELECT COUNT(*) FROM follows WHERE followee_id = ?),
+			(SELECT COUNT(*) FROM post_likes pl JOIN posts p ON p.id = pl.post_id
+			 WHERE p.author_id = ?)`, userID, userID, userID).Scan(&rf, &rfo, &rl); err != nil {
+		return err
 	}
+	arg := func(v sql.NullInt64, real int64) (any, int64) {
+		if v.Valid {
+			return v.Int64, real
+		}
+		return nil, 0
+	}
+	a1, b1 := arg(following, rf)
+	a2, b2 := arg(followers, rfo)
+	a3, b3 := arg(liked, rl)
 	_, err := s.DB.Exec(`UPDATE users
-		SET stat_following = ?, stat_followers = ?, stat_liked = ? WHERE id = ?`,
-		arg(following), arg(followers), arg(liked), userID)
+		SET stat_following = ?, stat_following_base = ?,
+		    stat_followers = ?, stat_followers_base = ?,
+		    stat_liked = ?, stat_liked_base = ?
+		WHERE id = ?`,
+		a1, b1, a2, b2, a3, b3, userID)
 	return err
+}
+
+// LikesReceived 用户实际收到的赞(不计后台覆盖,等级经验用它计算)。
+func (s *Store) LikesReceived(userID int64) (int64, error) {
+	var n int64
+	err := s.DB.QueryRow(
+		`SELECT COUNT(*) FROM post_likes pl JOIN posts p ON p.id = pl.post_id
+		  WHERE p.author_id = ?`, userID).Scan(&n)
+	return n, err
 }
 
 // ListUserThreads 某用户发起过的主题(资料页「TA 的主题」)。

@@ -231,7 +231,7 @@
 
   <section class="um-sec">
     <h3 class="um-sec-h">社交数据</h3>
-    <p class="um-tip">关注 / 粉丝 / 获赞可手动指定(留空 = 按真实统计自动);主页与个人卡片展示这里的数值。</p>
+    <p class="um-tip">留空 = 纯真实统计;填写后以该数值为起点,之后的真实新增会继续累加(只增不减)。获赞仅作展示,不参与等级经验。</p>
     <form method="post" action="/admin/users/{{.Target.ID}}/social">
       {{csrfField .CSRF}}<input type="hidden" name="next" value="{{.Next}}">
       <div class="um-social">
