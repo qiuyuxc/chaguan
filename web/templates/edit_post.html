@@ -1,5 +1,4 @@
 {{define "content"}}
-<nav class="crumb"><a href="/">首页</a><svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg><a href="/t/{{.Thread.ID}}">{{.Thread.Title}}</a><svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg><span>编辑回复</span></nav>
 <div class="side-card compose-card">
   <div class="side-title">编辑回复</div>
   {{if .Error}}<p class="form-error">{{.Error}}</p>{{end}}
