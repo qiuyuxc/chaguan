@@ -695,7 +695,7 @@ body.drawer-open { overflow: hidden; }
 .member-meta b { color: var(--ink-3); font-weight: 600; }
 .member-level {
   display: flex; align-items: center; gap: 8px;
-  margin-top: 9px; max-width: 340px;
+  margin-top: 10px; max-width: 560px;
 }
 .lv-track {
   flex: 1; min-width: 0; height: 5px;
@@ -708,18 +708,18 @@ body.drawer-open { overflow: hidden; }
 .member-chips .uc-chip.on { background: var(--accent); color: #fff; }
 .member-stats {
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px; margin-top: 14px; max-width: 430px;
+  gap: 6px; margin-top: 10px; max-width: 300px;
 }
 .ms-item {
-  display: grid; gap: 3px; align-content: center;
-  padding: 9px 10px; text-align: center;
+  display: grid; gap: 1px; align-content: center;
+  padding: 5px 8px; text-align: center;
   background: var(--card); border: 1px solid var(--line); border-radius: var(--r-card);
 }
 .ms-num {
-  font-size: 17px; font-weight: 800; color: var(--ink);
+  font-size: 14px; font-weight: 800; color: var(--ink);
   line-height: 1.2; font-variant-numeric: tabular-nums;
 }
-.ms-lb { font-size: 11px; color: var(--ink-3); }
+.ms-lb { font-size: 10px; color: var(--ink-3); }
 .member-bio {
   margin: 12px 0 0; max-width: 560px;
   font-size: 13px; color: var(--ink-2); line-height: 1.6;

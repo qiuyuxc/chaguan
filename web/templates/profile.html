@@ -20,9 +20,19 @@
         </a>
         {{end}}
       </div>
-      <div class="member-level" title="经验 {{.Exp}}">
-        <span class="lv-track"><span class="lv-fill" style="width:{{.ExpPct}}%"></span></span>
-        <span class="lv-exp">经验 {{.Exp}} / {{.ExpNext}}</span>
+      <div class="member-stats">
+        <div class="ms-item">
+          <b class="ms-num">{{.Following}}</b>
+          <span class="ms-lb">关注</span>
+        </div>
+        <div class="ms-item">
+          <b class="ms-num">{{.Followers}}</b>
+          <span class="ms-lb">粉丝</span>
+        </div>
+        <div class="ms-item">
+          <b class="ms-num">{{.Liked}}</b>
+          <span class="ms-lb">获赞</span>
+        </div>
       </div>
     </div>
   </div>
@@ -31,19 +41,9 @@
   {{else}}
   <p class="member-bio muted">这个人很低调,还没有写简介</p>
   {{end}}
-  <div class="member-stats">
-    <div class="ms-item">
-      <b class="ms-num">{{.Following}}</b>
-      <span class="ms-lb">关注</span>
-    </div>
-    <div class="ms-item">
-      <b class="ms-num">{{.Followers}}</b>
-      <span class="ms-lb">粉丝</span>
-    </div>
-    <div class="ms-item">
-      <b class="ms-num">{{.Liked}}</b>
-      <span class="ms-lb">获赞</span>
-    </div>
+  <div class="member-level" title="经验 {{.Exp}}">
+    <span class="lv-track"><span class="lv-fill" style="width:{{.ExpPct}}%"></span></span>
+    <span class="lv-exp">经验 {{.Exp}} / {{.ExpNext}}</span>
   </div>
   <p class="member-meta muted">UID {{.Profile.ID}} · {{date .Profile.CreatedAt}} 加入</p>
   <div class="member-chips">
