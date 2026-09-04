@@ -78,6 +78,10 @@ func Routes(store *db.Store, rend *web.Renderer, uploadsDir string) http.Handler
 	mux.HandleFunc("POST /admin/categories/{id}/delete", s.deleteCategory)
 
 	mux.HandleFunc("POST /admin/categories", s.createCategory)
+	mux.HandleFunc("GET /admin", s.adminOverview)
+	mux.HandleFunc("GET /admin/users", s.adminUsers)
+	mux.HandleFunc("GET /admin/users/{id}/panel", s.adminUserPanel)
+	mux.HandleFunc("GET /admin/threads", s.adminThreads)
 
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(web.Static())))
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {

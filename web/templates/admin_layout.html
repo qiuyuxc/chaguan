@@ -1,0 +1,81 @@
+{{define "admin_layout"}}<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}} · BBS 后台</title>
+<link rel="stylesheet" href="/static/style.css">
+<script>(function(){try{if(localStorage.getItem("bbs-theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
+<script src="/static/htmx.min.js" defer></script>
+<script src="/static/app.js" defer></script>
+</head>
+<body class="admin-body" hx-headers='{"X-CSRF-Token": "{{.CSRF}}"}'>
+<header class="admin-top">
+  <div class="admin-top-in">
+    <a class="admin-brand" href="/admin">
+      <span class="logo-mark">
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      </span>
+      <span class="admin-brand-txt"><b>管理后台</b><small>BBS Admin</small></span>
+    </a>
+    <div class="admin-top-actions">
+      <button type="button" class="icon-btn" data-theme-toggle aria-pressed="false" title="夜间模式" aria-label="夜间模式">
+        <svg class="ic th-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+        <svg class="ic th-sun" viewBox="0 0 24 24" aria-hidden="true" hidden><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+      </button>
+      <a class="btn btn-white btn-sm" href="/">
+        <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+        查看论坛
+      </a>
+    </div>
+  </div>
+</header>
+
+<div class="admin-shell">
+  <aside class="admin-side">
+    <nav class="admin-nav" aria-label="后台导航">
+      {{if eq .ATab "overview"}}<a class="side-link on" href="/admin">
+      {{else}}<a class="side-link" href="/admin">{{end}}
+        <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        概览
+      </a>
+      {{if eq .ATab "users"}}<a class="side-link on" href="/admin/users">
+      {{else}}<a class="side-link" href="/admin/users">{{end}}
+        <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        用户
+      </a>
+      {{if eq .ATab "threads"}}<a class="side-link on" href="/admin/threads">
+      {{else}}<a class="side-link" href="/admin/threads">{{end}}
+        <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/></svg>
+        内容
+      </a>
+      {{if eq .ATab "categories"}}<a class="side-link on" href="/admin/categories">
+      {{else}}<a class="side-link" href="/admin/categories">{{end}}
+        <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2H2v10l9.29 9.29a1 1 0 0 0 1.42 0l8.58-8.58a1 1 0 0 0 0-1.42z"/><circle cx="7" cy="7" r="1"/></svg>
+        版块
+      </a>
+    </nav>
+    <div class="admin-side-foot">
+      <a class="side-link" href="/">
+        <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+        返回论坛
+      </a>
+    </div>
+  </aside>
+  <main class="admin-main">
+{{template "content" .}}
+  </main>
+</div>
+
+<div class="modal" id="bbs-modal" hidden>
+  <div class="modal-scrim" data-modal-cancel></div>
+  <div class="modal-card" role="alertdialog" aria-modal="true" aria-labelledby="bbs-modal-text">
+    <p class="modal-text" id="bbs-modal-text"></p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-white" data-modal-cancel>取消</button>
+      <button type="button" class="btn btn-primary" id="bbs-modal-ok">确认</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>{{end}}

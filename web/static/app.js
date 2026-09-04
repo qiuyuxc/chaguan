@@ -598,8 +598,9 @@
       var moon = b.querySelector(".th-moon");
       var sun = b.querySelector(".th-sun");
       var lb = b.querySelector(".th-label");
-      if (moon) moon.hidden = dark;
-      if (sun) sun.hidden = !dark;
+      // SVG 元素不反射 hidden 属性,需直接增删属性
+      if (moon) moon.toggleAttribute("hidden", dark);
+      if (sun) sun.toggleAttribute("hidden", !dark);
       if (lb) lb.textContent = dark ? "日间模式" : "夜间模式";
     });
   }
@@ -701,4 +702,129 @@
     });
   });
   sync(null);
+})();
+
+// 管理后台:选项芯片(选管辖版块/封禁天数) → 写入表单隐藏 input,未选则拦截提交
+(function () {
+  document.querySelectorAll("[data-pick]").forEach(function (box) {
+    var form = box.closest("form");
+    if (!form) return;
+    var name = box.getAttribute("data-pick");
+    var input = form.querySelector('input[name="' + name + '"]');
+    var chips = box.querySelectorAll(".pick-chip");
+    function sync() {
+      var active = box.querySelector(".pick-chip.on");
+      if (input && active) input.value = active.getAttribute("data-val");
+      chips.forEach(function (c) {
+        c.classList.toggle("on", c === active);
+        c.setAttribute("aria-pressed", c === active ? "true" : "false");
+      });
+    }
+    chips.forEach(function (c) {
+      c.addEventListener("click", function () {
+        box.querySelectorAll(".pick-chip").forEach(function (o) { o.classList.remove("on"); });
+        c.classList.add("on");
+        sync();
+      });
+    });
+    if (input) {
+      form.addEventListener("submit", function (e) {
+        if (!input.value) {
+          e.preventDefault();
+          box.classList.add("need");
+          setTimeout(function () { box.classList.remove("need"); }, 600);
+        }
+      });
+    }
+    sync();
+  });
+})();
+
+// 管理后台:用户管理弹窗(列表内直接操作;不进独立页面)
+(function () {
+  var modal = document.getElementById("um-modal");
+  if (!modal) return;
+  var body = document.getElementById("um-body");
+  if (!body) return;
+  var loadingHTML = '<div class="um-loading">加载中…</div>';
+
+  function umPanelURL(id) {
+    // 带上当前列表的 q / page;去掉可能残留的 panel 参数
+    var s = location.search.replace(/[?&]panel=[^&]*/, "");
+    if (s.indexOf("&") === 0) s = "?" + s.slice(1);
+    return "/admin/users/" + id + "/panel" + s;
+  }
+  function openModal() { modal.hidden = false; }
+  function closeModal() { modal.hidden = true; }
+  function loadPanel(url) {
+    body.innerHTML = loadingHTML;
+    openModal();
+    fetch(url, { headers: { "Accept": "text/html" } })
+      .then(function (r) { return r.ok ? r.text() : Promise.reject(); })
+      .then(function (html) {
+        body.innerHTML = html;
+        bindPanel(body);
+      })
+      .catch(function () {
+        body.innerHTML = '<p class="empty">加载失败,请刷新页面重试</p>';
+      });
+  }
+  function bindPanel(root) {
+    root.querySelectorAll("[data-pick]").forEach(function (box) {
+      var form = box.closest("form");
+      if (!form) return;
+      var name = box.getAttribute("data-pick");
+      var input = form.querySelector('input[name="' + name + '"]');
+      if (!input) return;
+      var chips = Array.prototype.slice.call(box.querySelectorAll(".pick-chip:not(.off)"));
+      function sync() {
+        var v = input.value;
+        chips.forEach(function (c) {
+          c.classList.toggle("on", c.getAttribute("data-val") === v);
+          c.setAttribute("aria-pressed", c.getAttribute("data-val") === v ? "true" : "false");
+        });
+        box.classList.remove("need");
+      }
+      chips.forEach(function (c) {
+        c.addEventListener("click", function () {
+          input.value = c.getAttribute("data-val");
+          sync();
+          if (name === "days") input.dispatchEvent(new Event("change", { bubbles: true }));
+        });
+      });
+      input.addEventListener("input", sync);
+      input.addEventListener("change", sync);
+      form.addEventListener("submit", function (e) {
+        if (!input.value) {
+          e.preventDefault();
+          box.classList.add("need");
+          setTimeout(function () { box.classList.remove("need"); }, 600);
+        }
+      });
+      sync();
+    });
+    // 聚焦第一个可交互控件,方便键盘操作
+    var first = root.querySelector("button:not([disabled]), input:not([type=hidden])");
+    if (first) try { first.focus(); } catch (e) {}
+  }
+
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest ? e.target.closest(".js-um-open") : null;
+    if (!btn) return;
+    e.preventDefault();
+    loadPanel(umPanelURL(btn.getAttribute("data-um-id")));
+  });
+  Array.prototype.forEach.call(modal.querySelectorAll("[data-um-cancel]"), function (el) {
+    el.addEventListener("click", closeModal);
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape" || modal.hidden) return;
+    var c = document.getElementById("bbs-modal");
+    if (c && !c.hidden) return;
+    closeModal();
+  });
+
+  // 操作回跳后自动重开(带 data-panel-href 时)
+  var holder = document.querySelector("[data-panel-href]");
+  if (holder) loadPanel(holder.getAttribute("data-panel-href"));
 })();

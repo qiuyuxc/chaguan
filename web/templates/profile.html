@@ -140,35 +140,13 @@
   <div class="profile-sec">管理</div>
   {{if .Profile.BannedUntil.Valid}}
   <p class="page-sub">该账号封禁中,{{date .Profile.BannedUntil.Int64}} 解封</p>
+  {{else if eq .Profile.Role "admin"}}
+  <p class="page-sub">管理员账号,无需后台操作</p>
   {{else}}
-  <p class="page-sub">账号状态正常</p>
+  <p class="page-sub">版主身份与封禁请在管理后台设置</p>
   {{end}}
-  {{if or (eq .Profile.Role "user") (eq .Profile.Role "mod")}}
-  <form method="post" action="/admin/users/{{.Profile.ID}}/role" class="inline-form">
-    {{csrfField .CSRF}}
-    {{if eq .Profile.Role "mod"}}
-    <input type="hidden" name="role" value="user"><button class="btn btn-outline btn-sm" type="submit">撤销版主</button>
-    {{else}}
-    <input type="hidden" name="role" value="mod"><button class="btn btn-outline btn-sm" type="submit">设为版主</button>
-    {{end}}
-  </form>
-  {{end}}
-  <form method="post" action="/admin/users/{{.Profile.ID}}/ban" class="inline-form">
-    {{csrfField .CSRF}}
-    <select class="input" name="days">
-      <option value="1">1 天</option>
-      <option value="3">3 天</option>
-      <option value="7">7 天</option>
-      <option value="30">30 天</option>
-      <option value="3650">10 年</option>
-    </select>
-    <button class="btn btn-outline-danger btn-sm" type="submit" data-confirm="确认封禁该用户?">封禁</button>
-  </form>
-  {{if .Profile.BannedUntil.Valid}}
-  <form method="post" action="/admin/users/{{.Profile.ID}}/unban" class="inline-form">
-    {{csrfField .CSRF}}
-    <button class="btn btn-outline btn-sm" type="submit">解除封禁</button>
-  </form>
+  {{if ne .Profile.Role "admin"}}
+  <a class="btn btn-outline btn-sm" href="/admin/users/{{.Profile.ID}}">在管理后台管理</a>
   {{end}}
 </section>
 {{end}}

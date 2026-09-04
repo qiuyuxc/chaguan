@@ -1,0 +1,82 @@
+{{define "content"}}
+<div class="page-head">
+  <div>
+    <h1>管理后台</h1>
+    <p class="page-sub">整站概览与今日动态</p>
+  </div>
+</div>
+
+<div class="admin-stats">
+  <div class="stat-card">
+    <b class="stat-num">{{.Stats.Users}}</b>
+    <span class="stat-lb">成员</span>
+  </div>
+  <div class="stat-card">
+    <b class="stat-num">{{.Stats.Staff}}</b>
+    <span class="stat-lb">版主 / 管理员</span>
+  </div>
+  <div class="stat-card">
+    <b class="stat-num">{{.Stats.Threads}}</b>
+    <span class="stat-lb">主题</span>
+  </div>
+  <div class="stat-card">
+    <b class="stat-num">{{.Stats.Replies}}</b>
+    <span class="stat-lb">回复</span>
+  </div>
+</div>
+
+<div class="today-bar">
+  <span>今日新增</span>
+  <b>{{.Stats.TodayUsers}}</b> 位成员 ·
+  <b>{{.Stats.TodayThreads}}</b> 个主题 ·
+  <b>{{.Stats.TodayReplies}}</b> 条回复
+</div>
+
+<div class="admin-cols">
+  <section>
+    <h2 class="profile-sec">最近加入</h2>
+    {{if .Recent}}
+    <div class="thread-card">
+      {{range .Recent}}
+      <div class="tr">
+        <a class="tr-av" href="/u/{{.ID}}">
+          {{if .AvatarPath}}<span class="avatar av-40"><img src="{{.AvatarPath}}" alt=""></span>
+          {{else}}<span class="avatar av-40 {{avColor .ID}}" aria-hidden="true">{{initial .Name}}</span>{{end}}
+        </a>
+        <div class="tr-main">
+          <div class="tr-top"><a class="author" href="/u/{{.ID}}">{{.Name}}</a>{{roleBadge .Role .BadgeText}}{{if .BannedUntil.Valid}}<span class="badge badge-lock">封禁中</span>{{end}}<span>{{date .CreatedAt}}</span></div>
+        </div>
+      </div>
+      {{end}}
+    </div>
+    {{else}}
+    <p class="empty">还没有成员</p>
+    {{end}}
+  </section>
+
+  <section>
+    <h2 class="profile-sec">最近活跃主题</h2>
+    {{if .Threads}}
+    <div class="thread-card">
+      {{range .Threads}}
+      <div class="member-topic">
+        <a class="mt-title" href="/t/{{.ID}}">
+          {{if .IsPinned}}<span class="badge badge-lock">置顶</span>{{end}}
+          {{if .IsLocked}}<span class="badge badge-lock">锁定</span>{{end}}
+          {{.Title}}
+        </a>
+        <div class="mt-meta">
+          <span class="bcat {{bcatColor .CategoryID}}">{{.CategoryName}}</span>
+          <span>{{.AuthorName}}</span>
+          <span>{{.ReplyCount}} 回复</span>
+          <span>{{relTime .LastPostAt}}</span>
+        </div>
+      </div>
+      {{end}}
+    </div>
+    {{else}}
+    <p class="empty">还没有主题</p>
+    {{end}}
+  </section>
+</div>
+{{end}}

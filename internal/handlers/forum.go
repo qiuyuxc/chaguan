@@ -30,8 +30,18 @@ func (s *Server) base(r *http.Request, title string) web.Base {
 		if threads, err := s.store.CountUserThreads(u.ID); err == nil {
 			if replies, err := s.store.CountUserReplies(u.ID); err == nil {
 				if stats, err := s.store.SocialStats(u.ID); err == nil {
-					b.Exp = socialExp(threads, replies, stats.Liked)
-					b.Level, _, _ = levelOf(b.Exp)
+					exp := socialExp(threads, replies, stats.Liked)
+					level, start, next := levelOf(exp)
+					b.Exp = exp
+					b.Level = level
+					b.ExpNext = next
+					b.ExpPct = 100
+					if next > start {
+						b.ExpPct = int((exp - start) * 100 / (next - start))
+						if b.ExpPct > 100 {
+							b.ExpPct = 100
+						}
+					}
 				}
 			}
 		}
@@ -161,6 +171,7 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 
 type adminCatsData struct {
 	web.Base
+	ATab       string
 	Categories []db.Category
 	Error      string
 }
@@ -179,8 +190,9 @@ func (s *Server) adminCategories(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, err)
 		return
 	}
-	s.rend.Render(w, 200, "admin_categories", adminCatsData{
+	s.rend.RenderAdmin(w, 200, "admin_categories", adminCatsData{
 		Base:       s.base(r, "版块管理"),
+		ATab:       "categories",
 		Categories: cats,
 	})
 }
@@ -440,6 +452,7 @@ type threadData struct {
 	LikedByMe   bool
 	FavCount    int64
 	FavedByMe   bool
+	CanModerate bool // 当前查看者:管理员或该版块的版主(可置顶/锁定)
 }
 
 func (s *Server) thread(w http.ResponseWriter, r *http.Request) {
@@ -516,19 +529,32 @@ func (s *Server) thread(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	canMod := false
+	if viewer != nil {
+		if viewer.IsAdmin() {
+			canMod = true
+		} else if viewer.IsMod() {
+			canMod, err = s.store.IsModOf(viewer.ID, t.CategoryID)
+			if err != nil {
+				s.serverError(w, err)
+				return
+			}
+		}
+	}
 	s.rend.Render(w, 200, "thread", threadData{
-		Base:      s.base(r, t.Title),
-		Thread:    t,
-		Category:  cat,
-		First:     first,
-		PostViews: pvs,
-		Page:      page,
-		Pages:     totalPages(total, postsPerPage),
-		BaseURL:   "/t/" + strconv.FormatInt(t.ID, 10),
-		LikeCount: likeCount,
-		LikedByMe: liked,
-		FavCount:  favCount,
-		FavedByMe: faved,
+		Base:        s.base(r, t.Title),
+		Thread:      t,
+		Category:    cat,
+		First:       first,
+		PostViews:   pvs,
+		Page:        page,
+		Pages:       totalPages(total, postsPerPage),
+		BaseURL:     "/t/" + strconv.FormatInt(t.ID, 10),
+		LikeCount:   likeCount,
+		LikedByMe:   liked,
+		FavCount:    favCount,
+		FavedByMe:   faved,
+		CanModerate: canMod,
 	})
 }
 
@@ -652,7 +678,7 @@ func (s *Server) deleteThread(w http.ResponseWriter, r *http.Request) {
 	if cat, err := s.store.GetCategoryByID(t.CategoryID); err == nil && cat != nil {
 		slug = cat.Slug
 	}
-	http.Redirect(w, r, "/c/"+slug, http.StatusSeeOther)
+	s.redirectAfter(w, r, "/c/"+slug)
 }
 
 // ---------- 编辑 ----------

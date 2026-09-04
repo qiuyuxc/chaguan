@@ -41,6 +41,8 @@ type Base struct {
 	TotalThreads int64         // 社区统计(主题总数;避免与各页 Threads 列表字段重名)
 	Exp          int64         // 登录用户等级经验(侧栏简略显示;未登录为 0)
 	Level        int           // 登录用户 LV0..LV6
+	ExpNext      int64         // 登录用户下一级所需经验(LV6 时经验条满)
+	ExpPct       int           // 登录用户当前等级经验进度 0..100
 }
 
 // PostView 是帖子 partial 的数据:帖子 + 当前查看者(决定是否显示删除按钮)。
@@ -197,7 +199,7 @@ type Renderer struct {
 var pageNames = []string{
 	"home", "login", "register", "category", "thread", "new_thread",
 	"edit_thread", "edit_post", "profile", "edit_profile", "notifications",
-	"admin_categories", "search",
+	"admin_categories", "admin_overview", "admin_users", "admin_threads", "search",
 }
 
 func NewRenderer() (*Renderer, error) {
@@ -205,6 +207,7 @@ func NewRenderer() (*Renderer, error) {
 	for _, name := range pageNames {
 		t, err := template.New("layout").Funcs(funcs).ParseFS(tmplFS,
 			"templates/layout.html",
+			"templates/admin_layout.html",
 			"templates/partials/composer.html",
 			"templates/partials/post.html",
 			"templates/partials/pagination.html",
@@ -231,6 +234,19 @@ func (r *Renderer) Render(w io.Writer, status int, name string, data any) error 
 		rw.WriteHeader(status)
 	}
 	return t.ExecuteTemplate(w, "layout", data)
+}
+
+// RenderAdmin 输出后台整页:使用独立的管理布局(自带左侧导航,不套前台版式)。
+func (r *Renderer) RenderAdmin(w io.Writer, status int, name string, data any) error {
+	t, ok := r.pages[name]
+	if !ok {
+		return fmt.Errorf("unknown page template: %s", name)
+	}
+	if rw, ok := w.(http.ResponseWriter); ok {
+		rw.Header().Set("Content-Type", "text/html; charset=utf-8")
+		rw.WriteHeader(status)
+	}
+	return t.ExecuteTemplate(w, "admin_layout", data)
 }
 
 // Partial 输出单个 define 片段(htmx 局部刷新用)。

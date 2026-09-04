@@ -1,0 +1,157 @@
+{{define "content"}}
+<div class="page-head">
+  <div>
+    <h1>用户管理</h1>
+    <p class="page-sub">共 {{.Count}} 人 · 点行尾「管理」设置版主身份或封禁</p>
+  </div>
+</div>
+
+<form class="admin-search" method="get" action="/admin/users">
+  <input class="input" type="search" name="q" value="{{.Q}}" placeholder="按名称搜索…" aria-label="按名称搜索">
+  <button class="btn btn-primary" type="submit">搜索</button>
+  {{if .Q}}<a class="btn btn-secondary" href="/admin/users">清空</a>{{end}}
+</form>
+
+{{if .Users}}
+<div class="thread-card admin-users" {{if .PanelHref}}data-panel-href="{{.PanelHref}}"{{end}}>
+  {{range .Users}}
+  <div class="tr" id="row-{{.ID}}">
+    <a class="tr-av" href="/u/{{.ID}}" title="查看资料">
+      {{if .AvatarPath}}<span class="avatar av-40"><img src="{{.AvatarPath}}" alt=""></span>
+      {{else}}<span class="avatar av-40 {{avColor .ID}}" aria-hidden="true">{{initial .Name}}</span>{{end}}
+    </a>
+    <div class="tr-main">
+      <div class="tr-top">
+        <a class="author" href="/u/{{.ID}}">{{.Name}}</a>
+        {{roleBadge .Role .BadgeText}}
+        {{if .BannedUntil.Valid}}<span class="badge badge-lock">封禁中</span>{{end}}
+        {{if eq $.ViewerID .ID}}<span class="badge">你自己</span>{{end}}
+        <span class="m">加入于 {{date .CreatedAt}}</span>
+      </div>
+      <div class="tr-meta">
+        <span>主题 {{.Threads}}</span>
+        <span>回复 {{.Replies}}</span>
+        <span>获赞 {{.Likes}}</span>
+      </div>
+    </div>
+    <div class="admin-row-go">
+      <button type="button" class="btn btn-white btn-sm js-um-open" data-um-id="{{.ID}}">管理</button>
+    </div>
+  </div>
+  {{end}}
+</div>
+{{template "pagination" .}}
+{{else}}
+<p class="empty">没有找到匹配的用户</p>
+{{end}}
+
+<div class="modal um-modal" id="um-modal" hidden>
+  <div class="modal-scrim" data-um-cancel></div>
+  <div class="modal-card um-card" role="dialog" aria-modal="true" aria-label="管理用户">
+    <div class="um-top">
+      <b>管理用户</b>
+      <button type="button" class="icon-btn" data-um-cancel aria-label="关闭" title="关闭">
+        <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+    </div>
+    <div class="um-body" id="um-body"></div>
+  </div>
+</div>
+{{end}}
+
+{{define "admin_user_panel"}}
+<div class="um-panel">
+  <div class="um-head">
+    {{if .Target.AvatarPath}}<span class="avatar av-46"><img src="{{.Target.AvatarPath}}" alt=""></span>
+    {{else}}<span class="avatar av-46 {{avColor .Target.ID}}" aria-hidden="true">{{initial .Target.Name}}</span>{{end}}
+    <div class="um-head-info">
+      <div class="um-name-row">
+        <b>{{.Target.Name}}</b>
+        {{roleBadge .Target.Role .Target.BadgeText}}
+        {{if .Target.BannedUntil.Valid}}<span class="badge badge-lock">封禁中</span>{{end}}
+      </div>
+      <div class="um-meta">
+        <span>主题 {{.Threads}}</span>
+        <span>回复 {{.Replies}}</span>
+        <span>获赞 {{.Likes}}</span>
+        <span>加入于 {{date .Target.CreatedAt}}</span>
+        {{if eq $.ViewerID .Target.ID}}<span>你自己</span>{{end}}
+      </div>
+    </div>
+  </div>
+
+  {{if eq .Target.Role "admin"}}
+  <p class="muted um-note">管理员账号拥有全站权限,不设版主身份、不可封禁。</p>
+  {{else}}
+  <div class="um-cols">
+    <section class="um-sec">
+      <h3 class="um-sec-h">版主身份</h3>
+      {{if eq .Target.Role "mod"}}
+      <p class="um-tip">当前是版主,管辖以下版块:</p>
+      {{if .ModCats}}
+      <div class="chip-list">
+        {{range .ModCats}}<span class="chip-static">{{.Name}}</span>{{end}}
+      </div>
+      {{else}}
+      <p class="muted">尚未登记管辖版块(空头衔)</p>
+      {{end}}
+      <form method="post" action="/admin/users/{{.Target.ID}}/role" class="um-act">
+        {{csrfField .CSRF}}<input type="hidden" name="next" value="{{.Next}}">
+        <input type="hidden" name="role" value="user">
+        <button class="btn btn-outline-danger btn-sm" type="submit" data-confirm="撤销 {{.Target.Name}} 的版主身份?">撤销版主</button>
+      </form>
+      {{else}}
+      <p class="um-tip">设为版主前,先指定要管辖的版块:</p>
+      {{end}}
+
+      <form method="post" action="/admin/users/{{.Target.ID}}/role">
+        {{csrfField .CSRF}}<input type="hidden" name="next" value="{{.Next}}">
+        <input type="hidden" name="role" value="mod">
+        <input type="hidden" name="category" value="">
+        <div class="pick-chips" data-pick="category">
+          <span class="pick-lb">管辖版块</span>
+          {{range .Cats}}
+          <button type="button" class="pick-chip{{if .Owned}} off{{end}}" data-val="{{.ID}}"{{if .Owned}} disabled title="已是该版块版主"{{end}}>{{.Name}}</button>
+          {{end}}
+        </div>
+        <div class="um-act">
+          <button class="btn btn-primary btn-sm" type="submit">{{if eq .Target.Role "mod"}}追加管辖版块{{else}}设为版主{{end}}</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="um-sec">
+      <h3 class="um-sec-h">账号状态</h3>
+      {{if .Target.BannedUntil.Valid}}
+      <p class="um-tip">封禁中,{{date .Target.BannedUntil.Int64}} 解封。</p>
+      <form method="post" action="/admin/users/{{.Target.ID}}/unban" class="um-act">
+        {{csrfField .CSRF}}<input type="hidden" name="next" value="{{.Next}}">
+        <button class="btn btn-primary btn-sm" type="submit">解除封禁</button>
+      </form>
+      {{else}}
+      <p class="um-tip">封禁后该用户将无法登录、发帖与回复。</p>
+      <form method="post" action="/admin/users/{{.Target.ID}}/ban">
+        {{csrfField .CSRF}}<input type="hidden" name="next" value="{{.Next}}">
+        <div class="pick-chips" data-pick="days">
+          <span class="pick-lb">快捷时长</span>
+          <button type="button" class="pick-chip" data-val="1">1 天</button>
+          <button type="button" class="pick-chip on" data-val="7">7 天</button>
+          <button type="button" class="pick-chip" data-val="30">30 天</button>
+          <button type="button" class="pick-chip" data-val="365">1 年</button>
+          <button type="button" class="pick-chip" data-val="3650">永久</button>
+        </div>
+        <label class="um-custom">
+          <span class="pick-lb">自定义</span>
+          <input class="input input-sm" type="number" name="days" min="1" max="3650" value="7" aria-label="封禁天数">
+          <span class="muted">天(1–3650)</span>
+        </label>
+        <div class="um-act">
+          <button class="btn btn-outline-danger btn-sm" type="submit" data-confirm="确认封禁 {{.Target.Name}}?">封禁该用户</button>
+        </div>
+      </form>
+      {{end}}
+    </section>
+  </div>
+  {{end}}
+</div>
+{{end}}

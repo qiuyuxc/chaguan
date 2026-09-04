@@ -195,6 +195,36 @@ func (s *Store) CountAllThreads() (int64, error) {
 	return n, err
 }
 
+// AdminStats 管理后台概览的整站数字与「今日」新增量(按服务器本地时区零点起算)。
+type AdminStats struct {
+	Users        int64 // 成员总数
+	Staff        int64 // 版主 + 管理员
+	Threads      int64 // 主题总数
+	Replies      int64 // 回复总数(不含首帖)
+	Categories   int64 // 版块数
+	TodayUsers   int64 // 今日新成员
+	TodayThreads int64 // 今日新主题
+	TodayReplies int64 // 今日新回复
+}
+
+func (s *Store) AdminStats(dayStart int64) (AdminStats, error) {
+	var st AdminStats
+	err := s.DB.QueryRow(`
+		SELECT
+			(SELECT COUNT(*) FROM users),
+			(SELECT COUNT(*) FROM users WHERE role IN ('mod','admin')),
+			(SELECT COUNT(*) FROM threads),
+			(SELECT COUNT(*) FROM posts WHERE is_first = 0),
+			(SELECT COUNT(*) FROM categories),
+			(SELECT COUNT(*) FROM users WHERE created_at >= ?),
+			(SELECT COUNT(*) FROM threads WHERE created_at >= ?),
+			(SELECT COUNT(*) FROM posts WHERE is_first = 0 AND created_at >= ?)`,
+		dayStart, dayStart, dayStart).
+		Scan(&st.Users, &st.Staff, &st.Threads, &st.Replies, &st.Categories,
+			&st.TodayUsers, &st.TodayThreads, &st.TodayReplies)
+	return st, err
+}
+
 func (s *Store) CreateUser(name, email, passwordHash string) (int64, error) {
 	n, err := s.CountUsers()
 	if err != nil {
@@ -251,6 +281,94 @@ func (s *Store) SearchUsers(q string, limit int) ([]UserSearch, error) {
 			return nil, err
 		}
 		out = append(out, u)
+	}
+	return out, rows.Err()
+}
+
+// RecentUsers 最近加入的用户(管理后台「最近加入」)。
+func (s *Store) RecentUsers(limit int) ([]User, error) {
+	rows, err := s.DB.Query(`SELECT `+userCols+` FROM users ORDER BY id DESC LIMIT ?`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []User
+	for rows.Next() {
+		u, err := scanUser(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *u)
+	}
+	return out, rows.Err()
+}
+
+// AdminUserRow 用户管理列表:基础信息 + 主题/回复/获赞计数,不暴露邮箱与口令。
+type AdminUserRow struct {
+	ID          int64
+	Name        string
+	AvatarPath  string
+	Role        string
+	BadgeText   sql.NullString
+	CreatedAt   int64
+	BannedUntil sql.NullInt64
+	Threads     int64
+	Replies     int64
+	Likes       int64
+}
+
+const adminUserSelect = `
+	SELECT u.id, u.name, COALESCE(u.avatar_path,''), u.role, u.badge_text,
+	       u.created_at, u.banned_until,
+	       (SELECT COUNT(*) FROM threads t WHERE t.author_id = u.id),
+	       (SELECT COUNT(*) FROM posts p WHERE p.author_id = u.id AND p.is_first = 0),
+	       (SELECT COUNT(*) FROM post_likes pl JOIN posts p ON p.id = pl.post_id
+	         WHERE p.author_id = u.id)
+	FROM users u`
+
+func scanAdminUser(row interface{ Scan(...any) error }) (*AdminUserRow, error) {
+	u := &AdminUserRow{}
+	err := row.Scan(&u.ID, &u.Name, &u.AvatarPath, &u.Role, &u.BadgeText,
+		&u.CreatedAt, &u.BannedUntil, &u.Threads, &u.Replies, &u.Likes)
+	return u, err
+}
+
+// CountAdminUsers 用户管理搜索总数。
+func (s *Store) CountAdminUsers(q string) (int64, error) {
+	var n int64
+	q = strings.TrimSpace(q)
+	if q == "" {
+		err := s.DB.QueryRow(`SELECT COUNT(*) FROM users`).Scan(&n)
+		return n, err
+	}
+	like := "%" + escapeLike(q) + "%"
+	err := s.DB.QueryRow(`SELECT COUNT(*) FROM users WHERE name LIKE ? ESCAPE '\'`, like).Scan(&n)
+	return n, err
+}
+
+// ListAdminUsers 用户管理列表:管理员/版主在前,其余按加入时间倒序。
+func (s *Store) ListAdminUsers(q string, limit, offset int) ([]AdminUserRow, error) {
+	args := []any{}
+	where := ""
+	if q = strings.TrimSpace(q); q != "" {
+		where = ` WHERE u.name LIKE ? ESCAPE '\'`
+		args = append(args, "%"+escapeLike(q)+"%")
+	}
+	args = append(args, limit, offset)
+	rows, err := s.DB.Query(adminUserSelect+where+`
+		ORDER BY (u.role = 'admin') DESC, (u.role = 'mod') DESC, u.id DESC
+		LIMIT ? OFFSET ?`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []AdminUserRow
+	for rows.Next() {
+		u, err := scanAdminUser(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *u)
 	}
 	return out, rows.Err()
 }
@@ -843,6 +961,57 @@ func (s *Store) ListFeedThreads(catSlug string, hot bool, limit, offset int) ([]
 	return out, rows.Err()
 }
 
+// ListAdminThreads 内容管理列表:可选的标题/作者关键词 q + 版块过滤,
+// 置顶优先、按最后回复倒序(管理视角的排序,与前台信息流一致好对照)。
+func (s *Store) ListAdminThreads(q string, catID int64, limit, offset int) ([]Thread, error) {
+	q = strings.TrimSpace(q)
+	cond := ` WHERE 1=1`
+	var args []any
+	if q != "" {
+		pat := "%" + escapeLike(q) + "%"
+		cond += ` AND (t.title LIKE ? ESCAPE '\' OR u.name LIKE ? ESCAPE '\')`
+		args = append(args, pat, pat)
+	}
+	if catID > 0 {
+		cond += ` AND t.category_id = ?`
+		args = append(args, catID)
+	}
+	args = append(args, limit, offset)
+	rows, err := s.DB.Query(`SELECT `+threadCols+threadFrom+cond+`
+		ORDER BY t.is_pinned DESC, t.last_post_at DESC LIMIT ? OFFSET ?`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Thread
+	for rows.Next() {
+		t, err := scanThread(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *t)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) CountAdminThreads(q string, catID int64) (int64, error) {
+	q = strings.TrimSpace(q)
+	cond := ` WHERE 1=1`
+	var args []any
+	if q != "" {
+		pat := "%" + escapeLike(q) + "%"
+		cond += ` AND (t.title LIKE ? ESCAPE '\' OR u.name LIKE ? ESCAPE '\')`
+		args = append(args, pat, pat)
+	}
+	if catID > 0 {
+		cond += ` AND t.category_id = ?`
+		args = append(args, catID)
+	}
+	var n int64
+	err := s.DB.QueryRow(`SELECT COUNT(*) FROM threads t JOIN users u ON u.id = t.author_id`+cond, args...).Scan(&n)
+	return n, err
+}
+
 func (s *Store) CountFeedThreads(catSlug string) (int64, error) {
 	q := `SELECT COUNT(*) FROM threads t JOIN categories c ON c.id = t.category_id`
 	var args []any
@@ -1091,6 +1260,63 @@ func (s *Store) SetThreadLocked(threadID int64, locked bool) error {
 func (s *Store) SetUserRole(userID int64, role string) error {
 	_, err := s.DB.Exec(`UPDATE users SET role = ? WHERE id = ?`, role, userID)
 	return err
+}
+
+// AddModCategory 把用户登记为某版块的版主(role 置 mod;管理员自动全站,不做登记)。
+// 同一用户可以管辖多个版块,重复登记同一版块幂等。
+func (s *Store) AddModCategory(userID, categoryID int64) error {
+	return s.withTx(func(tx *sql.Tx) error {
+		if _, err := tx.Exec(`UPDATE users SET role = 'mod' WHERE id = ? AND role <> 'admin'`, userID); err != nil {
+			return err
+		}
+		_, err := tx.Exec(
+			`INSERT OR IGNORE INTO category_mods (user_id, category_id) VALUES (?, ?)`,
+			userID, categoryID)
+		return err
+	})
+}
+
+// DemoteMod 撤销版主身份并清空其管辖版块记录(role 恢复 user)。
+func (s *Store) DemoteMod(userID int64) error {
+	return s.withTx(func(tx *sql.Tx) error {
+		if _, err := tx.Exec(`UPDATE users SET role = 'user' WHERE id = ? AND role = 'mod'`, userID); err != nil {
+			return err
+		}
+		_, err := tx.Exec(`DELETE FROM category_mods WHERE user_id = ?`, userID)
+		return err
+	})
+}
+
+// ModCategories 某版主登记的管辖版块。
+func (s *Store) ModCategories(userID int64) ([]Category, error) {
+	rows, err := s.DB.Query(`
+		SELECT c.id, c.slug, c.name, COALESCE(c.description,''),
+		       (SELECT COUNT(*) FROM threads t WHERE t.category_id = c.id),
+		       NULL
+		FROM category_mods cm JOIN categories c ON c.id = cm.category_id
+		WHERE cm.user_id = ? ORDER BY c.position, c.id`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Category
+	for rows.Next() {
+		var c Category
+		if err := rows.Scan(&c.ID, &c.Slug, &c.Name, &c.Description, &c.ThreadCount, &c.LastPostAt); err != nil {
+			return nil, err
+		}
+		out = append(out, c)
+	}
+	return out, rows.Err()
+}
+
+// IsModOf 用户是否为该版块的版主(管理员隐式通过,调用方自行判断 IsAdmin)。
+func (s *Store) IsModOf(userID, categoryID int64) (bool, error) {
+	var n int64
+	err := s.DB.QueryRow(
+		`SELECT COUNT(*) FROM category_mods WHERE user_id = ? AND category_id = ?`,
+		userID, categoryID).Scan(&n)
+	return n > 0, err
 }
 
 // BanUser 封禁至 until(unix 秒);管理员等自身不在此列,由调用方校验。

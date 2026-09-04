@@ -1,10 +1,12 @@
 {{define "thread_row"}}
 <div class="tr">
-  {{if .AuthorAvatar}}
-  <span class="avatar av-40"><img src="{{.AuthorAvatar}}" alt="" aria-hidden="true"></span>
-  {{else}}
-  <span class="avatar av-40 {{avColor .AuthorID}}" aria-hidden="true">{{initial .AuthorName}}</span>
-  {{end}}
+  <a class="tr-av" href="/u/{{.AuthorID}}" title="查看 {{.AuthorName}} 的主页" aria-label="查看 {{.AuthorName}} 的主页">
+    {{if .AuthorAvatar}}
+    <span class="avatar av-40"><img src="{{.AuthorAvatar}}" alt="" aria-hidden="true"></span>
+    {{else}}
+    <span class="avatar av-40 {{avColor .AuthorID}}" aria-hidden="true">{{initial .AuthorName}}</span>
+    {{end}}
+  </a>
   <div class="tr-main">
     <div class="tr-top"><a class="author" href="/u/{{.AuthorID}}">{{.AuthorName}}</a><span>{{relTime .CreatedAt}}</span></div>
     <a class="tr-title" href="/t/{{.ID}}">

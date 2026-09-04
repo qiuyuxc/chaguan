@@ -16,10 +16,6 @@ func (s *Server) togglePin(w http.ResponseWriter, r *http.Request) {
 	if user == nil {
 		return
 	}
-	if !user.IsMod() {
-		http.Error(w, "仅版主/管理员可置顶", http.StatusForbidden)
-		return
-	}
 	id, ok := pathID(r, "id")
 	if !ok {
 		http.NotFound(w, r)
@@ -34,11 +30,22 @@ func (s *Server) togglePin(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	if !user.IsAdmin() {
+		mod, err := s.store.IsModOf(user.ID, t.CategoryID)
+		if err != nil {
+			s.serverError(w, err)
+			return
+		}
+		if !mod {
+			http.Error(w, "仅该版块的版主/管理员可置顶", http.StatusForbidden)
+			return
+		}
+	}
 	if err := s.store.SetThreadPinned(t.ID, !t.IsPinned); err != nil {
 		s.serverError(w, err)
 		return
 	}
-	http.Redirect(w, r, "/t/"+strconv.FormatInt(t.ID, 10), http.StatusSeeOther)
+	s.redirectAfter(w, r, "/t/"+strconv.FormatInt(t.ID, 10))
 }
 
 // toggleLock POST /t/{id}/lock:版主/管理员锁定或解锁主题。
@@ -47,10 +54,6 @@ func (s *Server) toggleLock(w http.ResponseWriter, r *http.Request) {
 	if user == nil {
 		return
 	}
-	if !user.IsMod() {
-		http.Error(w, "仅版主/管理员可锁定", http.StatusForbidden)
-		return
-	}
 	id, ok := pathID(r, "id")
 	if !ok {
 		http.NotFound(w, r)
@@ -65,11 +68,22 @@ func (s *Server) toggleLock(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	if !user.IsAdmin() {
+		mod, err := s.store.IsModOf(user.ID, t.CategoryID)
+		if err != nil {
+			s.serverError(w, err)
+			return
+		}
+		if !mod {
+			http.Error(w, "仅该版块的版主/管理员可锁定", http.StatusForbidden)
+			return
+		}
+	}
 	if err := s.store.SetThreadLocked(t.ID, !t.IsLocked); err != nil {
 		s.serverError(w, err)
 		return
 	}
-	http.Redirect(w, r, "/t/"+strconv.FormatInt(t.ID, 10), http.StatusSeeOther)
+	s.redirectAfter(w, r, "/t/"+strconv.FormatInt(t.ID, 10))
 }
 
 // adminTarget 校验管理员身份并返回目标用户(不允许对自身操作)。
@@ -103,7 +117,8 @@ func (s *Server) adminTarget(w http.ResponseWriter, r *http.Request) (*db.User, 
 	return target, true
 }
 
-// setUserRole POST /admin/users/{id}/role:设为版主 / 撤销为普通用户。
+// setUserRole POST /admin/users/{id}/role:
+// role=user → 撤销版主;role=mod 必须带 category 指定管辖版块。
 func (s *Server) setUserRole(w http.ResponseWriter, r *http.Request) {
 	target, ok := s.adminTarget(w, r)
 	if !ok {
@@ -114,15 +129,36 @@ func (s *Server) setUserRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	role := strings.TrimSpace(r.FormValue("role"))
-	if role != "mod" && role != "user" {
+	switch role {
+	case "user":
+		if err := s.store.DemoteMod(target.ID); err != nil {
+			s.serverError(w, err)
+			return
+		}
+	case "mod":
+		catID, err := strconv.ParseInt(strings.TrimSpace(r.FormValue("category")), 10, 64)
+		if err != nil || catID < 1 {
+			http.Error(w, "请选择要管辖的版块", http.StatusBadRequest)
+			return
+		}
+		cat, err := s.store.GetCategoryByID(catID)
+		if err != nil {
+			s.serverError(w, err)
+			return
+		}
+		if cat == nil {
+			http.Error(w, "版块不存在", http.StatusBadRequest)
+			return
+		}
+		if err := s.store.AddModCategory(target.ID, catID); err != nil {
+			s.serverError(w, err)
+			return
+		}
+	default:
 		http.Error(w, "非法角色", http.StatusBadRequest)
 		return
 	}
-	if err := s.store.SetUserRole(target.ID, role); err != nil {
-		s.serverError(w, err)
-		return
-	}
-	http.Redirect(w, r, "/u/"+strconv.FormatInt(target.ID, 10), http.StatusSeeOther)
+	s.redirectAfter(w, r, "/admin/users")
 }
 
 // banUser POST /admin/users/{id}/ban:按天数封禁(days: 1–3650,10 年约等于永久)。
@@ -145,7 +181,7 @@ func (s *Server) banUser(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, err)
 		return
 	}
-	http.Redirect(w, r, "/u/"+strconv.FormatInt(target.ID, 10), http.StatusSeeOther)
+	s.redirectAfter(w, r, "/admin/users")
 }
 
 // unbanUser POST /admin/users/{id}/unban:解除封禁。
@@ -158,5 +194,5 @@ func (s *Server) unbanUser(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, err)
 		return
 	}
-	http.Redirect(w, r, "/u/"+strconv.FormatInt(target.ID, 10), http.StatusSeeOther)
+	s.redirectAfter(w, r, "/admin/users")
 }

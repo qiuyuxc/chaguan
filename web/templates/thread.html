@@ -2,12 +2,14 @@
 {{if .First}}
 <article class="op-card" id="p{{.First.ID}}">
   <div class="op-top">
-    {{if .First.AuthorAvatar}}
-    <span class="avatar av-32"><img src="{{.First.AuthorAvatar}}" alt="" aria-hidden="true"></span>
-    {{else}}
-    <span class="avatar av-32 {{avColor .First.AuthorID}}" aria-hidden="true">{{initial .First.AuthorName}}</span>
-    {{end}}
-    <span class="name">{{.First.AuthorName}}</span>
+    <a class="op-user" href="/u/{{.First.AuthorID}}" title="查看 {{.First.AuthorName}} 的主页">
+      {{if .First.AuthorAvatar}}
+      <span class="avatar av-32"><img src="{{.First.AuthorAvatar}}" alt="" aria-hidden="true"></span>
+      {{else}}
+      <span class="avatar av-32 {{avColor .First.AuthorID}}" aria-hidden="true">{{initial .First.AuthorName}}</span>
+      {{end}}
+      <span class="name">{{.First.AuthorName}}</span>
+    </a>
     {{roleBadge .First.AuthorRole .First.AuthorBadge}}
     <span class="badge">楼主</span>
     {{if .User}}
@@ -26,7 +28,7 @@
         </button>
       </form>
       {{end}}
-      {{if .User.IsMod}}
+      {{if .CanModerate}}
       <form method="post" action="/t/{{.Thread.ID}}/pin" class="inline">
         {{csrfField .CSRF}}
         <button class="ic-act{{if .Thread.IsPinned}} on{{end}}" type="submit" title="{{if .Thread.IsPinned}}取消置顶{{else}}置顶{{end}}" aria-label="{{if .Thread.IsPinned}}取消置顶{{else}}置顶{{end}}">
