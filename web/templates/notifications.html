@@ -6,16 +6,22 @@
   </div>
 </div>
 {{if .Notifications}}
+<div class="notif-bar">
+  <span class="notif-sum">{{len .Notifications}} 条通知{{if .Unread}}<b> · {{.Unread}} 条未读</b>{{end}}</span>
+  {{if .Unread}}
+  <form method="post" action="/notifications/read-all">{{csrfField .CSRF}}<button class="btn btn-white btn-sm" type="submit">全部已读</button></form>
+  {{end}}
+</div>
 <div class="thread-card">
   {{range .Notifications}}
-  <a class="tr" href="/t/{{.ThreadID}}{{if .PostID.Valid}}#p{{.PostID.Int64}}{{end}}">
+  <a class="tr notif-row{{if not .ReadAt.Valid}} unread{{end}}" href="/t/{{.ThreadID}}{{if .PostID.Valid}}#p{{.PostID.Int64}}{{end}}" data-nid="{{.ID}}">
     {{if .ActorAvatar}}
     <span class="avatar av-40"><img src="{{.ActorAvatar}}" alt="" aria-hidden="true"></span>
     {{else}}
     <span class="avatar av-40 c1" aria-hidden="true">{{initial .ActorName}}</span>
     {{end}}
     <div class="tr-main">
-      <div class="tr-top"><span class="author">{{.ActorName}}</span><span>{{relTime .CreatedAt}}</span></div>
+      <div class="tr-top"><span class="author">{{.ActorName}}</span><span>{{relTime .CreatedAt}}</span>{{if not .ReadAt.Valid}}<span class="n-new">未读</span>{{end}}</div>
       <div class="tr-title">{{if eq .Type "mention"}}@了你{{else}}回复了你的主题{{end}}{{if .ThreadTitle}} · {{.ThreadTitle}}{{end}}</div>
     </div>
   </a>

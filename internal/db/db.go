@@ -782,6 +782,14 @@ func (s *Store) MarkNotificationsRead(userID int64) error {
 	return err
 }
 
+// MarkNotificationRead 把单条通知标为已读(仅限本人;不存在视为幂等成功)。
+func (s *Store) MarkNotificationRead(userID, id int64) error {
+	_, err := s.DB.Exec(
+		`UPDATE notifications SET read_at = ? WHERE user_id = ? AND id = ? AND read_at IS NULL`,
+		time.Now().Unix(), userID, id)
+	return err
+}
+
 // DeletePost 删除单帖(非首帖)并递减计数;首帖的删除走 DeleteThread。
 func (s *Store) DeletePost(postID int64) error {
 	return s.withTx(func(tx *sql.Tx) error {

@@ -607,6 +607,22 @@ body.drawer-open { overflow: hidden; }
 }
 .notif-count[hidden] { display: none; }
 
+/* ---------- 通知中心 ---------- */
+.notif-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; margin: 2px 0 10px;
+  font-size: 12px; color: var(--ink-3);
+}
+.notif-bar b { color: var(--accent-dk); font-weight: 600; }
+.n-new {
+  display: inline-flex; align-items: center; flex: none;
+  height: 16px; padding: 0 7px; border-radius: 9999px;
+  background: var(--accent-soft); color: var(--accent-dk);
+  font-size: 10px; font-weight: 600; line-height: 1;
+}
+.notif-row.unread .tr-title { color: var(--ink); font-weight: 700; }
+.notif-row.unread .author { color: var(--ink); }
+
 /* ---------- 首页帖子流 ---------- */
 .feed-admin { margin-top: 14px; display: flex; justify-content: center; }
 

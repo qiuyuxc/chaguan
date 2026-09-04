@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"bbs/internal/auth"
@@ -19,9 +20,10 @@ var mentionRe = regexp.MustCompile(`@([^\s@,，。!！?？;；:：/]+)`)
 type notifyData struct {
 	web.Base
 	Notifications []db.Notification
+	Unread        int64
 }
 
-// notifications GET /notifications:通知列表,打开即全部已读。
+// notifications GET /notifications:通知列表(未读高亮,点击条目或「全部已读」时落已读)。
 func (s *Server) notifications(w http.ResponseWriter, r *http.Request) {
 	user := s.currentUser(w, r)
 	if user == nil {
@@ -32,14 +34,47 @@ func (s *Server) notifications(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, err)
 		return
 	}
-	if err := s.store.MarkNotificationsRead(user.ID); err != nil {
+	unread, err := s.store.CountUnreadNotifications(user.ID)
+	if err != nil {
 		s.serverError(w, err)
 		return
 	}
 	s.rend.Render(w, 200, "notifications", notifyData{
 		Base:          s.base(r, "通知"),
 		Notifications: list,
+		Unread:        unread,
 	})
+}
+
+// notificationsReadAll POST /notifications/read-all:一键全部已读。
+func (s *Server) notificationsReadAll(w http.ResponseWriter, r *http.Request) {
+	user := s.currentUser(w, r)
+	if user == nil {
+		return
+	}
+	if err := s.store.MarkNotificationsRead(user.ID); err != nil {
+		s.serverError(w, err)
+		return
+	}
+	http.Redirect(w, r, "/notifications", http.StatusSeeOther)
+}
+
+// notificationRead POST /notifications/{id}/read:单条标为已读(幂等)。
+func (s *Server) notificationRead(w http.ResponseWriter, r *http.Request) {
+	user := s.currentUser(w, r)
+	if user == nil {
+		return
+	}
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	if err := s.store.MarkNotificationRead(user.ID, id); err != nil {
+		s.serverError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // unreadCount GET /notifications/unread:未读数 JSON,前端 30s 轮询。

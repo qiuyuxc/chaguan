@@ -33,6 +33,7 @@
   }
   refresh();
   setInterval(refresh, 30000);
+  window.__bbsNotifRefresh = refresh;
 })();
 
 // 编辑器「插入图片」:上传到 /uploads,在光标处插入 Markdown 图片链接
@@ -103,4 +104,30 @@
     if (e.target.closest("[data-drawer-close]") || e.target.closest("a")) setOpen(false);
   });
   document.addEventListener("keydown", function (e) { if (e.key === "Escape") setOpen(false); });
+})();
+
+// 通知中心:点未读条目先标已读,再跳转主题;失败仍放行跳转
+(function () {
+  var csrfInput = null;
+  function token() {
+    if (!csrfInput) csrfInput = document.querySelector('input[name="_csrf"]');
+    return csrfInput ? csrfInput.value : "";
+  }
+  document.addEventListener("click", function (e) {
+    var row = e.target.closest("a.notif-row.unread");
+    if (!row) return;
+    var nid = row.getAttribute("data-nid");
+    if (!nid) return;
+    e.preventDefault();
+    var href = row.getAttribute("href");
+    fetch("/notifications/" + nid + "/read", {
+      method: "POST",
+      headers: { "Accept": "application/json", "X-CSRF-Token": token() }
+    })
+      .then(function () {
+        if (window.__bbsNotifRefresh) window.__bbsNotifRefresh();
+        window.location.href = href;
+      })
+      .catch(function () { window.location.href = href; });
+  });
 })();

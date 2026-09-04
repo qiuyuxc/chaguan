@@ -64,6 +64,8 @@ func Routes(store *db.Store, rend *web.Renderer, uploadsDir string) http.Handler
 
 	mux.HandleFunc("GET /notifications", s.notifications)
 	mux.HandleFunc("GET /notifications/unread", s.unreadCount)
+	mux.HandleFunc("POST /notifications/read-all", s.notificationsReadAll)
+	mux.HandleFunc("POST /notifications/{id}/read", s.notificationRead)
 	mux.HandleFunc("GET /search", s.search)
 
 	mux.HandleFunc("GET /admin/categories", s.adminCategories)

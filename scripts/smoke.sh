@@ -249,8 +249,15 @@ UN=$(curl -s -b "$JAR2" "$BASE/notifications/unread")
 if echo "$UN" | grep -q '"unread":[1-9]'; then ok "bob 收到 mention 未读"; else bad "bob 未收到 mention ($UN)"; fi
 NP=$(curl -s -b "$JAR2" "$BASE/notifications")
 contains "通知页含 mention" "$NP" "@了你"
+contains "通知页标出未读" "$NP" "未读"
 UN=$(curl -s -b "$JAR2" "$BASE/notifications/unread")
-check "打开通知后已读清零" '{"unread":0}' "$UN"
+if echo "$UN" | grep -q '"unread":[1-9]'; then ok "打开列表不清除未读"; else bad "不应自动清零 ($UN)"; fi
+CSRF=$(curl -s -b "$JAR2" -c "$JAR2" "$BASE/notifications" | grep -o 'name="_csrf" value="[^"]*"' | head -1 | sed 's/.*value="//;s/"//')
+code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR2" \
+  -d "_csrf=$CSRF" "$BASE/notifications/read-all")
+check "全部已读提交" "303" "$code"
+UN=$(curl -s -b "$JAR2" "$BASE/notifications/unread")
+check "全部已读后清零" '{"unread":0}' "$UN"
 
 CSRF=$(curl -s -b "$JAR2" -c "$JAR2" "$BASE/t/1" | grep -o 'name="_csrf" value="[^"]*"' | head -1 | sed 's/.*value="//;s/"//')
 curl -s -o /dev/null -b "$JAR2" -d "_csrf=$CSRF&content=收到" "$BASE/t/1/reply"
@@ -258,8 +265,17 @@ UN=$(curl -s -b "$JAR" "$BASE/notifications/unread")
 if echo "$UN" | grep -q '"unread":[1-9]'; then ok "admin 收到回复未读"; else bad "admin 未收到回复 ($UN)"; fi
 NP=$(curl -s -b "$JAR" "$BASE/notifications")
 contains "admin 通知页含回复" "$NP" "回复了你的主题"
+NID=$(echo "$NP" | grep -o 'data-nid="[0-9]*"' | head -1 | sed 's/.*="//;s/"//')
+CSRF=$(curl -s -b "$JAR" -c "$JAR" "$BASE/notifications" | grep -o 'name="_csrf" value="[^"]*"' | head -1 | sed 's/.*value="//;s/"//')
+code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" \
+  -H "X-CSRF-Token: $CSRF" -X POST "$BASE/notifications/$NID/read")
+check "单条已读提交" "204" "$code"
+csrf "$BASE/notifications"
+code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" \
+  -d "_csrf=$CSRF" "$BASE/notifications/read-all")
+check "admin 全部已读提交" "303" "$code"
 UN=$(curl -s -b "$JAR" "$BASE/notifications/unread")
-check "admin 打开后清零" '{"unread":0}' "$UN"
+check "admin 通知已清零" '{"unread":0}' "$UN"
 
 UN=$(curl -s "$BASE/notifications/unread")
 check "匿名未读为 0" '{"unread":0}' "$UN"
