@@ -669,8 +669,10 @@
     open(btn.getAttribute("data-confirm"), function () { form.submit(); });
   }, true);
 
-  // htmx hx-confirm → 内置确认后放行请求
+  // htmx 对每个 hx 请求都会发 htmx:confirm;只有带 hx-confirm 文案的
+  // 请求(如删回复)才需要确认,点赞/收藏/发送等直接放行
   document.body.addEventListener("htmx:confirm", function (e) {
+    if (!e.detail.question) return;
     e.preventDefault();
     open(e.detail.question, function () { e.detail.issueRequest(true); });
   });
