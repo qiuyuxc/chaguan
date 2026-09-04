@@ -1748,3 +1748,29 @@ func (s *Store) IncrThreadViews(threadID int64) {
 func (s *Store) VacuumSessions() {
 	s.DB.Exec(`DELETE FROM sessions WHERE expires_at <= ?`, time.Now().Unix())
 }
+
+// ---------- 站点设置 ----------
+
+const siteAnnouncementKey = "announcement"
+
+// Announcement 返回当前站点公告(空串=未设置)。
+func (s *Store) Announcement() (string, error) {
+	var v string
+	err := s.DB.QueryRow(`SELECT value FROM site_settings WHERE key = ?`, siteAnnouncementKey).Scan(&v)
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	return v, nil
+}
+
+// SetAnnouncement 写入/更新站点公告;text 为空表示关闭公告。
+func (s *Store) SetAnnouncement(text string) error {
+	_, err := s.DB.Exec(
+		`INSERT INTO site_settings (key, value) VALUES (?, ?)
+		 ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+		siteAnnouncementKey, text)
+	return err
+}

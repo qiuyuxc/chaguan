@@ -64,7 +64,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 }
 .topbar-inner {
   max-width: 1180px; margin: 0 auto; padding: 0 14px;
-  height: 56px; display: flex; align-items: center; gap: 6px;
+  height: 46px; display: flex; align-items: center; gap: 6px;
 }
 .icon-btn {
   width: 40px; height: 40px; border: none; border-radius: var(--r-ctl);
@@ -81,6 +81,54 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   align-items: center; justify-content: center; flex: none;
 }
 .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+/* 顶栏收紧:高度/图标按钮/站点图标同比例缩小 */
+.topbar .icon-btn, .admin-top .icon-btn { width: 36px; height: 36px; }
+.topbar .logo { font-size: 15px; gap: 7px; }
+.topbar .logo-mark { width: 21px; height: 21px; border-radius: 6px; }
+.topbar .logo-mark .ic { width: 12px; height: 12px; }
+.admin-brand .logo-mark { width: 22px; height: 22px; border-radius: 6px; }
+.admin-brand .logo-mark .ic { width: 12px; height: 12px; }
+.admin-brand-txt b { font-size: 14px; }
+
+/* ---------- 站点公告:顶部滚动横幅 ---------- */
+.announce {
+  display: flex; align-items: center; overflow: hidden;
+  background: var(--accent-soft); color: var(--ink-2);
+  border-bottom: 1px solid var(--line); font-size: 12px;
+}
+.announce-ic {
+  flex: none; width: 15px; height: 15px; margin: 7px 9px 7px 14px;
+  color: var(--accent-dk);
+}
+.ann-viewport { flex: 1; min-width: 0; overflow: hidden; }
+.ann-track {
+  display: inline-flex; white-space: nowrap;
+  animation: ann-marquee 22s linear infinite;
+  will-change: transform;
+}
+.ann-item { flex: none; padding: 6px 0; }
+.ann-item::after { content: "·"; margin-left: 1.4em; color: var(--ink-4); }
+.announce:hover .ann-track { animation-play-state: paused; }
+@keyframes ann-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ann-track { animation: none; }
+}
+
+/* ---------- 后台概览:公告编辑器 ---------- */
+.ann-editor {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 10px 12px; margin: 0 0 14px;
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--r-card);
+}
+.ann-editor-t b { display: block; font-size: 13px; color: var(--ink); }
+.ann-editor-t .page-sub { margin: 1px 0 0; font-size: 11px; }
+.ann-editor-form { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 240px; }
+.ann-editor-form .input { flex: 1; min-width: 0; }
+.ann-editor-err { flex-basis: 100%; margin: 2px 0 0; }
+
 
 /* ---------- 头像(低饱和色系) ---------- */
 .avatar {
@@ -1135,7 +1183,7 @@ html[data-theme="dark"] .avatar.c5, html[data-theme="dark"] .avatar.c6 { color: 
 }
 .admin-top-in {
   max-width: 1180px; margin: 0 auto; padding: 0 14px;
-  height: 56px; display: flex; align-items: center; gap: 10px;
+  height: 46px; display: flex; align-items: center; gap: 10px;
 }
 .admin-brand { display: inline-flex; align-items: center; gap: 9px; min-width: 0; }
 .admin-brand .logo-mark {
@@ -1563,3 +1611,8 @@ html[data-theme="dark"] .avatar.c5, html[data-theme="dark"] .avatar.c6 { color: 
 @media (max-width: 560px) {
   .um-social { grid-template-columns: 1fr; }
 }
+
+/* 后台顶栏站点图标同步缩小(置于文件尾部避免被后续规则覆盖) */
+.admin-brand .logo-mark { width: 22px; height: 22px; border-radius: 6px; }
+.admin-brand .logo-mark .ic { width: 12px; height: 12px; }
+.admin-brand-txt b { font-size: 14px; }

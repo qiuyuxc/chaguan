@@ -105,6 +105,16 @@
   </div>
 </div></header>
 
+{{if .Announcement}}
+<div class="announce" role="note" aria-label="站点公告">
+  <svg class="ic announce-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
+  <div class="ann-viewport"><div class="ann-track">
+    <span class="ann-item">{{.Announcement}}</span>
+    <span class="ann-item">{{.Announcement}}</span>
+  </div></div>
+</div>
+{{end}}
+
 <div class="layout">
   <aside class="sidebar">
     {{template "sidenav" .}}

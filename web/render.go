@@ -43,6 +43,7 @@ type Base struct {
 	Level        int           // 登录用户 LV0..LV6
 	ExpNext      int64         // 登录用户下一级所需经验(LV6 时经验条满)
 	ExpPct       int           // 登录用户当前等级经验进度 0..100
+	Announcement string        // 站点公告(顶部滚动横幅;空串=不显示)
 }
 
 // PostView 是帖子 partial 的数据:帖子 + 当前查看者(决定是否显示删除按钮)。

@@ -90,6 +90,7 @@ func Routes(store *db.Store, rend *web.Renderer, uploadsDir string) http.Handler
 
 	mux.HandleFunc("POST /admin/categories", s.createCategory)
 	mux.HandleFunc("GET /admin", s.adminOverview)
+	mux.HandleFunc("POST /admin/announcement", s.adminSetAnnouncement)
 	mux.HandleFunc("GET /admin/users", s.adminUsers)
 	mux.HandleFunc("GET /admin/users/new", s.adminUserNewForm)
 	mux.HandleFunc("POST /admin/users/new", s.adminUserNew)

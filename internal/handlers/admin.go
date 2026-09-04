@@ -64,16 +64,15 @@ func adminPageURL(baseURL, q string, page int) string {
 
 type adminOverviewData struct {
 	web.Base
-	ATab    string
-	Stats   db.AdminStats
-	Recent  []db.User
-	Threads []db.Thread
+	ATab         string
+	Stats        db.AdminStats
+	Recent       []db.User
+	Threads      []db.Thread
+	Announcement string // 站点公告当前值(顶部横幅编辑)
+	AnnErr       string // 公告保存失败提示
 }
 
-func (s *Server) adminOverview(w http.ResponseWriter, r *http.Request) {
-	if s.requireAdmin(w, r) == nil {
-		return
-	}
+func (s *Server) adminOverviewPage(w http.ResponseWriter, r *http.Request, annErr string) {
 	now := time.Now()
 	dayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).Unix()
 	stats, err := s.store.AdminStats(dayStart)
@@ -91,13 +90,44 @@ func (s *Server) adminOverview(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, err)
 		return
 	}
+	announcement, err := s.store.Announcement()
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
 	s.rend.RenderAdmin(w, 200, "admin_overview", adminOverviewData{
-		Base:    s.base(r, "管理后台"),
-		ATab:    "overview",
-		Stats:   stats,
-		Recent:  recent,
-		Threads: threads,
+		Base:         s.base(r, "管理后台"),
+		ATab:         "overview",
+		Stats:        stats,
+		Recent:       recent,
+		Threads:      threads,
+		Announcement: announcement,
+		AnnErr:       annErr,
 	})
+}
+
+func (s *Server) adminOverview(w http.ResponseWriter, r *http.Request) {
+	if s.requireAdmin(w, r) == nil {
+		return
+	}
+	s.adminOverviewPage(w, r, "")
+}
+
+// adminSetAnnouncement POST /admin/announcement:写入站点公告(顶部滚动横幅)。
+func (s *Server) adminSetAnnouncement(w http.ResponseWriter, r *http.Request) {
+	if s.requireAdmin(w, r) == nil {
+		return
+	}
+	text := strings.TrimSpace(r.FormValue("announcement"))
+	if utf8.RuneCountInString(text) > 200 {
+		s.adminOverviewPage(w, r, "公告最多 200 字")
+		return
+	}
+	if err := s.store.SetAnnouncement(text); err != nil {
+		s.serverError(w, err)
+		return
+	}
+	http.Redirect(w, r, "/admin", http.StatusSeeOther)
 }
 
 // ---------- 用户管理 ----------

@@ -17,6 +17,9 @@ import (
 func (s *Server) base(r *http.Request, title string) web.Base {
 	i := auth.From(r.Context())
 	b := web.Base{Title: title, User: i.User, CSRF: i.CSRF}
+	if ann, err := s.store.Announcement(); err == nil {
+		b.Announcement = ann
+	}
 	if cats, err := s.store.ListCategories(); err == nil {
 		b.Categories = cats
 	}
