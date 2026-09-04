@@ -12,6 +12,7 @@
           {{.Profile.Name}}
           {{roleBadge .Profile.Role .Profile.BadgeText}}
           {{if .Profile.BannedUntil.Valid}}<span class="badge badge-lock">封禁中</span>{{end}}
+          <span class="lv-badge" title="经验 {{.Exp}}">LV{{.Level}}</span>
         </h1>
         {{if .IsSelf}}
         <a class="member-edit" href="/u/{{.Profile.ID}}/edit" title="编辑资料" aria-label="编辑资料">
@@ -19,7 +20,10 @@
         </a>
         {{end}}
       </div>
-      <p class="member-meta muted">论坛第 {{.Profile.ID}} 位成员 · {{date .Profile.CreatedAt}} 加入</p>
+      <div class="member-level" title="经验 {{.Exp}}">
+        <span class="lv-track"><span class="lv-fill" style="width:{{.ExpPct}}%"></span></span>
+        <span class="lv-exp">经验 {{.Exp}} / {{.ExpNext}}</span>
+      </div>
     </div>
   </div>
   {{if .Profile.Bio}}
@@ -27,6 +31,21 @@
   {{else}}
   <p class="member-bio muted">这个人很低调,还没有写简介</p>
   {{end}}
+  <div class="member-stats">
+    <div class="ms-item">
+      <b class="ms-num">{{.Following}}</b>
+      <span class="ms-lb">关注</span>
+    </div>
+    <div class="ms-item">
+      <b class="ms-num">{{.Followers}}</b>
+      <span class="ms-lb">粉丝</span>
+    </div>
+    <div class="ms-item">
+      <b class="ms-num">{{.Liked}}</b>
+      <span class="ms-lb">获赞</span>
+    </div>
+  </div>
+  <p class="member-meta muted">UID {{.Profile.ID}} · {{date .Profile.CreatedAt}} 加入</p>
   <div class="member-chips">
     <a class="uc-chip{{if eq .Tab "topics"}} on{{end}}" href="/u/{{.Profile.ID}}?tab=topics"><svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>{{.Threads}} 主题</a>
     <a class="uc-chip{{if eq .Tab "replies"}} on{{end}}" href="/u/{{.Profile.ID}}?tab=replies"><svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg>{{.Replies}} 回复</a>

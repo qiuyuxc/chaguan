@@ -183,7 +183,10 @@ contains "资料页含用户名" "$P" "admin"
 contains "资料页含管理员徽章" "$P" "管理员"
 contains "资料页含资料区" "$P" "member-top"
 contains "资料页含统计chips" "$P" "member-chips"
-contains "资料页含成员序号" "$P" "位成员"
+contains "资料页含 UID" "$P" "UID 1"
+contains "资料页含等级徽章" "$P" 'class="lv-badge"'
+contains "资料页含经验条" "$P" 'lv-fill'
+contains "资料页含社交三区块" "$P" "获赞"
 contains "资料页含TA的主题" "$P" "TA 的主题"
 code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR2" "$BASE/u/1/edit")
 check "他人资料编辑页被拒" "403" "$code"

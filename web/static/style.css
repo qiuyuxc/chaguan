@@ -678,16 +678,48 @@ body.drawer-open { overflow: hidden; }
   line-height: 1.35; overflow-wrap: anywhere;
 }
 .member-name .badge { vertical-align: 3px; }
+.lv-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 18px; min-width: 30px; padding: 0 6px;
+  border-radius: 5px; background: var(--card); color: var(--ink);
+  border: 1px solid var(--ink); font-size: 10px; font-weight: 800;
+  letter-spacing: 0.03em; vertical-align: 3px; line-height: 1;
+}
 .member-edit {
   flex: none; width: 26px; height: 26px; border-radius: 50%;
   display: inline-flex; align-items: center; justify-content: center;
   color: var(--ink-3);
 }
 .member-edit:hover { background: var(--hover-bg); color: var(--ink); }
-.member-meta { margin: 4px 0 0; font-size: 11px; }
+.member-meta { margin: 12px 0 0; font-size: 11px; color: var(--ink-4); }
+.member-meta b { color: var(--ink-3); font-weight: 600; }
+.member-level {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 9px; max-width: 340px;
+}
+.lv-track {
+  flex: 1; min-width: 0; height: 5px;
+  background: var(--line); border-radius: 999px; overflow: hidden;
+}
+.lv-fill { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+.lv-exp { flex: none; font-size: 10px; color: var(--ink-4); font-variant-numeric: tabular-nums; }
 .member-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
 .member-chips .uc-chip { justify-content: flex-start; }
 .member-chips .uc-chip.on { background: var(--accent); color: #fff; }
+.member-stats {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px; margin-top: 14px; max-width: 430px;
+}
+.ms-item {
+  display: grid; gap: 3px; align-content: center;
+  padding: 9px 10px; text-align: center;
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--r-card);
+}
+.ms-num {
+  font-size: 17px; font-weight: 800; color: var(--ink);
+  line-height: 1.2; font-variant-numeric: tabular-nums;
+}
+.ms-lb { font-size: 11px; color: var(--ink-3); }
 .member-bio {
   margin: 12px 0 0; max-width: 560px;
   font-size: 13px; color: var(--ink-2); line-height: 1.6;

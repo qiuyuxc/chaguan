@@ -290,6 +290,24 @@ func (s *Store) CountUserReplies(userID int64) (int64, error) {
 	return n, err
 }
 
+// SocialStats 个人主页社交统计:关注数 / 粉丝数 / 收到的赞。
+type SocialStats struct {
+	Following int64
+	Followers int64
+	Liked     int64 // 收到的赞(他人点赞该用户帖子)
+}
+
+func (s *Store) SocialStats(userID int64) (SocialStats, error) {
+	var st SocialStats
+	err := s.DB.QueryRow(`
+		SELECT
+			(SELECT COUNT(*) FROM follows WHERE follower_id = ?),
+			(SELECT COUNT(*) FROM follows WHERE followee_id = ?),
+			(SELECT COUNT(*) FROM post_likes pl JOIN posts p ON p.id = pl.post_id WHERE p.author_id = ?)`,
+		userID, userID, userID).Scan(&st.Following, &st.Followers, &st.Liked)
+	return st, err
+}
+
 // ListUserThreads 某用户发起过的主题(资料页「TA 的主题」)。
 func (s *Store) ListUserThreads(userID int64, limit, offset int) ([]Thread, error) {
 	rows, err := s.DB.Query(`SELECT `+threadCols+threadFrom+`

@@ -24,6 +24,14 @@ type profileData struct {
 	Threads       int64
 	Replies       int64
 	Posts         int64
+	Following     int64 // 关注
+	Followers     int64 // 粉丝
+	Liked         int64 // 获赞
+	Exp           int64 // 等级经验
+	Level         int   // LV0..LV6
+	ExpStart      int64 // 当前等级起始经验
+	ExpNext       int64 // 升下一级所需经验(LV6 时等于 ExpStart,经验条满)
+	ExpPct        int   // 经验条百分比 0..100
 	IsSelf        bool
 	IsAdminViewer bool
 	Page, Pages   int
@@ -33,6 +41,31 @@ type profileData struct {
 }
 
 const profileItemsPerPage = 15
+
+// 等级经验规则:发主题 +12、回复 +3、收到点赞 +1(后续互动扩展在此累加)。
+func socialExp(threads, replies, liked int64) int64 {
+	return threads*12 + replies*3 + liked
+}
+
+// levelThresholds 仿 B 站成长曲线(简化):下标即等级 LV0..LV6。
+var levelThresholds = [...]int64{0, 60, 250, 800, 2200, 6000, 16000}
+
+// levelOf 由经验求等级与进度区间。
+func levelOf(exp int64) (lv int, start, next int64) {
+	for i := 1; i < len(levelThresholds); i++ {
+		if exp >= levelThresholds[i] {
+			lv = i
+		} else {
+			break
+		}
+	}
+	start = levelThresholds[lv]
+	next = levelThresholds[len(levelThresholds)-1]
+	if lv < len(levelThresholds)-1 {
+		next = levelThresholds[lv+1]
+	}
+	return lv, start, next
+}
 
 // clipRunes 给正文预览截断到 n 个字符。
 func clipRunes(s string, n int) string {
@@ -80,6 +113,20 @@ func (s *Server) profile(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, err)
 		return
 	}
+	stats, err := s.store.SocialStats(u.ID)
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	exp := socialExp(threads, replies, stats.Liked)
+	level, expStart, expNext := levelOf(exp)
+	expPct := 100
+	if expNext > expStart {
+		expPct = int((exp - expStart) * 100 / (expNext - expStart))
+		if expPct > 100 {
+			expPct = 100
+		}
+	}
 	tab := r.URL.Query().Get("tab")
 	switch tab {
 	case "replies", "posts":
@@ -120,6 +167,14 @@ func (s *Server) profile(w http.ResponseWriter, r *http.Request) {
 		Threads:       threads,
 		Replies:       replies,
 		Posts:         threads + replies,
+		Following:     stats.Following,
+		Followers:     stats.Followers,
+		Liked:         stats.Liked,
+		Exp:           exp,
+		Level:         level,
+		ExpStart:      expStart,
+		ExpNext:       expNext,
+		ExpPct:        expPct,
 		IsSelf:        viewer != nil && viewer.ID == u.ID,
 		IsAdminViewer: viewer != nil && viewer.IsAdmin(),
 		Page:          page,
