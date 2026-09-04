@@ -134,6 +134,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .user-card { text-align: center; }
 .user-card .avatar { margin: 0 auto; }
 .user-card .uc-name { margin-top: 8px; font-size: 15px; font-weight: 600; color: var(--ink); }
+.user-card .uc-name .badge { margin-left: 8px; vertical-align: 3px; }
 .user-card .uc-bio {
   margin-top: 5px; font-size: 12px; color: var(--ink-3); line-height: 1.5;
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
