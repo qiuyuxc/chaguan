@@ -817,7 +817,8 @@
     // 账号认证:分类芯片(官方/厂商红 V、作者黄 V)+ 自定义文案 + 实时预览。
     // 分类决定 V 颜色,文案自由填写;两者都空 = 无认证(管理员/版主按身份显示)。
     root.querySelectorAll("[data-verify-edit]").forEach(function (box) {
-      var kindInput = box.querySelector('input[name="kind"]');
+      var form = box.closest("form");
+      var kindInput = form ? form.querySelector('input[name="kind"]') : box.querySelector('input[name="kind"]');
       var titleInput = box.querySelector('input[name="title"]');
       if (!kindInput) return;
       var chips = Array.prototype.slice.call(box.querySelectorAll(".pick-chip"));

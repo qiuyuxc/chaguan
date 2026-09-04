@@ -226,6 +226,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   font-size: 10px; font-weight: 500; vertical-align: 1.5px; border: 1px solid var(--line);
 }
 .badge-admin { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.badge-solid { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 .badge-lock { background: var(--hover-bg); color: var(--ink-3); border-color: var(--line-strong); }
 
 /* 版块 pill 横滚 */
