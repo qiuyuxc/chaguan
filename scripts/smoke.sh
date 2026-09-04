@@ -181,6 +181,13 @@ AVURL=$(echo "$P" | grep -o 'src="/uploads/[0-9]*"' | head -1 | sed 's/src="//;s
 contains "头像已展示" "$P" "$AVURL"
 THREAD_HTML=$(curl -s -b "$JAR" "$THREAD_URL")
 contains "帖子头像已替换" "$THREAD_HTML" "$AVURL"
+UP=$(curl -s -b "$JAR" "$BASE/c/tech/new")
+contains "发帖编辑器带上传入口" "$UP" "data-upload"
+TR=$(curl -s -b "$JAR" "$THREAD_URL")
+contains "回复表单带上传入口" "$TR" "data-upload"
+IMG=$(curl -s -b "$JAR" -H "X-CSRF-Token: $CSRF" \
+  -d "content=看图 ![图]($AVURL)" "$THREAD_URL/reply")
+contains "Markdown 图片渲染" "$IMG" "<img src=\"$AVURL\" alt=\"图\">"
 echo "== 版主操作 =="
 CSRF=$(curl -s -b "$JAR2" -c "$JAR2" "$BASE/" | grep -o 'name="_csrf" value="[^"]*"' | head -1 | sed 's/.*value="//;s/"//')
 code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR2" \

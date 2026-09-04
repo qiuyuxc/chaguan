@@ -11,7 +11,12 @@
   {{if .Error}}<p class="form-error">{{.Error}}</p>{{end}}
   <form method="post" action="/p/{{.PostID}}/edit" class="form-grid">
     {{csrfField .CSRF}}
-    <label>正文<textarea class="input textarea" name="content" maxlength="10000" required rows="8" autofocus>{{.Content}}</textarea></label>
+    <label>正文<textarea class="input textarea" name="content" id="post-content" maxlength="10000" required rows="8" autofocus>{{.Content}}</textarea></label>
+    <div class="upload-row">
+      <button type="button" class="btn btn-ghost btn-sm" data-upload="#post-content">插入图片</button>
+      <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" hidden>
+      <span class="upload-status" aria-live="polite"></span>
+    </div>
     <div class="form-actions">
       <button class="btn btn-primary" type="submit">保存修改</button>
       <a class="btn btn-secondary" href="/t/{{.Thread.ID}}#p{{.PostID}}">取消</a>

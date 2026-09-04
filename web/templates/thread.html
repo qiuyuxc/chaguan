@@ -47,7 +47,12 @@
   <p class="empty">主题已锁定，无法回复</p>
   {{else}}
   <form id="reply-form" class="card reply-form" hx-post="/t/{{.Thread.ID}}/reply" hx-target="#posts" hx-swap="beforeend">
-    <textarea class="input textarea" name="content" maxlength="10000" rows="5" required placeholder="写下你的回复…"></textarea>
+    <textarea class="input textarea" name="content" id="reply-content" maxlength="10000" rows="5" required placeholder="写下你的回复…"></textarea>
+    <div class="upload-row">
+      <button type="button" class="btn btn-ghost btn-sm" data-upload="#reply-content">插入图片</button>
+      <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" hidden>
+      <span class="upload-status" aria-live="polite"></span>
+    </div>
     <div class="form-actions"><button class="btn btn-primary" type="submit">回复</button></div>
   </form>
   {{end}}
