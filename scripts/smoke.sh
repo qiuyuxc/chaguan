@@ -33,7 +33,8 @@ code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" -c "$JAR" \
 check "注册跳转" "303" "$code"
 HOME_HTML=$(curl -s -b "$JAR" "$BASE/")
 contains "admin 登录态" "$HOME_HTML" "admin"
-contains "admin 可见版块管理入口" "$HOME_HTML" "版块管理"
+ADMINP=$(curl -s -b "$JAR" "$BASE/admin/categories")
+contains "admin 可访问版块管理页" "$ADMINP" "版块管理"
 
 echo "== CSRF 负路径 =="
 code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" \

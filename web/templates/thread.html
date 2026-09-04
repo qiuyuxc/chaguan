@@ -54,7 +54,9 @@
   {{range .PostViews}}{{template "post" .}}{{end}}
 </div>
 {{if not .PostViews}}<p class="empty">还没有回复,来抢沙发吧</p>{{end}}
+{{if .PostViews}}
 {{template "pagination" .}}
+{{end}}
 
 {{if .User}}
   {{if .Thread.IsLocked}}
