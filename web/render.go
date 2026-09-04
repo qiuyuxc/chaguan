@@ -2,6 +2,7 @@
 package web
 
 import (
+	"database/sql"
 	"embed"
 	"fmt"
 	"html/template"
@@ -81,6 +82,46 @@ var funcs = template.FuncMap{
 		}
 		return out
 	},
+	"roleBadge":    roleBadge,
+	"quotePreview": quotePreview,
+}
+
+// roleBadge 渲染用户称号徽章:
+// badge NULL → 跟随身份(管理员/版主);” → 隐藏;自定义文本 → 替换身份文案。
+func roleBadge(role string, badge sql.NullString) template.HTML {
+	var label, cls string
+	if badge.Valid {
+		if badge.String == "" {
+			return ""
+		}
+		label, cls = badge.String, "badge"
+		switch role {
+		case "admin":
+			cls = "badge badge-admin"
+		case "mod":
+			cls = "badge badge-mod"
+		}
+	} else {
+		switch role {
+		case "admin":
+			label, cls = "管理员", "badge badge-admin"
+		case "mod":
+			label, cls = "版主", "badge badge-mod"
+		default:
+			return ""
+		}
+	}
+	return template.HTML(`<span class="` + cls + `">` + template.HTMLEscapeString(label) + `</span>`)
+}
+
+// quotePreview 把 Markdown 源压成一行、截取前 120 字,作为「引用回复」的预览。
+func quotePreview(src string) string {
+	s := strings.Join(strings.Fields(src), " ")
+	r := []rune(s)
+	if len(r) <= 120 {
+		return s
+	}
+	return string(r[:120])
 }
 
 func canDeletePost(p db.Post, viewer *db.User) bool {

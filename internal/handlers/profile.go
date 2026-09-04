@@ -2,6 +2,7 @@
 package handlers
 
 import (
+	"database/sql"
 	"net/http"
 	"strconv"
 	"strings"
@@ -45,7 +46,10 @@ func clipRunes(s string, n int) string {
 type editProfileData struct {
 	web.Base
 	Profile   *db.User
+	Name      string // 修改后的账号名称(校验失败时保留输入)
 	Bio       string
+	BadgeMode string // follow | hide | custom
+	BadgeText string
 	AvatarNew string // 刚上传、尚未保存的新头像路径(校验失败后保留选择)
 	Error     string
 }
@@ -143,6 +147,17 @@ func (s *Server) selfUser(w http.ResponseWriter, r *http.Request) *db.User {
 	return user
 }
 
+// badgeState 把用户当前称号拆成编辑表单的状态。
+func badgeState(u *db.User) (mode, text string) {
+	if u == nil || !u.BadgeText.Valid {
+		return "follow", ""
+	}
+	if u.BadgeText.String == "" {
+		return "hide", ""
+	}
+	return "custom", u.BadgeText.String
+}
+
 // editProfileForm GET /u/{id}/edit:本人资料编辑页。
 func (s *Server) editProfileForm(w http.ResponseWriter, r *http.Request) {
 	if s.selfUser(w, r) == nil {
@@ -154,14 +169,18 @@ func (s *Server) editProfileForm(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, err)
 		return
 	}
+	mode, text := badgeState(u)
 	s.rend.Render(w, 200, "edit_profile", editProfileData{
-		Base:    s.base(r, "编辑资料"),
-		Profile: u,
-		Bio:     u.Bio,
+		Base:      s.base(r, "编辑资料"),
+		Profile:   u,
+		Name:      u.Name,
+		Bio:       u.Bio,
+		BadgeMode: mode,
+		BadgeText: text,
 	})
 }
 
-// editProfile POST /u/{id}/edit:保存简介,可选更换头像。
+// editProfile POST /u/{id}/edit:保存账号名称/简介/称号标签,可选更换头像。
 func (s *Server) editProfile(w http.ResponseWriter, r *http.Request) {
 	user := s.selfUser(w, r)
 	if user == nil {
@@ -183,7 +202,13 @@ func (s *Server) editProfile(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
 	}
 
+	name := strings.TrimSpace(r.FormValue("name"))
+	if name == "" {
+		name = u.Name
+	}
 	bio := strings.TrimSpace(r.FormValue("bio"))
+	badgeMode := r.FormValue("badge_mode")
+	badgeText := strings.TrimSpace(r.FormValue("badge_text"))
 	avatarURL := strings.TrimSpace(r.FormValue("avatar_url"))
 	avatarPath := u.AvatarPath
 	pendingAvatar := ""
@@ -197,10 +222,13 @@ func (s *Server) editProfile(w http.ResponseWriter, r *http.Request) {
 	} else if avatarURL != "" && avatarURL != u.AvatarPath {
 		if !s.validAvatarUpload(avatarURL, user.ID) {
 			s.rend.Render(w, 200, "edit_profile", editProfileData{
-				Base:    s.base(r, "编辑资料"),
-				Profile: u,
-				Bio:     bio,
-				Error:   "头像无效,请重新选择",
+				Base:      s.base(r, "编辑资料"),
+				Profile:   u,
+				Name:      name,
+				Bio:       bio,
+				BadgeMode: badgeMode,
+				BadgeText: badgeText,
+				Error:     "头像无效,请重新选择",
 			})
 			return
 		}
@@ -213,15 +241,39 @@ func (s *Server) editProfile(w http.ResponseWriter, r *http.Request) {
 		s.rend.Render(w, 200, "edit_profile", editProfileData{
 			Base:      s.base(r, "编辑资料"),
 			Profile:   u,
+			Name:      name,
 			Bio:       bio,
+			BadgeMode: badgeMode,
+			BadgeText: badgeText,
 			AvatarNew: pendingAvatar,
 			Error:     msg,
 		})
+	}
+	if name != u.Name {
+		switch {
+		case utf8.RuneCountInString(name) < 2 || utf8.RuneCountInString(name) > 24:
+			fail("账号名称需要 2–24 个字符")
+			return
+		case strings.ContainsAny(name, " \t\r\n@/"):
+			fail("账号名称不能包含空格、@ 或斜杠")
+			return
+		}
 	}
 	if utf8.RuneCountInString(bio) > maxBioLen {
 		fail("简介最多 200 字")
 		return
 	}
+	if utf8.RuneCountInString(badgeText) > 12 {
+		fail("自定义称号最多 12 个字符")
+		return
+	}
+	if name != u.Name {
+		if clash, _ := s.store.GetUserByName(name); clash != nil && clash.ID != u.ID {
+			fail("用户名已被占用")
+			return
+		}
+	}
+
 	if err := s.store.UpdateUserBio(u.ID, bio); err != nil {
 		s.serverError(w, err)
 		return
@@ -235,6 +287,29 @@ func (s *Server) editProfile(w http.ResponseWriter, r *http.Request) {
 			s.removeUploadFile(oldID) // 清理旧头像,失败静默
 		}
 	}
+	if name != u.Name {
+		if err := s.store.UpdateUserName(u.ID, name); err != nil {
+			if err == db.ErrDuplicateName {
+				fail("用户名已被占用")
+			} else {
+				s.serverError(w, err)
+			}
+			return
+		}
+	}
+	badge := sql.NullString{}
+	switch badgeMode {
+	case "custom":
+		badge = sql.NullString{String: badgeText, Valid: true}
+	case "hide":
+		badge = sql.NullString{String: "", Valid: true}
+	}
+	if badge.Valid != u.BadgeText.Valid || badge.String != u.BadgeText.String {
+		if err := s.store.UpdateUserBadge(u.ID, badge); err != nil {
+			s.serverError(w, err)
+			return
+		}
+	}
 	http.Redirect(w, r, "/u/"+strconv.FormatInt(u.ID, 10), http.StatusSeeOther)
 }
 
@@ -246,4 +321,26 @@ func (s *Server) validAvatarUpload(path string, userID int64) bool {
 	}
 	u, err := s.store.GetUpload(id)
 	return err == nil && u != nil && u.UserID == userID
+}
+
+// userSearch GET /api/users?q=…:登录用户的 @ 提及搜索(按名称模糊匹配)。
+func (s *Server) userSearch(w http.ResponseWriter, r *http.Request) {
+	if auth.From(r.Context()).User == nil {
+		http.Error(w, "请先登录", http.StatusUnauthorized)
+		return
+	}
+	q := strings.TrimSpace(r.URL.Query().Get("q"))
+	if runes := []rune(q); len(runes) > 30 {
+		q = string(runes[:30])
+	}
+	if q == "" {
+		writeJSON(w, []db.UserSearch{})
+		return
+	}
+	users, err := s.store.SearchUsers(q, 8)
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	writeJSON(w, users)
 }

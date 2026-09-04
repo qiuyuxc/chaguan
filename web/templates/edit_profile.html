@@ -2,7 +2,7 @@
 <div class="side-card compose-card">
   <div class="side-title">编辑资料</div>
   {{if .Error}}<p class="form-error">{{.Error}}</p>{{end}}
-  <form method="post" action="/u/{{.Profile.ID}}/edit" class="form-grid">
+  <form method="post" action="/u/{{.Profile.ID}}/edit" enctype="multipart/form-data" class="form-grid">
     {{csrfField .CSRF}}
 
     <div class="avatar-panel" data-avatar-panel>
@@ -27,7 +27,34 @@
       <input type="hidden" name="avatar_url" value="{{.AvatarNew}}" data-avatar-url>
     </div>
 
+    <label>账号名称
+      <input class="input" name="name" value="{{.Name}}" maxlength="24" required autocomplete="off">
+      <span class="form-note">2–24 个字符,不能包含空格、@ 或斜杠;名称会同步到你的所有发帖</span>
+    </label>
+
     <label>简介<textarea class="input textarea" name="bio" maxlength="200" rows="4" placeholder="写点介绍,让大家认识你(可选)">{{.Bio}}</textarea></label>
+
+    <div class="badge-editor">
+      <span class="badge-editor-title">称号标签</span>
+      <label class="opt">
+        <input type="radio" name="badge_mode" value="follow"{{if eq .BadgeMode "follow"}} checked{{end}}>
+        跟随身份{{if eq .Profile.Role "admin"}}(显示「管理员」){{else if eq .Profile.Role "mod"}}(显示「版主」){{else}}(暂无身份标签){{end}}
+      </label>
+      <label class="opt">
+        <input type="radio" name="badge_mode" value="custom"{{if eq .BadgeMode "custom"}} checked{{end}}>
+        自定义称号,替换身份标签
+      </label>
+      <div class="badge-custom-row{{if ne .BadgeMode "custom"}} disabled{{end}}" data-badge-custom>
+        <input class="input" name="badge_text" value="{{.BadgeText}}" maxlength="12" placeholder="如:站长、老司机"{{if ne .BadgeMode "custom"}} disabled{{end}}>
+        <span class="badge-preview"><span id="badge-preview-label">{{if .BadgeText}}{{.BadgeText}}{{else}}自定义称号预览{{end}}</span></span>
+      </div>
+      <label class="opt">
+        <input type="radio" name="badge_mode" value="hide"{{if eq .BadgeMode "hide"}} checked{{end}}>
+        不显示标签
+      </label>
+      <p class="badge-editor-note">自定义称号会替代管理员/版主标签显示;正式称号系统后续再开放。</p>
+    </div>
+
     <div class="form-actions">
       <button class="btn btn-primary" type="submit">保存</button>
       <a class="btn btn-white" href="/u/{{.Profile.ID}}">取消</a>

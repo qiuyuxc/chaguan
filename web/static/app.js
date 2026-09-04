@@ -209,3 +209,286 @@
       .then(function () { fileInput.value = ""; });
   });
 })();
+
+// 编辑资料:称号标签(跟随身份/自定义/隐藏)联动
+(function () {
+  var editor = document.querySelector(".badge-editor");
+  if (!editor) return;
+  var radios = editor.querySelectorAll("input[name=badge_mode]");
+  var customRow = editor.querySelector("[data-badge-custom]");
+  var textInput = editor.querySelector("input[name=badge_text]");
+  var preview = document.getElementById("badge-preview-label");
+
+  function sync() {
+    var custom = editor.querySelector('input[name="badge_mode"]:checked') &&
+      editor.querySelector('input[name="badge_mode"]:checked').value === "custom";
+    customRow.classList.toggle("disabled", !custom);
+    textInput.disabled = !custom;
+    var pv = editor.querySelector(".badge-preview");
+    if (preview) {
+      var t = textInput.value.trim();
+      preview.textContent = t || (custom ? "自定义称号预览" : "");
+      if (pv) pv.style.display = custom ? "inline-flex" : "none";
+    }
+  }
+  radios.forEach(function (r) { r.addEventListener("change", sync); });
+  if (textInput) textInput.addEventListener("input", sync);
+  sync();
+})();
+
+// 回帖框:内置工具栏(插图/@ 提及/表情/图标库) + 右下角回车键发送 + 引用回复
+(function () {
+  var form = document.getElementById("reply-form");
+  if (!form) return;
+  var ta = form.querySelector("textarea[name=content]");
+  var bar = form.querySelector(".composer-bar");
+  var panelsBox = form.querySelector(".composer-panels");
+  var statusEl = bar.querySelector(".upload-status");
+  var fileInput = bar.querySelector('input[type="file"]');
+  var csrf = form.querySelector('input[name="_csrf"]');
+  var csrfToken = csrf ? csrf.value : "";
+
+  function setStatus(msg) {
+    statusEl.textContent = msg || "";
+    statusEl.className = "upload-status" + (msg ? " show" : "");
+    if (msg) setTimeout(function () { statusEl.textContent = ""; statusEl.className = "upload-status"; }, 2600);
+  }
+  function insertAtCursor(text) {
+    var s = ta.selectionStart;
+    if (s === undefined || s === null) s = ta.value.length;
+    ta.setRangeText(text, s, ta.selectionEnd, "end");
+    ta.focus();
+    ta.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
+  // ---- 面板开合 ----
+  var EMOJI = ["😀","😄","😁","😆","😂","🤣","😊","😇","🙂","😉","😍","😘","😚","😜","🤪","😝",
+    "🤔","🤨","😐","😑","😶","😏","😒","🙄","😬","😴","🤤","😪","😷","🤒","🤕","🤢",
+    "🤮","🥵","🥶","🥴","😵","🤯","😱","😨","😰","😥","😢","😭","😤","😡","🤬","😈",
+    "👿","💀","👻","🤖","💩","👍","👎","👌","✌️","🤞","🤟","🤘","👏","🙌","🙏","🤝",
+    "💪","🤙","❤️","🧡","💛","💚","💙","💜","🖤","🤍","💔","💯","⭐","🔥","✨","🎉",
+    "🎊","🎁","🎂","🍻","☕","🚀","📌","✅","❌"];
+
+  function panel(name) { return panelsBox.querySelector('[data-panel="' + name + '"]'); }
+
+  function setPanel(name, open) {
+    panelsBox.querySelectorAll(".cp-panel").forEach(function (p) {
+      p.hidden = p.getAttribute("data-panel") !== name || !open;
+    });
+    bar.querySelectorAll("[data-panel-toggle]").forEach(function (b) {
+      var on = b.getAttribute("data-panel-toggle") === name && open;
+      b.classList.toggle("on", on);
+      b.setAttribute("aria-expanded", on ? "true" : "false");
+    });
+    if (open && name === "at") {
+      var inp = panel("at").querySelector(".cp-at-input");
+      inp.focus();
+    }
+  }
+
+  bar.addEventListener("click", function (e) {
+    var btn = e.target.closest("[data-panel-toggle]");
+    if (!btn) return;
+    var name = btn.getAttribute("data-panel-toggle");
+    var isOpen = !btn.classList.contains("on");
+    setPanel(name, isOpen);
+  });
+  document.addEventListener("click", function (e) {
+    if (e.target.closest("#reply-form")) return;
+    setPanel("", false);
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") setPanel("", false);
+  });
+
+  // ---- 表情面板 ----
+  var emojiPanel = panel("emoji");
+  EMOJI.forEach(function (ch) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "cp-emoji-item";
+    b.textContent = ch;
+    b.title = ch;
+    b.addEventListener("click", function () {
+      insertAtCursor(ch);
+      ta.focus();
+    });
+    emojiPanel.appendChild(b);
+  });
+
+  // ---- 图标库面板(插入站内图标,支持 GitHub 等常用图标) ----
+  var ICONS = [
+    ["github.svg", "GitHub"], ["twitter.svg", "Twitter"], ["rss.svg", "RSS"],
+    ["mail.svg", "邮件"], ["link.svg", "链接"], ["globe.svg", "网站"],
+    ["star.svg", "收藏"], ["heart.svg", "喜欢"], ["tag.svg", "标签"],
+    ["clock.svg", "时钟"], ["flame.svg", "热帖"], ["play.svg", "播放"],
+    ["music.svg", "音乐"], ["camera.svg", "相机"], ["eye.svg", "浏览"],
+    ["pin.svg", "置顶"], ["message-circle.svg", "评论"], ["search.svg", "搜索"],
+    ["lock.svg", "锁定"], ["bell.svg", "通知"]
+  ];
+  var iconsPanel = panel("icons");
+  ICONS.forEach(function (it) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "cp-icon-item";
+    b.title = it[1];
+    var img = document.createElement("img");
+    img.src = "/static/icons/" + it[0];
+    img.alt = it[1];
+    b.appendChild(img);
+    b.addEventListener("click", function () {
+      insertAtCursor("![" + it[1] + "](" + img.getAttribute("src") + ")");
+    });
+    iconsPanel.appendChild(b);
+  });
+
+  // ---- @ 提及:展开小搜索框,正则匹配用户名 ----
+  var atPanel = panel("at");
+  var atInput = atPanel.querySelector(".cp-at-input");
+  var atResults = atPanel.querySelector(".cp-at-results");
+  var timer = null;
+
+  function renderUsers(list) {
+    atResults.textContent = "";
+    if (!list || !list.length) {
+      var empty = document.createElement("div");
+      empty.className = "cp-at-empty";
+      empty.textContent = "没有匹配的用户";
+      atResults.appendChild(empty);
+      return;
+    }
+    list.forEach(function (u) {
+      var row = document.createElement("button");
+      row.type = "button";
+      row.className = "cp-at-row";
+      var av;
+      if (u.AvatarPath) {
+        av = document.createElement("img");
+        av.src = u.AvatarPath;
+        av.alt = "";
+      } else {
+        av = document.createElement("span");
+        av.textContent = u.Name.charAt(0);
+      }
+      av.className = "cp-at-av";
+      var nm = document.createElement("span");
+      nm.textContent = u.Name;
+      row.appendChild(av);
+      row.appendChild(nm);
+      row.addEventListener("click", function () {
+        var start = ta.selectionStart || ta.value.length;
+        var before = ta.value.slice(0, start);
+        var m = /@[^\s@]*$/.exec(before);
+        var from = m ? start - m[0].length : start;
+        ta.setRangeText("@" + u.Name + " ", from, start, "end");
+        setPanel("", false);
+        ta.focus();
+      });
+      atResults.appendChild(row);
+    });
+  }
+
+  function searchUsers() {
+    var q = atInput.value.trim();
+    if (!q) { atResults.textContent = ""; return; }
+    fetch("/api/users?q=" + encodeURIComponent(q), { headers: { "Accept": "application/json" } })
+      .then(function (res) {
+        if (res.status === 401) throw new Error("请先登录");
+        if (!res.ok) throw new Error("搜索失败");
+        return res.json();
+      })
+      .then(renderUsers)
+      .catch(function (e) {
+        atResults.textContent = "";
+        var empty = document.createElement("div");
+        empty.className = "cp-at-empty";
+        empty.textContent = e.message || "搜索失败";
+        atResults.appendChild(empty);
+      });
+  }
+  atInput.addEventListener("input", function () {
+    clearTimeout(timer);
+    timer = setTimeout(searchUsers, 200);
+  });
+  atInput.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      var first = atResults.querySelector(".cp-at-row");
+      if (first) first.click();
+    }
+  });
+
+  // ---- 插图:回形针打开内置文件选择,上传后插图片链接 ----
+  bar.querySelector('[data-compose="upload"]').addEventListener("click", function () {
+    fileInput.click();
+  });
+  fileInput.addEventListener("change", function () {
+    var f = fileInput.files && fileInput.files[0];
+    if (!f) return;
+    var fd = new FormData();
+    fd.append("file", f);
+    var headers = { "Accept": "application/json" };
+    if (csrfToken) headers["X-CSRF-Token"] = csrfToken;
+    setStatus("上传中…");
+    fetch("/uploads", { method: "POST", body: fd, headers: headers })
+      .then(function (res) {
+        if (!res.ok) {
+          return res.text().then(function (t) { throw new Error(t || "上传失败"); });
+        }
+        return res.json();
+      })
+      .then(function (d) {
+        if (!d || !d.url) throw new Error("上传失败");
+        insertAtCursor("![](" + d.url + ")");
+        setStatus("已插入图片");
+      })
+      .catch(function (e) { setStatus(e.message || "上传失败"); })
+      .then(function () { fileInput.value = ""; });
+  });
+
+  // ---- 发送:右下角小回车键 / Ctrl+Enter ----
+  ta.addEventListener("keydown", function (e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+      e.preventDefault();
+      form.requestSubmit();
+    }
+  });
+
+  // ---- 引用回复:点评论上的引用图标,把原文块quote进输入框 ----
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest("[data-quote]");
+    if (!btn) return;
+    e.preventDefault();
+    if (!ta) return;
+    var author = btn.getAttribute("data-q-author") || "";
+    var floor = btn.getAttribute("data-q-floor") || "";
+    var src = (btn.getAttribute("data-q-text") || "").trim();
+    var quote = "> @" + author;
+    if (floor) quote += " 于 #" + floor;
+    quote += ":\n";
+    if (src) quote += "> " + src + "\n";
+    var cur = ta.value.trim();
+    ta.value = quote + (cur ? "\n" + cur : "");
+    ta.dispatchEvent(new Event("input", { bubbles: true }));
+    ta.focus();
+    var top = ta.getBoundingClientRect().top + window.scrollY - 80;
+    window.scrollTo({ top: top, behavior: "smooth" });
+  });
+})();
+
+// 回复成功后收起工具栏面板
+(function () {
+  var form = document.getElementById("reply-form");
+  if (!form) return;
+  var panelsBox = form.querySelector(".composer-panels");
+  var results = form.querySelector(".cp-at-results");
+  function closeAll() {
+    if (panelsBox) panelsBox.querySelectorAll(".cp-panel").forEach(function (p) { p.hidden = true; });
+    var btns = form.querySelectorAll("[data-panel-toggle]");
+    btns.forEach(function (b) { b.classList.remove("on"); b.setAttribute("aria-expanded", "false"); });
+    if (results) results.textContent = "";
+  }
+  document.body.addEventListener("htmx:afterRequest", function (e) {
+    if (e.detail.elt && e.detail.elt.id === "reply-form" && e.detail.successful) closeAll();
+  });
+})();

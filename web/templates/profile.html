@@ -10,8 +10,7 @@
       <div class="member-name-row">
         <h1 class="member-name">
           {{.Profile.Name}}
-          {{if eq .Profile.Role "admin"}}<span class="badge badge-admin">管理员</span>
-          {{else if eq .Profile.Role "mod"}}<span class="badge badge-mod">版主</span>{{end}}
+          {{roleBadge .Profile.Role .Profile.BadgeText}}
           {{if .Profile.BannedUntil.Valid}}<span class="badge badge-lock">封禁中</span>{{end}}
         </h1>
         {{if .IsSelf}}

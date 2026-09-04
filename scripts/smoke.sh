@@ -130,7 +130,7 @@ MD=$(curl -s -b "$JAR" -H "X-CSRF-Token: $CSRF" \
   -d "content=# 大标题%0A%0A- 甲%0A- 乙%0A%0A[坏链](javascript:alert(1))" "$THREAD_URL/reply")
 contains "Markdown 标题渲染" "$MD" "<h1>大标题</h1>"
 contains "Markdown 列表渲染" "$MD" "<li>甲</li>"
-if echo "$MD" | grep -q "javascript:"; then bad "危险链接未被过滤"; else ok "危险链接被过滤"; fi
+if echo "$MD" | grep -Eq '(href|src)="javascript:'; then bad "危险链接未被过滤"; else ok "危险链接被过滤"; fi
 POST_ID=$(echo "$MD" | grep -o 'id="p[0-9]*"' | sed 's/id="p//;s/"//')
 
 echo "== 编辑回复(作者本人)=="
@@ -197,7 +197,7 @@ contains "帖子头像已替换" "$THREAD_HTML" "$AVURL"
 UP=$(curl -s -b "$JAR" "$BASE/c/tech/new")
 contains "发帖编辑器带上传入口" "$UP" "data-upload"
 TR=$(curl -s -b "$JAR" "$THREAD_URL")
-contains "回复表单带上传入口" "$TR" "data-upload"
+contains "回复表单带内置上传入口" "$TR" 'data-compose="upload"'
 IMG=$(curl -s -b "$JAR" -H "X-CSRF-Token: $CSRF" \
   -d "content=看图 ![图]($AVURL)" "$THREAD_URL/reply")
 contains "Markdown 图片渲染" "$IMG" "<img src=\"$AVURL\" alt=\"图\">"

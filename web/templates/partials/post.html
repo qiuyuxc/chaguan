@@ -8,17 +8,27 @@
   <div class="reply-main">
     <div class="reply-head">
       <a class="reply-name" href="/u/{{.Post.AuthorID}}">{{.Post.AuthorName}}</a>
-      {{if eq .Post.AuthorRole "admin"}}<span class="badge badge-admin">管理员</span>
-      {{else if eq .Post.AuthorRole "mod"}}<span class="badge badge-mod">版主</span>{{end}}
+      {{roleBadge .Post.AuthorRole .Post.AuthorBadge}}
       {{if .IsOP}}<span class="badge">楼主</span>{{end}}
       <span class="reply-floor">#{{.Floor}}</span>
-      {{if and (not .Post.IsFirst) (canEditPost .Post .Viewer)}}
-      <a class="btn btn-outline btn-sm" href="/p/{{.Post.ID}}/edit">编辑</a>
-      {{end}}
-      {{if and (not .Post.IsFirst) (canDeletePost .Post .Viewer)}}
-      <button class="btn btn-outline-danger btn-sm" hx-post="/p/{{.Post.ID}}/delete" hx-confirm="确定删除这条回复?" hx-target="closest .reply" hx-swap="delete">删除</button>
-      {{end}}
       <span class="reply-time"><a href="#p{{.Post.ID}}">{{relTime .Post.CreatedAt}}</a>{{if .Post.EditedAt.Valid}} · 编辑于 {{relTime .Post.EditedAt.Int64}}{{end}}</span>
+      {{if .Viewer}}
+      <span class="reply-acts">
+        <button type="button" class="ic-act" data-quote data-q-author="{{.Post.AuthorName}}" data-q-floor="{{.Floor}}" data-q-text="{{quotePreview .Post.ContentMD}}" title="引用并回复" aria-label="引用并回复">
+          <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 10 4 15 9 20"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></svg>
+        </button>
+        {{if and (not .Post.IsFirst) (canEditPost .Post .Viewer)}}
+        <a class="ic-act" href="/p/{{.Post.ID}}/edit" title="编辑" aria-label="编辑">
+          <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>
+        </a>
+        {{end}}
+        {{if and (not .Post.IsFirst) (canDeletePost .Post .Viewer)}}
+        <button class="ic-act ic-act-danger" hx-post="/p/{{.Post.ID}}/delete" hx-confirm="确定删除这条回复?" hx-target="closest .reply" hx-swap="delete" title="删除" aria-label="删除">
+          <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+        </button>
+        {{end}}
+      </span>
+      {{end}}
     </div>
     <div class="reply-body">{{safeHTML .Post.ContentHTML}}</div>
   </div>

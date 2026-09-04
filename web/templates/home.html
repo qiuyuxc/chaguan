@@ -1,20 +1,30 @@
 {{define "content"}}
-<div class="feed-tabs">
-  {{if .Hot}}
-  <a class="feed-tab" href="/{{if .ActiveCat}}?cat={{.ActiveCat}}{{end}}">最新</a>
-  <a class="feed-tab on" href="/?tab=hot{{if .ActiveCat}}&cat={{.ActiveCat}}{{end}}">热帖</a>
-  {{else}}
-  <a class="feed-tab on" href="/{{if .ActiveCat}}?cat={{.ActiveCat}}{{end}}">最新</a>
-  <a class="feed-tab" href="/?tab=hot{{if .ActiveCat}}&cat={{.ActiveCat}}{{end}}">热帖</a>
-  {{end}}
-</div>
-<div class="cat-pills">
-  {{if eq .ActiveCat ""}}<a class="cat-pill on" href="/{{if .Hot}}?tab=hot{{end}}">全部</a>
-  {{else}}<a class="cat-pill" href="/{{if .Hot}}?tab=hot{{end}}">全部</a>{{end}}
-  {{range .Categories}}
-  {{if eq $.ActiveCat .Slug}}<a class="cat-pill on" href="/?cat={{.Slug}}{{if $.Hot}}&tab=hot{{end}}">{{.Name}}</a>
-  {{else}}<a class="cat-pill" href="/?cat={{.Slug}}{{if $.Hot}}&tab=hot{{end}}">{{.Name}}</a>{{end}}
-  {{end}}
+<div class="feed-head">
+  <div class="cat-pills">
+    {{if eq .ActiveCat ""}}<a class="cat-pill on" href="/{{if .Hot}}?tab=hot{{end}}">全部</a>
+    {{else}}<a class="cat-pill" href="/{{if .Hot}}?tab=hot{{end}}">全部</a>{{end}}
+    {{range .Categories}}
+    {{if eq $.ActiveCat .Slug}}<a class="cat-pill on" href="/?cat={{.Slug}}{{if $.Hot}}&tab=hot{{end}}">{{.Name}}</a>
+    {{else}}<a class="cat-pill" href="/?cat={{.Slug}}{{if $.Hot}}&tab=hot{{end}}">{{.Name}}</a>{{end}}
+    {{end}}
+  </div>
+  <div class="feed-tabs">
+    {{if .Hot}}
+    <a class="feed-tab" href="/{{if .ActiveCat}}?cat={{.ActiveCat}}{{end}}" title="按最新动态排序" aria-label="最新">
+      <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span class="ft-lb">最新</span>
+    </a>
+    <a class="feed-tab on" href="/?tab=hot{{if .ActiveCat}}&cat={{.ActiveCat}}{{end}}" title="按热度排序" aria-label="热帖">
+      <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg><span class="ft-lb">热帖</span>
+    </a>
+    {{else}}
+    <a class="feed-tab on" href="/{{if .ActiveCat}}?cat={{.ActiveCat}}{{end}}" title="按最新动态排序" aria-label="最新">
+      <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span class="ft-lb">最新</span>
+    </a>
+    <a class="feed-tab" href="/?tab=hot{{if .ActiveCat}}&cat={{.ActiveCat}}{{end}}" title="按热度排序" aria-label="热帖">
+      <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg><span class="ft-lb">热帖</span>
+    </a>
+    {{end}}
+  </div>
 </div>
 
 {{if .IsEmpty}}

@@ -117,6 +117,7 @@ type User struct {
 	Bio          string
 	CreatedAt    int64
 	BannedUntil  sql.NullInt64
+	BadgeText    sql.NullString // NULL=跟随身份; ''=隐藏; 非空=自定义称号
 }
 
 func (u *User) IsAdmin() bool { return u != nil && u.Role == "admin" }
@@ -159,11 +160,21 @@ type Post struct {
 	AuthorName   string
 	AuthorAvatar string
 	AuthorRole   string
+	AuthorBadge  sql.NullString
 	ContentMD    string
 	ContentHTML  string
 	IsFirst      bool
 	CreatedAt    int64
 	EditedAt     sql.NullInt64
+}
+
+// UserSearch 是 @ 搜索接口返回的轻量用户信息(不携带邮箱/口令)。
+type UserSearch struct {
+	ID         int64
+	Name       string
+	AvatarPath string
+	Role       string
+	BadgeText  sql.NullString
 }
 
 // ---------- users / sessions ----------
@@ -209,13 +220,37 @@ func (s *Store) CreateUser(name, email, passwordHash string) (int64, error) {
 
 const userCols = `
 	id, name, COALESCE(email,''), password_hash, role, COALESCE(avatar_path,''),
-	COALESCE(bio,''), created_at, banned_until`
+	COALESCE(bio,''), created_at, banned_until, badge_text`
 
 func scanUser(row interface{ Scan(...any) error }) (*User, error) {
 	u := &User{}
 	err := row.Scan(&u.ID, &u.Name, &u.Email, &u.PasswordHash, &u.Role, &u.AvatarPath,
-		&u.Bio, &u.CreatedAt, &u.BannedUntil)
+		&u.Bio, &u.CreatedAt, &u.BannedUntil, &u.BadgeText)
 	return u, err
+}
+
+// SearchUsers 按名称模糊匹配用户(@ 搜索用);转义 LIKE 通配符,最多 limit 条。
+func (s *Store) SearchUsers(q string, limit int) ([]UserSearch, error) {
+	q = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(q)
+	rows, err := s.DB.Query(`
+		SELECT id, name, COALESCE(avatar_path,''), role, badge_text
+		FROM users
+		WHERE name LIKE ? ESCAPE '\'
+		ORDER BY (role = 'admin') DESC, (role = 'mod') DESC, name COLLATE NOCASE
+		LIMIT ?`, "%"+q+"%", limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []UserSearch
+	for rows.Next() {
+		var u UserSearch
+		if err := rows.Scan(&u.ID, &u.Name, &u.AvatarPath, &u.Role, &u.BadgeText); err != nil {
+			return nil, err
+		}
+		out = append(out, u)
+	}
+	return out, rows.Err()
 }
 
 func (s *Store) GetUserByName(name string) (*User, error) {
@@ -356,6 +391,28 @@ func (s *Store) UpdateUserBio(userID int64, bio string) error {
 	return err
 }
 
+// UpdateUserName 修改用户名;与既有用户重名(忽略大小写)时返回 ErrDuplicateName。
+func (s *Store) UpdateUserName(userID int64, name string) error {
+	_, err := s.DB.Exec(`UPDATE users SET name = ? WHERE id = ?`, name, userID)
+	if err != nil {
+		if strings.Contains(err.Error(), "UNIQUE") {
+			return ErrDuplicateName
+		}
+		return err
+	}
+	return nil
+}
+
+// UpdateUserBadge 保存称号标签(badge NULL=跟随身份,”=隐藏,非空=自定义)。
+func (s *Store) UpdateUserBadge(userID int64, badge sql.NullString) error {
+	var v any
+	if badge.Valid {
+		v = badge.String
+	}
+	_, err := s.DB.Exec(`UPDATE users SET badge_text = ? WHERE id = ?`, v, userID)
+	return err
+}
+
 // UpdateUserAvatar 记录头像的访问路径(形如 /uploads/12)。
 func (s *Store) UpdateUserAvatar(userID int64, avatarPath string) error {
 	_, err := s.DB.Exec(`UPDATE users SET avatar_path = ? WHERE id = ?`, avatarPath, userID)
@@ -376,11 +433,11 @@ func (s *Store) GetSessionUser(token string) (*User, string, error) {
 	var csrf string
 	now := time.Now().Unix()
 	err := s.DB.QueryRow(`
-		SELECT u.id, u.name, u.role, COALESCE(u.avatar_path,''), s.csrf_token
+		SELECT u.id, u.name, u.role, COALESCE(u.avatar_path,''), u.badge_text, s.csrf_token
 		FROM sessions s JOIN users u ON u.id = s.user_id
 		WHERE s.token = ? AND s.expires_at > ?
 		  AND (u.banned_until IS NULL OR u.banned_until <= ?)`, token, now, now).
-		Scan(&u.ID, &u.Name, &u.Role, &u.AvatarPath, &csrf)
+		Scan(&u.ID, &u.Name, &u.Role, &u.AvatarPath, &u.BadgeText, &csrf)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, "", nil
 	}
@@ -662,14 +719,16 @@ func (s *Store) CreateThread(catID, authorID int64, title, contentMD, contentHTM
 // ---------- posts ----------
 
 const postCols = `
-	p.id, p.thread_id, p.author_id, u.name, COALESCE(u.avatar_path,''), u.role, p.content_md, p.content_html,
+	p.id, p.thread_id, p.author_id, u.name, COALESCE(u.avatar_path,''), u.role, u.badge_text,
+	p.content_md, p.content_html,
 	p.is_first, p.created_at, p.edited_at`
 
 func scanPost(row interface{ Scan(...any) error }) (*Post, error) {
 	p := &Post{}
 	var first int64
 	err := row.Scan(&p.ID, &p.ThreadID, &p.AuthorID, &p.AuthorName, &p.AuthorAvatar,
-		&p.AuthorRole, &p.ContentMD, &p.ContentHTML, &first, &p.CreatedAt, &p.EditedAt)
+		&p.AuthorRole, &p.AuthorBadge, &p.ContentMD, &p.ContentHTML,
+		&first, &p.CreatedAt, &p.EditedAt)
 	if err != nil {
 		return nil, err
 	}

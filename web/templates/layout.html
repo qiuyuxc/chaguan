@@ -22,9 +22,8 @@
   </a>
   <div class="topbar-right">
     {{if .User}}
-    <a class="btn btn-primary btn-sm" href="/new">
+    <a class="btn btn-primary btn-ic" href="/new" title="发新帖" aria-label="发新帖">
       <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"/></svg>
-      发帖
     </a>
     <a class="icon-btn notif-btn" href="/notifications" aria-label="通知" title="通知">
       <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
@@ -67,9 +66,7 @@
     {{if .User.AvatarPath}}<a class="avatar av-46" href="/u/{{.User.ID}}"><img src="{{.User.AvatarPath}}" alt=""></a>
     {{else}}<a class="avatar av-46 c1" href="/u/{{.User.ID}}">{{initial .User.Name}}</a>{{end}}
     <div class="uc-name">
-      {{.User.Name}}
-      {{if .User.IsAdmin}}<span class="badge badge-admin">管理员</span>
-      {{else if .User.IsMod}}<span class="badge badge-mod">版主</span>{{end}}
+      {{.User.Name}}{{roleBadge .User.Role .User.BadgeText}}
     </div>
     <div class="uc-chips">
       <a class="uc-chip" href="/u/{{.User.ID}}">我的资料</a>
