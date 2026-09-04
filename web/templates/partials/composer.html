@@ -1,5 +1,12 @@
 {{define "composer"}}
 <div class="composer" data-composer>
+  <div class="composer-quote" data-composer-quote hidden>
+    <span class="cq-badge">引用</span>
+    <span class="cq-text" data-cq-text></span>
+    <button type="button" class="cq-x" data-cq-clear title="取消引用" aria-label="取消引用">
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg>
+    </button>
+  </div>
   <textarea class="input textarea composer-input" name="{{.Name}}" id="{{.ID}}" maxlength="10000" rows="{{.Rows}}" required placeholder="{{.Placeholder}}">{{.Content}}</textarea>
   <div class="composer-panels">
     <div class="cp-panel cp-emoji" data-panel="emoji" hidden></div>

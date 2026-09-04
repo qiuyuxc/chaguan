@@ -60,36 +60,13 @@
 </body>
 </html>{{end}}
 {{define "sidenav"}}
-{{if .User}}
-<div class="side-card">
-  <div class="user-card">
-    {{if .User.AvatarPath}}<a class="avatar av-46" href="/u/{{.User.ID}}"><img src="{{.User.AvatarPath}}" alt=""></a>
-    {{else}}<a class="avatar av-46 c1" href="/u/{{.User.ID}}">{{initial .User.Name}}</a>{{end}}
-    <div class="uc-name">
-      {{.User.Name}}{{roleBadge .User.Role .User.BadgeText}}
-    </div>
-    <div class="uc-chips">
-      <a class="uc-chip" href="/u/{{.User.ID}}">我的资料</a>
-      <a class="uc-chip" href="/notifications">通知</a>
-    </div>
-    <form method="post" action="/logout" class="uc-actions">
-      {{csrfField .CSRF}}
-      <button class="btn btn-ghost btn-sm" type="submit">退出登录</button>
-    </form>
-  </div>
-</div>
-{{else}}
-<div class="side-card">
-  <div class="side-title">你好啊,陌生人</div>
-  <div class="user-card">
-    <span class="avatar av-46 c1" aria-hidden="true">?</span>
-    <div class="uc-name">未登录</div>
-    <div class="uc-bio muted">登录后即可发帖、回复与接收通知</div>
-    <div class="uc-chips">
-      <a class="uc-chip" href="/login">登录</a>
-      <a class="uc-chip" href="/register">注册</a>
-    </div>
-  </div>
+{{if not .User}}
+<div class="side-auth">
+  <a class="btn btn-primary" href="/login">
+    <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" x2="3" y1="12" y2="12"/></svg>
+    登录
+  </a>
+  <a class="btn btn-outline" href="/register">注册</a>
 </div>
 {{end}}
 <div class="side-card">
@@ -108,4 +85,36 @@
     <div><b>{{.TotalThreads}}</b><span>主题</span></div>
   </div>
 </div>
+{{if .User}}
+<div class="side-card">
+  <div class="side-title">快捷</div>
+  <nav class="side-links">
+    <a class="side-link" href="/u/{{.User.ID}}">
+      <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      个人主页
+    </a>
+    <a class="side-link" href="/notifications">
+      <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+      我的通知
+    </a>
+    <a class="side-link" href="/new">
+      <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"/></svg>
+      发新帖
+    </a>
+    {{if .User.IsMod}}
+    <a class="side-link" href="/admin/categories">
+      <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+      版块管理
+    </a>
+    {{end}}
+    <form method="post" action="/logout" class="side-qform">
+      {{csrfField .CSRF}}
+      <button class="side-link side-link-btn" type="submit">
+        <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+        退出登录
+      </button>
+    </form>
+  </nav>
+</div>
+{{end}}
 {{end}}

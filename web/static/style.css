@@ -163,6 +163,16 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .side-stats b { display: block; font-size: 16px; color: var(--ink); font-weight: 700; }
 .side-stats span { font-size: 11px; color: var(--ink-3); }
 
+/* 侧栏:登录/注册与快捷入口(替代原个人主页卡) */
+.side-auth { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.side-auth .btn { min-height: 36px; font-size: 13px; padding: 6px 8px; }
+.side-links .ic { width: 15px; height: 15px; color: var(--ink-3); }
+.side-qform { display: block; margin: 0; }
+.side-link-btn {
+  width: 100%; border: 0; background: transparent; cursor: pointer;
+  text-align: left; font: inherit;
+}
+
 /* ---------- 帖子流 ---------- */
 .feed-tabs { display: flex; gap: 6px; margin-bottom: 10px; }
 .feed-tab {
@@ -495,6 +505,7 @@ body.drawer-open { overflow: hidden; }
 .drawer .side-card { margin: 0; padding: 14px 4px; background: transparent; border: 0; border-radius: 0; box-shadow: none; }
 .drawer .side-card + .side-card { border-top: 1px solid var(--line); }
 .drawer .side-title { margin-left: 8px; }
+.drawer .side-auth { margin: 2px 8px 14px; }
 .auth-card + .auth-card { margin-top: 12px; }
 @media (min-width: 900px) {
   .op-card { padding-left: 0; padding-right: 0; }
@@ -833,6 +844,29 @@ body.drawer-open { overflow: hidden; }
 }
 .c-send:hover { background: var(--accent-dk); }
 .c-send .ic { stroke: #fff; }
+
+/* 引用条:引用内容独立一区,分隔线下才是正文输入 */
+.composer-quote {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 8px 10px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+  border-radius: var(--r-card) var(--r-card) 0 0;
+}
+.composer-quote[hidden] { display: none; }
+.cq-badge { flex: none; margin-top: 1px; font-size: 11px; font-weight: 700; color: var(--ink); letter-spacing: 0.04em; }
+.cq-text {
+  flex: 1; min-width: 0; font-size: 12px; color: var(--ink-3); line-height: 1.5;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cq-x {
+  flex: none; width: 22px; height: 22px; margin-top: -1px; padding: 0;
+  border: 0; border-radius: 5px; background: transparent;
+  color: var(--ink-3); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.cq-x:hover { background: var(--hover-bg); color: var(--ink); }
+.cq-x .ic { width: 13px; height: 13px; }
 
 /* 面板(表情/图标/@)定位在工具栏上方 */
 .composer-panels {

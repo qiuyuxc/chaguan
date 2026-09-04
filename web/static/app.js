@@ -505,7 +505,18 @@
     }
   });
 
-  // 引用并回复:点引用图标,把原文引用进回复框并展开
+  // 引用:点引用图标,把「被引用楼自己写的正文」放进独立引用条(与正文输入分隔开)
+  var qBox = form.querySelector("[data-composer-quote]");
+  var qText = qBox ? qBox.querySelector("[data-cq-text]") : null;
+  var qClear = qBox ? qBox.querySelector("[data-cq-clear]") : null;
+  var quote = null; // { md, label }
+
+  function clearQuote() {
+    quote = null;
+    if (qBox) qBox.hidden = true;
+    if (qText) qText.textContent = "";
+  }
+
   document.addEventListener("click", function (e) {
     var btn = e.target.closest("[data-quote]");
     if (!btn || !ta) return;
@@ -513,19 +524,36 @@
     var author = btn.getAttribute("data-q-author") || "";
     var floor = btn.getAttribute("data-q-floor") || "";
     var src = (btn.getAttribute("data-q-text") || "").trim();
-    var quote = "> @" + author;
-    if (floor) quote += " 于 #" + floor;
-    quote += ":\n";
-    if (src) quote += "> " + src + "\n";
-    var cur = ta.value.trim();
-    ta.value = quote + (cur ? "\n" + cur : "");
-    ta.dispatchEvent(new Event("input", { bubbles: true }));
+    var md = "> @" + author;
+    if (floor) md += " 于 #" + floor;
+    md += ":\n";
+    if (src) md += "> " + src + "\n";
+    md += "\n";
+    var label = (floor ? "#" + floor + " " : "") + "@" + author;
+    if (src) label += " · " + src;
+    quote = { md: md, label: label };
+    if (qBox) qBox.hidden = false;
+    if (qText) qText.textContent = label;
     openComposer(true);
+  });
+
+  if (qClear) qClear.addEventListener("click", function (e) {
+    e.preventDefault();
+    clearQuote();
+    if (ta.focus) ta.focus({ preventScroll: true });
+  });
+
+  // 提交时把引用条拼进正文:引用独立存储于楼层开头,不与输入框内容混在一起
+  document.body.addEventListener("htmx:configRequest", function (e) {
+    if (e.detail.elt !== form || !quote) return;
+    var cur = ta.value.trim();
+    e.detail.parameters.content = quote.md + cur;
   });
 
   // 回复成功:清空收起回复框,滚到新插入的回复
   document.body.addEventListener("htmx:afterRequest", function (e) {
     if (e.detail.elt !== form || !e.detail.successful) return;
+    clearQuote();
     closeComposer();
     var fresh = repliesBox && repliesBox.lastElementChild;
     if (fresh && fresh.classList && fresh.classList.contains("reply")) {

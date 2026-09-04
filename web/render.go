@@ -123,14 +123,29 @@ func roleBadge(role string, badge sql.NullString) template.HTML {
 	return template.HTML(`<span class="` + cls + `">` + template.HTMLEscapeString(label) + `</span>`)
 }
 
-// quotePreview 把 Markdown 源压成一行、截取前 120 字,作为「引用回复」的预览。
+// quotePreview 取帖子「自己写的正文」压成一行并截前 120 字,作为「引用回复」的预览。
+// 引用某楼时只应带上对方自己写的内容,引用行(含 `>` 嵌套引用别人更早楼层)不算数,
+// 否则 3 楼引 2 楼时会把 2 楼引 1 楼的整段一起套进来,出现连环嵌套。
 func quotePreview(src string) string {
-	s := strings.Join(strings.Fields(src), " ")
-	r := []rune(s)
-	if len(r) <= 120 {
+	trim := func(s string) string {
+		r := []rune(s)
+		if len(r) > 120 {
+			return string(r[:120])
+		}
 		return s
 	}
-	return string(r[:120])
+	var own []string
+	for _, ln := range strings.Split(src, "\n") {
+		if strings.HasPrefix(strings.TrimLeft(ln, " \t"), ">") {
+			continue
+		}
+		own = append(own, ln)
+	}
+	txt := strings.Join(strings.Fields(strings.Join(own, "\n")), " ")
+	if txt == "" {
+		txt = strings.Join(strings.Fields(src), " ") // 整楼都是引用时,回退用原文
+	}
+	return trim(txt)
 }
 
 func canDeletePost(p db.Post, viewer *db.User) bool {
