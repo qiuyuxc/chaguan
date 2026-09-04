@@ -640,28 +640,42 @@ body.drawer-open { overflow: hidden; }
 
 /* ---------- 个人中心(平铺,与主题页同一底面) ---------- */
 .av-64 { width: 56px; height: 56px; font-size: 20px; }
-.member-head { padding: 4px 0 0; }
-.member-head .avatar { margin: 0 auto; }
+.member-head { padding: 2px 0 14px; border-bottom: 1px solid var(--line); }
+.member-top { display: flex; gap: 12px; align-items: flex-start; }
+.member-top .avatar { flex: none; }
+.member-info { min-width: 0; }
 .member-name {
-  margin: 10px 0 0; font-size: 20px; font-weight: 800; color: var(--ink);
-  line-height: 1.35; text-align: center;
+  margin: 0; font-size: 19px; font-weight: 800; color: var(--ink);
+  line-height: 1.35; overflow-wrap: anywhere;
 }
 .member-name .badge { vertical-align: 3px; }
-.member-meta { margin: 5px 0 0; font-size: 11px; text-align: center; }
+.member-meta { margin: 4px 0 0; font-size: 11px; }
+.member-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+.member-chips .uc-chip { justify-content: flex-start; }
 .member-bio {
-  margin: 12px auto 0; max-width: 480px; text-align: center;
+  margin: 13px 0 0; max-width: 560px;
   font-size: 13px; color: var(--ink-2); line-height: 1.6;
 }
-.member-stats {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
-  text-align: center; margin-top: 16px; padding: 13px 0 2px;
-  border-top: 1px solid var(--line);
+.member-actions { display: flex; gap: 6px; margin-top: 13px; }
+.member-topics { display: block; }
+.member-topic {
+  padding: 11px 0; border-bottom: 1px solid var(--line);
 }
-.member-stats b { display: block; font-size: 18px; color: var(--ink); font-weight: 700; }
-.member-stats span { font-size: 11px; color: var(--ink-3); }
-.member-actions { display: flex; justify-content: center; margin-top: 14px; }
+.member-topic:last-child { border-bottom: 0; }
+.mt-title {
+  display: block; font-size: 14px; font-weight: 600; color: var(--ink);
+  line-height: 1.5; overflow-wrap: anywhere;
+}
+.mt-title:hover { color: var(--accent-dk); }
+.mt-title .badge { vertical-align: 1.5px; }
+.mt-meta {
+  margin-top: 4px; font-size: 11px; color: var(--ink-3);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 3px 12px;
+}
+.mt-meta .bcat { margin-left: 0; }
 .member-admin .page-sub { margin: 0 0 8px; }
 .member-admin .inline-form { margin-top: 6px; }
 @media (min-width: 900px) {
-  .member-head { max-width: 640px; margin: 0 auto; padding-bottom: 6px; }
+  .member-head { padding: 6px 0 16px; }
+  .member-topic { padding: 12px 2px; }
 }
