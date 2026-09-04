@@ -1,3 +1,12 @@
+{{define "plike"}}<span class="pl-like" id="pl-{{.Post.ID}}">
+  {{if .Viewer}}<button type="button" class="pl-btn{{if .LikedByMe}} on{{end}}" hx-post="/p/{{.Post.ID}}/like" hx-target="#pl-{{.Post.ID}}" hx-swap="outerHTML" title="{{if .LikedByMe}}取消赞{{else}}赞这条回复{{end}}" aria-label="{{if .LikedByMe}}取消赞{{else}}赞这条回复{{end}}">
+    <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+    <b>{{.LikeCount}}</b>
+  </button>{{else}}<span class="pl-note" title="登录后可赞">
+    <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+    <b>{{.LikeCount}}</b>
+  </span>{{end}}
+</span>{{end}}
 {{define "post"}}
 <div class="reply" id="p{{.Post.ID}}">
   {{if .Post.AuthorAvatar}}
@@ -11,9 +20,11 @@
       {{roleBadge .Post.AuthorRole .Post.AuthorBadge}}
       {{if .IsOP}}<span class="badge">楼主</span>{{end}}
       <span class="reply-floor">#{{.Floor}}</span>
+      {{if not .Viewer}}{{template "plike" .}}{{end}}
       <span class="reply-time"><a href="#p{{.Post.ID}}">{{relTime .Post.CreatedAt}}</a>{{if .Post.EditedAt.Valid}} · 编辑于 {{relTime .Post.EditedAt.Int64}}{{end}}</span>
       {{if .Viewer}}
       <span class="reply-acts">
+        {{template "plike" .}}
         <button type="button" class="ic-act" data-quote data-q-author="{{.Post.AuthorName}}" data-q-floor="{{.Floor}}" data-q-text="{{quotePreview .Post.ContentMD}}" title="引用并回复" aria-label="引用并回复">
           <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 10 4 15 9 20"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></svg>
         </button>

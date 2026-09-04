@@ -148,6 +148,8 @@ type Thread struct {
 	ViewCount    int64
 	PostCount    int64 // 含首帖
 	LastPostBy   string
+	LikeCount    int64 // 文章(首帖)获赞
+	FavCount     int64 // 主题被收藏数
 }
 
 // ReplyCount 是用户视角的"回复数"(不含首帖)。
@@ -304,7 +306,7 @@ func (s *Store) SocialStats(userID int64) (SocialStats, error) {
 			(SELECT COUNT(*) FROM follows WHERE follower_id = ?),
 			(SELECT COUNT(*) FROM follows WHERE followee_id = ?),
 			(SELECT COUNT(*) FROM post_likes pl JOIN posts p ON p.id = pl.post_id
-			 WHERE p.author_id = ? AND p.is_first = 1)`,
+			 WHERE p.author_id = ?)`,
 		userID, userID, userID).Scan(&st.Following, &st.Followers, &st.Liked)
 	return st, err
 }
@@ -567,6 +569,65 @@ func (s *Store) ThreadReacts(threadID, viewerID int64) (likeCount, favCount int6
 	return likeCount, favCount, liked, faved, nil
 }
 
+// PostLikes 某帖的点赞数与我是否已赞(回复点赞用;首帖也可用)。
+type PostLikes struct {
+	Count int64
+	Liked bool
+}
+
+// PostLikeByID 查单帖点赞状态。
+func (s *Store) PostLikeByID(postID, viewerID int64) (PostLikes, error) {
+	var pl PostLikes
+	var liked int64
+	err := s.DB.QueryRow(`
+		SELECT COUNT(*), COALESCE(MAX(CASE WHEN pl.user_id = ? THEN 1 ELSE 0 END), 0)
+		FROM post_likes pl WHERE pl.post_id = ?`, viewerID, postID).Scan(&pl.Count, &liked)
+	pl.Liked = liked != 0
+	return pl, err
+}
+
+// PostLikesByThread 一次取整楼每帖点赞数与我是否已赞(帖子页渲染用)。
+func (s *Store) PostLikesByThread(threadID, viewerID int64) (map[int64]PostLikes, error) {
+	rows, err := s.DB.Query(`
+		SELECT p.id, COUNT(pl.id),
+		       COALESCE(MAX(CASE WHEN pl.user_id = ? THEN 1 ELSE 0 END), 0)
+		FROM posts p LEFT JOIN post_likes pl ON pl.post_id = p.id
+		WHERE p.thread_id = ? GROUP BY p.id`, viewerID, threadID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make(map[int64]PostLikes)
+	for rows.Next() {
+		var id int64
+		var pl PostLikes
+		var liked int64
+		if err := rows.Scan(&id, &pl.Count, &liked); err != nil {
+			return nil, err
+		}
+		pl.Liked = liked != 0
+		out[id] = pl
+	}
+	return out, rows.Err()
+}
+
+// TogglePostLike 点赞/取消点赞某一楼(文章与回复均可;资料页「我的点赞」只记文章)。
+func (s *Store) TogglePostLike(postID, userID int64) (bool, error) {
+	var exists int
+	if err := s.DB.QueryRow(
+		`SELECT COUNT(*) FROM post_likes WHERE post_id = ? AND user_id = ?`, postID, userID).Scan(&exists); err != nil {
+		return false, err
+	}
+	if exists > 0 {
+		_, err := s.DB.Exec(`DELETE FROM post_likes WHERE post_id = ? AND user_id = ?`, postID, userID)
+		return false, err
+	}
+	_, err := s.DB.Exec(
+		`INSERT INTO post_likes (post_id, user_id, created_at) VALUES (?, ?, ?)`,
+		postID, userID, time.Now().Unix())
+	return true, err
+}
+
 func (s *Store) UpdateUserBio(userID int64, bio string) error {
 	_, err := s.DB.Exec(`UPDATE users SET bio = ? WHERE id = ?`, bio, userID)
 	return err
@@ -702,7 +763,10 @@ const threadCols = `
 	t.title, t.is_pinned, t.is_locked,
 	t.created_at, t.last_post_at, t.view_count, t.post_count,
 	COALESCE((SELECT lu.name FROM posts lp JOIN users lu ON lu.id = lp.author_id
-	          WHERE lp.thread_id = t.id ORDER BY lp.id DESC LIMIT 1), u.name)`
+	          WHERE lp.thread_id = t.id ORDER BY lp.id DESC LIMIT 1), u.name),
+	(SELECT COUNT(*) FROM post_likes pl JOIN posts p ON p.id = pl.post_id
+	  WHERE p.thread_id = t.id AND p.is_first = 1),
+	(SELECT COUNT(*) FROM favorites f WHERE f.thread_id = t.id)`
 
 const threadFrom = ` FROM threads t
 	JOIN users u ON u.id = t.author_id
@@ -713,7 +777,8 @@ func scanThread(row interface{ Scan(...any) error }) (*Thread, error) {
 	var pinned, locked int64
 	err := row.Scan(&t.ID, &t.CategoryID, &t.CategorySlug, &t.CategoryName,
 		&t.AuthorID, &t.AuthorName, &t.AuthorAvatar,
-		&t.Title, &pinned, &locked, &t.CreatedAt, &t.LastPostAt, &t.ViewCount, &t.PostCount, &t.LastPostBy)
+		&t.Title, &pinned, &locked, &t.CreatedAt, &t.LastPostAt, &t.ViewCount, &t.PostCount, &t.LastPostBy,
+		&t.LikeCount, &t.FavCount)
 	if err != nil {
 		return nil, err
 	}
@@ -756,7 +821,7 @@ func (s *Store) ListFeedThreads(catSlug string, hot bool, limit, offset int) ([]
 		args = append(args, catSlug)
 	}
 	if hot {
-		q += ` ORDER BY t.is_pinned DESC, t.post_count DESC, t.last_post_at DESC`
+		q += ` ORDER BY t.is_pinned DESC, t.post_count DESC, t.view_count DESC, t.last_post_at DESC`
 	} else {
 		q += ` ORDER BY t.is_pinned DESC, t.last_post_at DESC`
 	}

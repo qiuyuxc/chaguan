@@ -51,6 +51,7 @@ func Routes(store *db.Store, rend *web.Renderer, uploadsDir string) http.Handler
 	mux.HandleFunc("POST /t/{id}/favorite", s.toggleFavorite)
 	mux.HandleFunc("POST /t/{id}/lock", s.toggleLock)
 	mux.HandleFunc("POST /t/{id}/delete", s.deleteThread)
+	mux.HandleFunc("POST /p/{id}/like", s.togglePostLike)
 	mux.HandleFunc("GET /p/{id}/edit", s.editPostForm)
 	mux.HandleFunc("POST /p/{id}/edit", s.editPost)
 	mux.HandleFunc("POST /p/{id}/delete", s.deletePost)

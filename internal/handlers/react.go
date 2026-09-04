@@ -71,6 +71,41 @@ func (s *Server) toggleFavorite(w http.ResponseWriter, r *http.Request) {
 	s.renderReacts(w, t, user)
 }
 
+// togglePostLike POST /p/{id}/like:点赞/取消点赞某一楼(文章与回复均可;
+// 资料页「我的点赞」只收纳对文章首帖的赞,回复赞不进入该列表)。
+func (s *Server) togglePostLike(w http.ResponseWriter, r *http.Request) {
+	user := s.currentUser(w, r)
+	if user == nil {
+		return
+	}
+	id, ok := pathID(r, "id")
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	p, err := s.store.GetPost(id)
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	if p == nil {
+		http.NotFound(w, r)
+		return
+	}
+	if _, err := s.store.TogglePostLike(id, user.ID); err != nil {
+		s.serverError(w, err)
+		return
+	}
+	likes, err := s.store.PostLikeByID(id, user.ID)
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	s.rend.Partial(w, 200, "thread", "plike", web.PostView{
+		Post: *p, Viewer: user, LikeCount: likes.Count, LikedByMe: likes.Liked,
+	})
+}
+
 func (s *Server) renderReacts(w http.ResponseWriter, t *db.Thread, user *db.User) {
 	likeCount, favCount, liked, faved, err := s.store.ThreadReacts(t.ID, user.ID)
 	if err != nil {

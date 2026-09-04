@@ -1046,7 +1046,8 @@ html[data-theme="dark"] .avatar.c1, html[data-theme="dark"] .avatar.c2,
 html[data-theme="dark"] .avatar.c3, html[data-theme="dark"] .avatar.c4,
 html[data-theme="dark"] .avatar.c5, html[data-theme="dark"] .avatar.c6 { color: #fff; }
 
-/* ---------- 帖子页:文章点赞 + 主题收藏(仅首帖文章,不逐条回复) ---------- */
+/* ---------- 帖子页:文章点赞 + 主题收藏 + 回复点赞 ---------- */
+.op-reacts-bar { display: flex; align-items: center; gap: 8px; margin: 2px 0 14px; }
 .op-reacts { display: inline-flex; align-items: center; gap: 6px; }
 .op-reacts .react-btn {
   display: inline-flex; align-items: center; gap: 4px;
@@ -1065,3 +1066,24 @@ html[data-theme="dark"] .avatar.c5, html[data-theme="dark"] .avatar.c6 { color: 
 }
 .react-note b { font-weight: 600; color: var(--ink-3); }
 .react-note .ic + b { margin-left: -3px; }
+.pl-like { display: inline-flex; align-items: center; }
+.pl-note {
+  display: inline-flex; align-items: center; gap: 3px;
+  height: 22px; padding: 0 7px;
+  color: var(--ink-4); font-size: 11px;
+}
+.pl-note .ic { width: 13px; height: 13px; }
+.pl-note b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.pl-btn {
+  display: inline-flex; align-items: center; gap: 3px;
+  height: 22px; padding: 0 7px;
+  border: 1px solid transparent; border-radius: 9999px;
+  background: transparent; color: var(--ink-4);
+  font-size: 11px; cursor: pointer;
+}
+.pl-btn .ic { width: 13px; height: 13px; }
+.pl-btn:hover { color: var(--ink); background: var(--hover-bg); }
+.pl-btn.on { background: var(--accent); color: var(--on-accent); }
+.pl-btn.on .ic { fill: currentColor; }
+.pl-btn b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.pl-btn + .ic-act { margin-left: 2px; }

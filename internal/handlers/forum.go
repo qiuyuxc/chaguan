@@ -476,6 +476,15 @@ func (s *Server) thread(w http.ResponseWriter, r *http.Request) {
 	s.store.IncrThreadViews(t.ID)
 
 	viewer := auth.From(r.Context()).User
+	var viewerID int64
+	if viewer != nil {
+		viewerID = viewer.ID
+	}
+	likeMap, err := s.store.PostLikesByThread(t.ID, viewerID)
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
 	first, err := s.store.GetFirstPost(t.ID)
 	if err != nil {
 		s.serverError(w, err)
@@ -491,7 +500,9 @@ func (s *Server) thread(w http.ResponseWriter, r *http.Request) {
 			s.serverError(w, err)
 			return
 		}
-		pvs = append(pvs, web.PostView{Post: p, Viewer: viewer, Floor: floor, IsOP: p.AuthorID == t.AuthorID})
+		likes := likeMap[p.ID]
+		pvs = append(pvs, web.PostView{Post: p, Viewer: viewer, Floor: floor,
+			IsOP: p.AuthorID == t.AuthorID, LikeCount: likes.Count, LikedByMe: likes.Liked})
 	}
 	likeCount, favCount, liked, faved, err := s.store.ThreadReacts(t.ID, 0)
 	if err != nil {

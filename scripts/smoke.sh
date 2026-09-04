@@ -184,7 +184,15 @@ T=$(curl -s -b "$JAR2" "$BASE/t/1")
 contains "主题页含文章反应条" "$T" 'id="op-reacts"'
 contains "点赞态点亮" "$T" 'react-btn on'
 REPLY_HTML=$(curl -s -b "$JAR2" -H "X-CSRF-Token: $CSRF" -d "content=只测回复不该有赞" "$BASE/t/1/reply")
-if echo "$REPLY_HTML" | grep -q "react-btn"; then bad "回复出现点赞钮"; else ok "回复无点赞钮(仅限文章)"; fi
+if echo "$REPLY_HTML" | grep -q "react-btn"; then bad "回复区出现文章级点赞钮"; else ok "回复区无文章级点赞钮"; fi
+PID=$(echo "$REPLY_HTML" | grep -o 'id="p[0-9]*"' | head -1 | sed 's/id="p//;s/"//')
+RLIKE=$(curl -s -b "$JAR2" -H "X-CSRF-Token: $CSRF" -X POST "$BASE/p/$PID/like")
+contains "回复点赞返回片段" "$RLIKE" 'class="pl-like"'
+contains "回复点赞计数 1" "$RLIKE" '>1</b>'
+if echo "$RLIKE" | grep -q 'pl-btn on'; then ok "回复点赞点亮"; else bad "回复点赞未点亮"; fi
+PLIKE=$(curl -s -b "$JAR2" "$BASE/u/2?tab=likes")
+cnt=$(echo "$PLIKE" | grep -c "第一帖(改)")
+check "回复点赞不进我的点赞列表" "1" "$cnt"
 LIKE2=$(curl -s -b "$JAR2" -H "X-CSRF-Token: $CSRF" -X POST "$BASE/t/1/like")
 if echo "$LIKE2" | grep -q 'react-btn on'; then bad "取消点赞仍点亮"; else ok "取消点赞熄灭"; fi
 contains "取消后计数回 0" "$LIKE2" '>0</b>'
@@ -195,6 +203,9 @@ contains "收藏返回反应条" "$FAV" 'id="op-reacts"'
 contains "收藏计数 1" "$FAV" '>1</b>'
 T=$(curl -s -b "$JAR2" "$BASE/t/1")
 contains "收藏态点亮" "$T" 'react-btn on'
+FEED=$(curl -s -b "$JAR2" "$BASE/")
+contains "首页行显示赞数量" "$FEED" "1 赞"
+contains "首页行显示收藏数量" "$FEED" "1 收藏"
 PLIKE=$(curl -s -b "$JAR2" "$BASE/u/2?tab=likes")
 contains "点赞分区列出文章" "$PLIKE" "第一帖(改)"
 contains "点赞分区含动作时间" "$PLIKE" "点赞于"
@@ -355,6 +366,17 @@ S5=$(curl -s --get --data-urlencode "q=第一" "$BASE/search")
 contains "短查询回退 LIKE" "$S5" "第一帖(改)"
 code=$(curl -s -o /dev/null -w '%{http_code}' --get --data-urlencode "q=大家好" "$BASE/search")
 check "带参搜索 200" "200" "$code"
+
+echo "== 最新/热帖排序 =="
+CSRF=$(curl -s -b "$JAR" -c "$JAR" "$REDIR2" | grep -o 'name="_csrf" value="[^"]*"' | head -1 | sed 's/.*value="//;s/"//')
+code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" -H "X-CSRF-Token: $CSRF" -d "content=顶一下第二帖" "$REDIR2/reply")
+check "回复第二帖使之上浮" "200" "$code"
+HOMEL=$(curl -s -b "$JAR" "$BASE/")
+FIRSTL=$(echo "$HOMEL" | grep -o '/t/[0-9]*' | head -1)
+check "最新页首帖为最新回复" "/t/2" "$FIRSTL"
+HOMEH=$(curl -s -b "$JAR" "$BASE/?tab=hot")
+FIRSTH=$(echo "$HOMEH" | grep -o '/t/[0-9]*' | head -1)
+check "热帖页首帖为回复最多" "/t/1" "$FIRSTH"
 rm -f "$AV"
 echo "结果: $PASS 通过, $FAIL 失败"
 [ "$FAIL" -eq 0 ] && echo "SMOKE OK" || exit 1

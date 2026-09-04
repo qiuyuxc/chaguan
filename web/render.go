@@ -45,10 +45,12 @@ type Base struct {
 
 // PostView 是帖子 partial 的数据:帖子 + 当前查看者(决定是否显示删除按钮)。
 type PostView struct {
-	Post   db.Post
-	Viewer *db.User
-	Floor  int64 // 楼层(首帖为 1)
-	IsOP   bool  // 是否为楼主本人(回复区显示「楼主」徽章)
+	Post      db.Post
+	Viewer    *db.User
+	Floor     int64 // 楼层(首帖为 1)
+	IsOP      bool  // 是否为楼主本人(回复区显示「楼主」徽章)
+	LikeCount int64 // 该楼获赞(回复点赞;不进「我的点赞」列表)
+	LikedByMe bool  // 我是否赞过该楼
 }
 
 var funcs = template.FuncMap{
