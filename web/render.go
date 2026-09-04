@@ -44,6 +44,8 @@ type Base struct {
 type PostView struct {
 	Post   db.Post
 	Viewer *db.User
+	Floor  int64 // 楼层(首帖为 1)
+	IsOP   bool  // 是否为楼主本人(回复区显示「楼主」徽章)
 }
 
 var funcs = template.FuncMap{
@@ -51,10 +53,12 @@ var funcs = template.FuncMap{
 	"csrfField": func(token string) template.HTML {
 		return template.HTML(`<input type="hidden" name="_csrf" value="` + token + `">`)
 	},
-	"initial":  Initial,
-	"catColor": func(i int) string { return "c" + strconv.Itoa(i%6+1) },
-	"date":     func(ts int64) string { return time.Unix(ts, 0).Format("2006-01-02") },
-	"safeHTML": func(s string) template.HTML { return template.HTML(s) },
+	"initial":   Initial,
+	"catColor":  func(i int) string { return "c" + strconv.Itoa(i%6+1) },
+	"avColor":   func(id int64) string { return "c" + strconv.Itoa(int(id)%6+1) },
+	"bcatColor": func(id int64) string { return "bcat-" + strconv.Itoa(int(id)%6+1) },
+	"date":      func(ts int64) string { return time.Unix(ts, 0).Format("2006-01-02") },
+	"safeHTML":  func(s string) template.HTML { return template.HTML(s) },
 	"postView": func(p db.Post, viewer *db.User) PostView {
 		return PostView{Post: p, Viewer: viewer}
 	},

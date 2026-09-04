@@ -3,21 +3,24 @@
   {{if .AuthorAvatar}}
   <span class="avatar av-40"><img src="{{.AuthorAvatar}}" alt="" aria-hidden="true"></span>
   {{else}}
-  <span class="avatar av-40 c1" aria-hidden="true">{{initial .AuthorName}}</span>
+  <span class="avatar av-40 {{avColor .AuthorID}}" aria-hidden="true">{{initial .AuthorName}}</span>
   {{end}}
   <div class="tr-main">
-    <div class="tr-top"><a class="author" href="/u/{{.AuthorID}}">{{.AuthorName}}</a><span>{{relTime .LastPostAt}}</span></div>
+    <div class="tr-top"><a class="author" href="/u/{{.AuthorID}}">{{.AuthorName}}</a><span>{{relTime .CreatedAt}}</span></div>
     <a class="tr-title" href="/t/{{.ID}}">
-      {{if .IsPinned}}<span class="badge badge-pin">置顶</span>{{end}}
+      {{if .IsPinned}}<span class="badge badge-lock">置顶</span>{{end}}
       {{if .IsLocked}}<span class="badge badge-lock">锁定</span>{{end}}
       {{.Title}}
     </a>
     <div class="tr-meta">
-      {{if .CategoryName}}<span class="bcat bcat-1">{{.CategoryName}}</span>{{end}}
-      <span class="m">{{.ReplyCount}} 回复</span>
-      <span class="m">{{.ViewCount}} 浏览</span>
-      <span class="m">最后回复 {{.LastPostBy}}</span>
+      <span class="bcat {{bcatColor .CategoryID}}">{{.CategoryName}}</span>
+      <span class="m"><svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>{{.ReplyCount}} 回复</span>
+      <span class="m"><svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>{{.ViewCount}} 浏览</span>
     </div>
+  </div>
+  <div class="tr-right">
+    {{if .ReplyCount}}<div>{{.LastPostBy}}</div><div>{{relTime .LastPostAt}}</div>
+    {{else}}<div>—</div><div>—</div>{{end}}
   </div>
 </div>
 {{end}}

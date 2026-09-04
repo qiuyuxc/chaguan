@@ -1,14 +1,13 @@
 {{define "content"}}
-<div class="page-head">
-  <h1>发新帖 · {{.Category.Name}}</h1>
-</div>
-
-<div class="card form-card">
+{{if .Category}}
+<nav class="crumb"><a href="/">首页</a><svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg><a href="/c/{{.Category.Slug}}">{{.Category.Name}}</a><svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg><span>发新帖</span></nav>
+<div class="side-card compose-card">
+  <div class="side-title">发新帖 · {{.Category.Name}}</div>
   {{if .Error}}<p class="form-error">{{.Error}}</p>{{end}}
   <form method="post" action="/c/{{.Category.Slug}}/new" class="form-grid">
     {{csrfField .CSRF}}
-    <label>标题<input class="input" name="title" value="{{.Title}}" maxlength="120" required autofocus></label>
-    <label>正文<textarea class="input textarea" name="content" id="post-content" maxlength="10000" required rows="12">{{.Content}}</textarea></label>
+    <label>标题<input class="input" name="title" value="{{.Title}}" maxlength="120" required autofocus placeholder="一句话说清主题"></label>
+    <label>正文<textarea class="input textarea" name="content" id="post-content" maxlength="10000" required rows="9" placeholder="支持多段落">{{.Content}}</textarea></label>
     <div class="upload-row">
       <button type="button" class="btn btn-ghost btn-sm" data-upload="#post-content">插入图片</button>
       <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" hidden>
@@ -16,8 +15,33 @@
     </div>
     <div class="form-actions">
       <button class="btn btn-primary" type="submit">发布</button>
-      <a class="btn btn-secondary" href="/c/{{.Category.Slug}}">取消</a>
+      <a class="btn btn-white" href="/c/{{.Category.Slug}}">取消</a>
     </div>
   </form>
 </div>
+{{else}}
+<nav class="crumb"><a href="/">首页</a><svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg><span>发新帖</span></nav>
+<div class="page-head">
+  <div>
+    <h1>发新帖</h1>
+    <p class="page-sub">先选择要发往的版块</p>
+  </div>
+</div>
+{{if .Categories}}
+<div class="thread-card">
+  {{range .Categories}}
+  <a class="tr" href="/c/{{.Slug}}/new">
+    <span class="avatar av-40 {{avColor .ID}}" aria-hidden="true">{{initial .Name}}</span>
+    <div class="tr-main">
+      <div class="tr-top"><span class="author">{{.Name}}</span><span>{{.ThreadCount}} 主题</span></div>
+      {{if .Description}}<div class="tr-meta"><span class="m">{{.Description}}</span></div>{{end}}
+    </div>
+    <svg class="ic ic-sm cat-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+  </a>
+  {{end}}
+</div>
+{{else}}
+<p class="empty">还没有版块,请先联系管理员创建</p>
+{{end}}
+{{end}}
 {{end}}

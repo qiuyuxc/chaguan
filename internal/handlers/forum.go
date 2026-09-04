@@ -354,10 +354,33 @@ type threadData struct {
 	web.Base
 	Thread      *db.Thread
 	Category    *db.Category
+	First       *db.Post // 首帖(op-card 区)
 	PostViews   []web.PostView
 	Page, Pages int
 	BaseURL     string
 	HasQ        bool
+}
+
+// newThreadPicker GET /new:发帖前先选版块(顶栏「发帖」入口)。
+type newPickerData struct {
+	web.Base
+	Categories []db.Category
+	Category   *db.Category // 占位:与发帖表单共享模板分支(恒为 nil)
+}
+
+func (s *Server) newThreadPicker(w http.ResponseWriter, r *http.Request) {
+	if s.currentUser(w, r) == nil {
+		return
+	}
+	cats, err := s.store.ListCategories()
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	s.rend.Render(w, 200, "new_thread", newPickerData{
+		Base:       s.base(r, "发新帖"),
+		Categories: cats,
+	})
 }
 
 func (s *Server) thread(w http.ResponseWriter, r *http.Request) {
@@ -394,14 +417,28 @@ func (s *Server) thread(w http.ResponseWriter, r *http.Request) {
 	s.store.IncrThreadViews(t.ID)
 
 	viewer := auth.From(r.Context()).User
-	pvs := make([]web.PostView, len(posts))
-	for i, p := range posts {
-		pvs[i] = web.PostView{Post: p, Viewer: viewer}
+	first, err := s.store.GetFirstPost(t.ID)
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	pvs := make([]web.PostView, 0, len(posts))
+	for _, p := range posts {
+		if p.IsFirst {
+			continue // 首帖已单独取到,进 op-card 区
+		}
+		floor, err := s.store.CountPostsUpTo(t.ID, p.ID)
+		if err != nil {
+			s.serverError(w, err)
+			return
+		}
+		pvs = append(pvs, web.PostView{Post: p, Viewer: viewer, Floor: floor, IsOP: p.AuthorID == t.AuthorID})
 	}
 	s.rend.Render(w, 200, "thread", threadData{
 		Base:      s.base(r, t.Title),
 		Thread:    t,
 		Category:  cat,
+		First:     first,
 		PostViews: pvs,
 		Page:      page,
 		Pages:     totalPages(total, postsPerPage),
@@ -450,7 +487,14 @@ func (s *Server) reply(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, err)
 		return
 	}
-	s.rend.Partial(w, 200, "thread", "post", web.PostView{Post: *p, Viewer: user})
+	floor, err := s.store.CountPostsUpTo(t.ID, postID)
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	s.rend.Partial(w, 200, "thread", "post", web.PostView{
+		Post: *p, Viewer: user, Floor: floor, IsOP: user.ID == t.AuthorID,
+	})
 }
 
 // ---------- 删除 ----------

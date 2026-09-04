@@ -1,59 +1,77 @@
 {{define "content"}}
-<nav class="crumb"><a href="/">版块</a><span aria-hidden="true">/</span><a href="/c/{{.Category.Slug}}">{{.Category.Name}}</a></nav>
+<nav class="crumb"><a href="/">首页</a><svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg><a href="/c/{{.Category.Slug}}">{{.Category.Name}}</a></nav>
 
-<div class="thread-heading">
-  <div class="thread-heading-copy">
-    <h1 class="thread-h1">
-      {{if .Thread.IsPinned}}<span class="badge badge-pin">置顶</span>{{end}}
-      {{if .Thread.IsLocked}}<span class="badge badge-lock">锁定</span>{{end}}
-      {{.Thread.Title}}
-    </h1>
-    <p class="thread-meta">
-      <a href="/u/{{.Thread.AuthorID}}">{{.Thread.AuthorName}}</a>
-      <span>{{.Thread.ReplyCount}} 回复</span>
-      <span>{{.Thread.ViewCount}} 浏览</span>
-      <span>创建于 {{relTime .Thread.CreatedAt}}</span>
-    </p>
+{{if .First}}
+<article class="op-card" id="p{{.First.ID}}">
+  <div class="op-top">
+    {{if .First.AuthorAvatar}}
+    <span class="avatar av-32"><img src="{{.First.AuthorAvatar}}" alt="" aria-hidden="true"></span>
+    {{else}}
+    <span class="avatar av-32 {{avColor .First.AuthorID}}" aria-hidden="true">{{initial .First.AuthorName}}</span>
+    {{end}}
+    <span class="name">{{.First.AuthorName}}</span>
+    {{if eq .First.AuthorRole "admin"}}<span class="badge badge-admin">管理员</span>
+    {{else if eq .First.AuthorRole "mod"}}<span class="badge badge-mod">版主</span>{{end}}
+    <span class="badge">楼主</span>
+    {{if .Thread.IsPinned}}<span class="badge badge-lock">置顶</span>{{end}}
+    {{if .Thread.IsLocked}}<span class="badge badge-lock">锁定</span>{{end}}
+    <span class="time">{{relTime .Thread.CreatedAt}}</span>
   </div>
+  <h1>{{.Thread.Title}}</h1>
+  <div class="op-meta">
+    <span class="bcat {{bcatColor .Category.ID}}">{{.Category.Name}}</span>
+    <span class="m"><svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>{{.Thread.ViewCount}} 浏览</span>
+    <span class="m"><svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>{{.Thread.ReplyCount}} 回复</span>
+  </div>
+  <div class="op-divider"></div>
+  <div class="op-body">{{safeHTML .First.ContentHTML}}</div>
+  {{if .First.EditedAt.Valid}}<span class="edited">· 编辑于 {{relTime .First.EditedAt.Int64}}</span>{{end}}
+
+  {{if .User}}
   <div class="thread-actions">
-  {{if and .User (or (eq .User.ID .Thread.AuthorID) .User.IsAdmin)}}
-  <a class="btn btn-ghost btn-sm" href="/t/{{.Thread.ID}}/edit">编辑</a>
-  <form method="post" action="/t/{{.Thread.ID}}/delete" class="inline" onsubmit="return confirm('删除整个主题及其全部回复?')">
-    {{csrfField .CSRF}}
-    <button class="btn btn-ghost-danger btn-sm" type="submit">删除主题</button>
-  </form>
-  {{end}}
-  {{if .User.IsMod}}
-  <form method="post" action="/t/{{.Thread.ID}}/pin" class="inline">
-    {{csrfField .CSRF}}
-    <button class="btn btn-ghost btn-sm" type="submit">{{if .Thread.IsPinned}}取消置顶{{else}}置顶{{end}}</button>
-  </form>
-  <form method="post" action="/t/{{.Thread.ID}}/lock" class="inline">
-    {{csrfField .CSRF}}
-    <button class="btn btn-ghost btn-sm" type="submit">{{if .Thread.IsLocked}}解锁{{else}}锁定{{end}}</button>
-  </form>
-  {{end}}
+    {{if or (eq .User.ID .Thread.AuthorID) .User.IsAdmin}}
+    <a class="btn btn-ghost btn-sm" href="/t/{{.Thread.ID}}/edit">编辑主题</a>
+    <form method="post" action="/t/{{.Thread.ID}}/delete" class="inline" onsubmit="return confirm('删除整个主题及其全部回复?')">
+      {{csrfField .CSRF}}
+      <button class="btn btn-ghost-danger btn-sm" type="submit">删除主题</button>
+    </form>
+    {{end}}
+    {{if .User.IsMod}}
+    <form method="post" action="/t/{{.Thread.ID}}/pin" class="inline">
+      {{csrfField .CSRF}}
+      <button class="btn btn-ghost btn-sm" type="submit">{{if .Thread.IsPinned}}取消置顶{{else}}置顶{{end}}</button>
+    </form>
+    <form method="post" action="/t/{{.Thread.ID}}/lock" class="inline">
+      {{csrfField .CSRF}}
+      <button class="btn btn-ghost btn-sm" type="submit">{{if .Thread.IsLocked}}解锁{{else}}锁定{{end}}</button>
+    </form>
+    {{end}}
   </div>
-</div>
+  {{end}}
+</article>
+{{end}}
 
-<div id="posts" class="post-list">
+<div class="replies-head">全部回复 · <b>{{.Thread.ReplyCount}}</b></div>
+<div class="replies" id="replies">
   {{range .PostViews}}{{template "post" .}}{{end}}
 </div>
-
+{{if not .PostViews}}<p class="empty">还没有回复,来抢沙发吧</p>{{end}}
 {{template "pagination" .}}
 
 {{if .User}}
   {{if .Thread.IsLocked}}
-  <p class="empty">主题已锁定，无法回复</p>
+  <p class="empty">主题已锁定,无法回复</p>
   {{else}}
-  <form id="reply-form" class="card reply-form" hx-post="/t/{{.Thread.ID}}/reply" hx-target="#posts" hx-swap="beforeend">
-    <textarea class="input textarea" name="content" id="reply-content" maxlength="10000" rows="5" required placeholder="写下你的回复…"></textarea>
-    <div class="upload-row">
-      <button type="button" class="btn btn-ghost btn-sm" data-upload="#reply-content">插入图片</button>
-      <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" hidden>
-      <span class="upload-status" aria-live="polite"></span>
+  <form id="reply-form" class="reply-form-card" hx-post="/t/{{.Thread.ID}}/reply" hx-target="#replies" hx-swap="beforeend">
+    <div class="form-grid">
+      <textarea class="input textarea" name="content" id="reply-content" maxlength="10000" rows="5" required placeholder="写下你的回复…"></textarea>
+      <div class="upload-row">
+        <button type="button" class="btn btn-ghost btn-sm" data-upload="#reply-content">插入图片</button>
+        <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" hidden>
+        <span class="upload-status" aria-live="polite"></span>
+      </div>
+      <div class="form-actions"><button class="btn btn-primary" type="submit">回复</button></div>
     </div>
-    <div class="form-actions"><button class="btn btn-primary" type="submit">回复</button></div>
   </form>
   {{end}}
 {{else}}

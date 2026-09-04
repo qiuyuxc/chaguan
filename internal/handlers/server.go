@@ -38,6 +38,7 @@ func Routes(store *db.Store, rend *web.Renderer, uploadsDir string) http.Handler
 	mux.HandleFunc("POST /logout", s.logout)
 
 	mux.HandleFunc("GET /c/{slug}", s.category)
+	mux.HandleFunc("GET /new", s.newThreadPicker)
 	mux.HandleFunc("GET /c/{slug}/new", s.newThreadForm)
 	mux.HandleFunc("POST /c/{slug}/new", s.newThread)
 	mux.HandleFunc("GET /t/{id}", s.thread)

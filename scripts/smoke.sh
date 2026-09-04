@@ -54,18 +54,26 @@ contains "发帖后跳转到主题页" "$THREAD_URL" "/t/"
 THREAD_HTML=$(curl -s -b "$JAR" "$THREAD_URL")
 contains "主题页含标题" "$THREAD_HTML" "第一帖"
 contains "主题页含正文" "$THREAD_HTML" "大家好"
+contains "主题页含 op-card" "$THREAD_HTML" "op-card"
+contains "主题页含版块徽章" "$THREAD_HTML" "bcat"
 
 echo "== 首页帖子流 =="
 FEED=$(curl -s -b "$JAR" "$BASE/")
 contains "帖子流含最新主题" "$FEED" "第一帖"
 contains "帖子流含分类徽章" "$FEED" "技术分享"
 contains "帖子流含热帖 Tab" "$FEED" "热帖"
+contains "顶栏含发帖入口" "$FEED" "/new"
 HOT=$(curl -s -b "$JAR" "$BASE/?tab=hot")
 contains "热帖页可访问" "$HOT" "热帖"
 CATF=$(curl -s -b "$JAR" "$BASE/?cat=tech")
 contains "分类筛选生效" "$CATF" "第一帖"
+NPP=$(curl -s -b "$JAR" "$BASE/new")
+contains "发帖选版块页" "$NPP" "技术分享"
+contains "选版块直达编辑" "$NPP" "/c/tech/new"
 code=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/admin/categories")
 check "未登录管理页被拒(跳登录)" "303" "$code"
+code=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/new")
+check "未登录发帖页跳登录" "303" "$code"
 
 echo "== 版块管理 =="
 csrf "$BASE/admin/categories"

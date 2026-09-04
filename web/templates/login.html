@@ -1,13 +1,18 @@
 {{define "content"}}
-<div class="auth-card card">
-  <h1>登录</h1>
+<div class="auth-card">
+  <div class="auth-brand"><span class="logo-mark"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg></span></div>
+  <h1>欢迎回来</h1>
+  <p class="auth-sub">登录 BBS,和朋友们继续讨论</p>
   {{if .Error}}<p class="form-error">{{.Error}}</p>{{end}}
   <form method="post" action="/login" class="form-grid">
     {{csrfField .CSRF}}
     <label>用户名<input class="input" name="name" value="{{.Name}}" required autofocus></label>
     <label>密码<input class="input" type="password" name="password" required></label>
-    <button class="btn btn-primary" type="submit">登录</button>
+    <button class="btn btn-primary btn-block" type="submit">
+      <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><line x1="15" x2="3" y1="12" y2="12"/></svg>
+      登录
+    </button>
   </form>
-  <p class="hint">没有账号?<a href="/register">注册</a> · 首个注册的用户自动成为管理员</p>
+  <p class="hint">还没有账号?<a href="/register">注册</a> · 首个注册的用户自动成为管理员</p>
 </div>
 {{end}}
