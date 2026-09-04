@@ -187,7 +187,9 @@ contains "资料页含 UID" "$P" "UID 1"
 contains "资料页含等级徽章" "$P" 'class="lv-badge"'
 contains "资料页含经验条" "$P" 'lv-fill'
 contains "资料页含社交三区块" "$P" "获赞"
-contains "资料页含TA的主题" "$P" "TA 的主题"
+contains "资料页自视角文案" "$P" "我的主题"
+P_OTHER=$(curl -s -b "$JAR2" "$BASE/u/1")
+contains "访客视角文案" "$P_OTHER" "TA 的主题"
 code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR2" "$BASE/u/1/edit")
 check "他人资料编辑页被拒" "403" "$code"
 

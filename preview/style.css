@@ -615,6 +615,7 @@ body.drawer-open { overflow: hidden; }
 .uc-actions { margin-top: 12px; display: flex; justify-content: center; }
 .uc-bio.muted { color: var(--ink-4); }
 .avatar-line { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.member-bio a { color: var(--accent-dk); text-decoration: underline; text-underline-offset: 2px; }
 .avatar-preview { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex: none; }
 .form-note { display: block; font-size: 11px; color: var(--ink-4); margin-top: 4px; }
 

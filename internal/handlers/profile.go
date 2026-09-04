@@ -158,8 +158,12 @@ func (s *Server) profile(w http.ResponseWriter, r *http.Request) {
 	for i := range activity {
 		activity[i].Snippet = clipRunes(activity[i].Snippet, 90)
 	}
+	title := u.Name + " 的资料"
+	if viewer != nil && viewer.ID == u.ID {
+		title = "我的资料"
+	}
 	s.rend.Render(w, 200, "profile", profileData{
-		Base:          s.base(r, u.Name+" 的资料"),
+		Base:          s.base(r, title),
 		Profile:       u,
 		Topics:        topics,
 		Activity:      activity,

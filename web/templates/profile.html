@@ -38,6 +38,8 @@
   </div>
   {{if .Profile.Bio}}
   <p class="member-bio">{{.Profile.Bio}}</p>
+  {{else if .IsSelf}}
+  <p class="member-bio muted"><a href="/u/{{.Profile.ID}}/edit">还没有写简介,点这里去完善</a></p>
   {{else}}
   <p class="member-bio muted">这个人很低调,还没有写简介</p>
   {{end}}
@@ -54,7 +56,7 @@
 </header>
 
 <div class="profile-sec">
-  {{if eq .Tab "replies"}}TA 的回复{{else if eq .Tab "posts"}}TA 的全部帖子{{else}}TA 的主题{{end}}
+  {{if .IsSelf}}我的{{else}}TA 的{{end}}{{if eq .Tab "replies"}}回复{{else if eq .Tab "posts"}}全部帖子{{else}}主题{{end}}
   {{if .Count}} · <b>{{.Count}}</b>{{end}}
 </div>
 
@@ -79,7 +81,7 @@
   </div>
   {{template "pagination" .}}
   {{else}}
-  <p class="empty">还没有发布过主题</p>
+  <p class="empty">{{if .IsSelf}}你还没有发布过主题{{else}}还没有发布过主题{{end}}</p>
   {{end}}
 {{else if .Activity}}
   <div class="member-topics">
@@ -97,7 +99,7 @@
   </div>
   {{template "pagination" .}}
 {{else}}
-  <p class="empty">{{if eq .Tab "replies"}}还没有写过回复{{else}}还没有发布过内容{{end}}</p>
+  <p class="empty">{{if eq .Tab "replies"}}{{if .IsSelf}}你还没有写过回复{{else}}还没有写过回复{{end}}{{else}}{{if .IsSelf}}你还没有发布过内容{{else}}还没有发布过内容{{end}}{{end}}</p>
 {{end}}
 
 {{if and .IsAdminViewer (not .IsSelf)}}
