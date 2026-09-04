@@ -37,6 +37,7 @@ type profileData struct {
 	ExpPct        int              // 经验条百分比 0..100
 	IsSelf        bool
 	IsAdminViewer bool
+	CertText      string // 认证信息(管理员 / 版主+管辖版块),空则不展示
 	Page, Pages   int
 	BaseURL       string
 	HasQ          bool
@@ -173,6 +174,7 @@ func (s *Server) profile(w http.ResponseWriter, r *http.Request) {
 	if viewer != nil && viewer.ID == u.ID {
 		title = "我的资料"
 	}
+	cert := userCert(u, s.store)
 	s.rend.Render(w, 200, "profile", profileData{
 		Base:          s.base(r, title),
 		Profile:       u,
@@ -195,6 +197,7 @@ func (s *Server) profile(w http.ResponseWriter, r *http.Request) {
 		ExpPct:        expPct,
 		IsSelf:        viewer != nil && viewer.ID == u.ID,
 		IsAdminViewer: viewer != nil && viewer.IsAdmin(),
+		CertText:      cert,
 		Page:          page,
 		Pages:         totalPages(total, profileItemsPerPage),
 		BaseURL:       baseURL,
@@ -416,4 +419,26 @@ func (s *Server) userSearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, users)
+}
+
+// userCert 生成资料页认证行文案:管理员全站认证;版主列出管辖版块。
+func userCert(u *db.User, store *db.Store) string {
+	if u == nil {
+		return ""
+	}
+	switch u.Role {
+	case "admin":
+		return "管理员认证"
+	case "mod":
+		cats, err := store.ModCategories(u.ID)
+		if err != nil || len(cats) == 0 {
+			return "版主认证"
+		}
+		names := make([]string, 0, len(cats))
+		for _, c := range cats {
+			names = append(names, c.Name)
+		}
+		return "版主认证 · " + strings.Join(names, "、")
+	}
+	return ""
 }

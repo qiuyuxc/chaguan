@@ -755,7 +755,18 @@
     return "/admin/users/" + id + "/panel" + s;
   }
   function openModal() { modal.hidden = false; }
-  function closeModal() { modal.hidden = true; }
+  function clearPanelParam() {
+    // 手动关闭弹窗后清掉 ?panel=,否则刷新会再次自动弹出
+    var s = location.search.replace(/[?&]panel=[^&]*/, "");
+    if (s.indexOf("&") === 0) s = "?" + s.slice(1);
+    if (s !== location.search) {
+      try { history.replaceState(null, "", location.pathname + s + location.hash); } catch (e) {}
+    }
+  }
+  function closeModal() {
+    modal.hidden = true;
+    clearPanelParam();
+  }
   function loadPanel(url) {
     body.innerHTML = loadingHTML;
     openModal();
@@ -827,4 +838,36 @@
   // 操作回跳后自动重开(带 data-panel-href 时)
   var holder = document.querySelector("[data-panel-href]");
   if (holder) loadPanel(holder.getAttribute("data-panel-href"));
+})();
+
+// 管理后台:内容管理行尾「⋯」菜单(置顶/锁定/删除低频操作收拢)
+(function () {
+  function closeMenus(except) {
+    document.querySelectorAll(".ct-more").forEach(function (m) {
+      if (except && m === except) return;
+      var menu = m.querySelector(".ct-menu");
+      var btn = m.querySelector(".js-ct-more");
+      if (!menu) return;
+      menu.hidden = true;
+      if (btn) btn.setAttribute("aria-expanded", "false");
+    });
+  }
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest ? e.target.closest(".js-ct-more") : null;
+    if (!btn) return;
+    e.preventDefault();
+    var box = btn.closest(".ct-more");
+    var menu = box ? box.querySelector(".ct-menu") : null;
+    if (!menu) return;
+    var wasOpen = !menu.hidden;
+    closeMenus();
+    menu.hidden = wasOpen;
+    btn.setAttribute("aria-expanded", wasOpen ? "false" : "true");
+  });
+  document.addEventListener("click", function (e) {
+    if (!e.target.closest(".ct-more")) closeMenus();
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") closeMenus();
+  });
 })();

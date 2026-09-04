@@ -1,11 +1,14 @@
 {{define "content"}}
 <header class="member-head">
   <div class="member-top">
-    {{if .Profile.AvatarPath}}
-    <span class="avatar av-64"><img src="{{.Profile.AvatarPath}}" alt="{{.Profile.Name}}"></span>
-    {{else}}
-    <span class="avatar av-64 c1" aria-hidden="true">{{initial .Profile.Name}}</span>
-    {{end}}
+    <div class="member-av">
+      {{if .Profile.AvatarPath}}
+      <span class="avatar av-64"><img src="{{.Profile.AvatarPath}}" alt="{{.Profile.Name}}"></span>
+      {{else}}
+      <span class="avatar av-64 c1" aria-hidden="true">{{initial .Profile.Name}}</span>
+      {{end}}
+      {{if .CertText}}<span class="v-mark" title="{{.CertText}}"><svg class="v-mark-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 12 2.2 2.2L15.5 10"/></svg></span>{{end}}
+    </div>
     <div class="member-info">
       <div class="member-name-row">
         <h1 class="member-name">{{.Profile.Name}}</h1>
@@ -48,6 +51,12 @@
     <span class="lv-exp">经验 {{.Exp}} / {{.ExpNext}}</span>
   </div>
   <p class="member-meta muted">UID {{.Profile.ID}} · {{date .Profile.CreatedAt}} 加入</p>
+  {{if .CertText}}
+  <p class="member-cert">
+    <svg class="v-mark-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 1.6 2.5-.3 1 2.3 2.2 1.2-.4 2.5 1.6 1.9-1.6 1.9.4 2.5-2.2 1.2-1 2.3-2.5-.3L12 21l-1.9-1.6-2.5.3-1-2.3-2.2-1.2.4-2.5L3.2 12l1.6-1.9-.4-2.5 2.2-1.2 1-2.3 2.5.3Z"/><path d="m9 12 2 2 4-4"/></svg>
+    {{.CertText}}
+  </p>
+  {{end}}
   <nav class="feed-tabs member-feed-tabs" aria-label="资料分区">
     <a class="feed-tab{{if eq .Tab "posts"}} on{{end}}" href="/u/{{.Profile.ID}}?tab=posts">
       <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg>
