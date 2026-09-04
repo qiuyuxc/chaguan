@@ -1,0 +1,42 @@
+{{define "content"}}
+<nav class="crumb"><a href="/">版块</a><span aria-hidden="true">/</span><span>{{.Category.Name}}</span></nav>
+<div class="page-head">
+  <div>
+    <h1>{{.Category.Name}}</h1>
+    {{if .Category.Description}}<p class="page-sub">{{.Category.Description}}</p>{{end}}
+  </div>
+  {{if .User}}
+  <a class="btn btn-primary" href="/c/{{.Category.Slug}}/new">+ 发新帖</a>
+  {{end}}
+</div>
+
+{{if .IsEmpty}}
+<p class="empty">还没有主题，来发第一帖吧</p>
+{{else}}
+<div class="thread-card">
+  {{range .Threads}}
+  <div class="tr">
+    {{if .AuthorAvatar}}
+    <span class="avatar av-40"><img src="{{.AuthorAvatar}}" alt="" aria-hidden="true"></span>
+    {{else}}
+    <span class="avatar av-40 c1" aria-hidden="true">{{initial .AuthorName}}</span>
+    {{end}}
+    <div class="tr-main">
+      <div class="tr-top"><a class="author" href="/u/{{.AuthorID}}">{{.AuthorName}}</a><span>{{relTime .LastPostAt}}</span></div>
+      <a class="tr-title" href="/t/{{.ID}}">
+        {{if .IsPinned}}<span class="badge badge-pin">置顶</span>{{end}}
+        {{if .IsLocked}}<span class="badge badge-lock">锁定</span>{{end}}
+        {{.Title}}
+      </a>
+      <div class="tr-meta">
+        <span class="m">{{.ReplyCount}} 回复</span>
+        <span class="m">{{.ViewCount}} 浏览</span>
+        <span class="m">最后回复 {{.LastPostBy}}</span>
+      </div>
+    </div>
+  </div>
+  {{end}}
+</div>
+{{template "pagination" .}}
+{{end}}
+{{end}}

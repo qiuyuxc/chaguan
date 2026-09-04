@@ -1,0 +1,13 @@
+{{define "content"}}
+<div class="auth-card card">
+  <h1>登录</h1>
+  {{if .Error}}<p class="form-error">{{.Error}}</p>{{end}}
+  <form method="post" action="/login" class="form-grid">
+    {{csrfField .CSRF}}
+    <label>用户名<input class="input" name="name" value="{{.Name}}" required autofocus></label>
+    <label>密码<input class="input" type="password" name="password" required></label>
+    <button class="btn btn-primary" type="submit">登录</button>
+  </form>
+  <p class="hint">没有账号?<a href="/register">注册</a> · 首个注册的用户自动成为管理员</p>
+</div>
+{{end}}

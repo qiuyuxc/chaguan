@@ -1,0 +1,27 @@
+{{define "content"}}
+<div class="page-head">
+  <div>
+    <h1>通知</h1>
+    <p class="page-sub">谁回复了你的主题、@ 了你</p>
+  </div>
+</div>
+{{if .Notifications}}
+<div class="thread-card">
+  {{range .Notifications}}
+  <a class="tr" href="/t/{{.ThreadID}}{{if .PostID.Valid}}#p{{.PostID.Int64}}{{end}}">
+    {{if .ActorAvatar}}
+    <span class="avatar av-40"><img src="{{.ActorAvatar}}" alt="" aria-hidden="true"></span>
+    {{else}}
+    <span class="avatar av-40 c1" aria-hidden="true">{{initial .ActorName}}</span>
+    {{end}}
+    <div class="tr-main">
+      <div class="tr-top"><span class="author">{{.ActorName}}</span><span>{{relTime .CreatedAt}}</span></div>
+      <div class="tr-title">{{if eq .Type "mention"}}@了你{{else}}回复了你的主题{{end}}{{if .ThreadTitle}} · {{.ThreadTitle}}{{end}}</div>
+    </div>
+  </a>
+  {{end}}
+</div>
+{{else}}
+<p class="empty">还没有通知</p>
+{{end}}
+{{end}}

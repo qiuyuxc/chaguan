@@ -1,0 +1,57 @@
+{{define "content"}}
+<nav class="crumb"><a href="/">版块</a><span aria-hidden="true">/</span><a href="/c/{{.Category.Slug}}">{{.Category.Name}}</a></nav>
+
+<div class="thread-heading">
+  <div class="thread-heading-copy">
+    <h1 class="thread-h1">
+      {{if .Thread.IsPinned}}<span class="badge badge-pin">置顶</span>{{end}}
+      {{if .Thread.IsLocked}}<span class="badge badge-lock">锁定</span>{{end}}
+      {{.Thread.Title}}
+    </h1>
+    <p class="thread-meta">
+      <a href="/u/{{.Thread.AuthorID}}">{{.Thread.AuthorName}}</a>
+      <span>{{.Thread.ReplyCount}} 回复</span>
+      <span>{{.Thread.ViewCount}} 浏览</span>
+      <span>创建于 {{relTime .Thread.CreatedAt}}</span>
+    </p>
+  </div>
+  <div class="thread-actions">
+  {{if and .User (or (eq .User.ID .Thread.AuthorID) .User.IsAdmin)}}
+  <a class="btn btn-ghost btn-sm" href="/t/{{.Thread.ID}}/edit">编辑</a>
+  <form method="post" action="/t/{{.Thread.ID}}/delete" class="inline" onsubmit="return confirm('删除整个主题及其全部回复?')">
+    {{csrfField .CSRF}}
+    <button class="btn btn-ghost-danger btn-sm" type="submit">删除主题</button>
+  </form>
+  {{end}}
+  {{if .User.IsMod}}
+  <form method="post" action="/t/{{.Thread.ID}}/pin" class="inline">
+    {{csrfField .CSRF}}
+    <button class="btn btn-ghost btn-sm" type="submit">{{if .Thread.IsPinned}}取消置顶{{else}}置顶{{end}}</button>
+  </form>
+  <form method="post" action="/t/{{.Thread.ID}}/lock" class="inline">
+    {{csrfField .CSRF}}
+    <button class="btn btn-ghost btn-sm" type="submit">{{if .Thread.IsLocked}}解锁{{else}}锁定{{end}}</button>
+  </form>
+  {{end}}
+  </div>
+</div>
+
+<div id="posts" class="post-list">
+  {{range .PostViews}}{{template "post" .}}{{end}}
+</div>
+
+{{template "pagination" .}}
+
+{{if .User}}
+  {{if .Thread.IsLocked}}
+  <p class="empty">主题已锁定，无法回复</p>
+  {{else}}
+  <form id="reply-form" class="card reply-form" hx-post="/t/{{.Thread.ID}}/reply" hx-target="#posts" hx-swap="beforeend">
+    <textarea class="input textarea" name="content" maxlength="10000" rows="5" required placeholder="写下你的回复…"></textarea>
+    <div class="form-actions"><button class="btn btn-primary" type="submit">回复</button></div>
+  </form>
+  {{end}}
+{{else}}
+<p class="empty"><a href="/login">登录</a> 后即可回复</p>
+{{end}}
+{{end}}

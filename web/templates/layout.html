@@ -1,0 +1,38 @@
+{{define "layout"}}<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}} · BBS</title>
+<link rel="stylesheet" href="/static/style.css">
+<script src="/static/htmx.min.js" defer></script>
+<script src="/static/app.js" defer></script>
+</head>
+<body hx-headers='{"X-CSRF-Token": "{{.CSRF}}"}'>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="logo" href="/">
+      <span class="logo-mark"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg></span>
+      <span>BBS</span>
+    </a>
+    <div class="topbar-right">
+      {{if .User}}
+        <a class="icon-btn notif-btn" href="/notifications" aria-label="通知" title="通知">
+          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+          <span class="notif-count" id="notif-count" hidden></span>
+        </a>
+        <span class="nav-user">{{.User.Name}}</span>
+        <form method="post" action="/logout" class="inline">{{csrfField .CSRF}}<button class="btn btn-ghost btn-sm" type="submit">退出</button></form>
+      {{else}}
+        <a class="nav-link" href="/login">登录</a>
+        <a class="btn btn-primary btn-sm" href="/register">注册</a>
+      {{end}}
+    </div>
+  </div>
+</header>
+<main class="layout"><div class="layout-main">
+{{template "content" .}}
+</div></main>
+<footer class="footer">Powered by bbs</footer>
+</body>
+</html>{{end}}

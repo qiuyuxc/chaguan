@@ -1,0 +1,13 @@
+{{define "content"}}
+<div class="auth-card card">
+  <h1>注册</h1>
+  {{if .Error}}<p class="form-error">{{.Error}}</p>{{end}}
+  <form method="post" action="/register" class="form-grid">
+    {{csrfField .CSRF}}
+    <label>用户名(2–24 字符)<input class="input" name="name" value="{{.Name}}" maxlength="24" required autofocus></label>
+    <label>密码(至少 8 位)<input class="input" type="password" name="password" minlength="8" required></label>
+    <button class="btn btn-primary" type="submit">注册</button>
+  </form>
+  <p class="hint">已有账号?<a href="/login">登录</a></p>
+</div>
+{{end}}

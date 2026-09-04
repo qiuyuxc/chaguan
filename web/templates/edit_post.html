@@ -1,0 +1,21 @@
+{{define "content"}}
+<nav class="crumb"><a href="/">版块</a><span aria-hidden="true">/</span><a href="/t/{{.Thread.ID}}">{{.Thread.Title}}</a><span aria-hidden="true">/</span><span>编辑回复</span></nav>
+<div class="page-head">
+  <div>
+    <h1>编辑回复</h1>
+    <p class="page-sub">修改这条回复的内容</p>
+  </div>
+</div>
+
+<div class="card form-card">
+  {{if .Error}}<p class="form-error">{{.Error}}</p>{{end}}
+  <form method="post" action="/p/{{.PostID}}/edit" class="form-grid">
+    {{csrfField .CSRF}}
+    <label>正文<textarea class="input textarea" name="content" maxlength="10000" required rows="8" autofocus>{{.Content}}</textarea></label>
+    <div class="form-actions">
+      <button class="btn btn-primary" type="submit">保存修改</button>
+      <a class="btn btn-secondary" href="/t/{{.Thread.ID}}#p{{.PostID}}">取消</a>
+    </div>
+  </form>
+</div>
+{{end}}

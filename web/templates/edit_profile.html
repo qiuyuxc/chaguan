@@ -1,0 +1,27 @@
+{{define "content"}}
+<div class="page-head">
+  <div>
+    <h1>编辑资料</h1>
+    <p class="page-sub">更新简介或更换头像</p>
+  </div>
+</div>
+
+<div class="card form-card">
+  {{if .Error}}<p class="form-error">{{.Error}}</p>{{end}}
+  <form method="post" action="/u/{{.Profile.ID}}/edit" enctype="multipart/form-data" class="form-grid">
+    {{csrfField .CSRF}}
+    <label>头像
+      <span class="avatar-line">
+        {{if .Profile.AvatarPath}}<img class="avatar-preview" src="{{.Profile.AvatarPath}}" alt="">{{else}}<span class="avatar-preview avatar av-46 c1" aria-hidden="true">{{initial .Profile.Name}}</span>{{end}}
+        <input type="file" name="avatar" accept="image/jpeg,image/png,image/gif,image/webp">
+      </span>
+      <span class="form-note">jpg/png/gif/webp,≤5MB;不选则保留当前头像</span>
+    </label>
+    <label>简介<textarea class="input textarea" name="bio" maxlength="200" rows="4" placeholder="写点介绍,让大家认识你(可选)">{{.Bio}}</textarea></label>
+    <div class="form-actions">
+      <button class="btn btn-primary" type="submit">保存</button>
+      <a class="btn btn-secondary" href="/u/{{.Profile.ID}}">取消</a>
+    </div>
+  </form>
+</div>
+{{end}}

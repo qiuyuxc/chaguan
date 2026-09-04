@@ -1,0 +1,13 @@
+{{define "pagination"}}
+{{if gt .Pages 1}}
+<nav class="pagination">
+  {{range pages .Pages}}
+    {{if eq . $.Page}}
+      <span class="page-cur">{{.}}</span>
+    {{else}}
+      <a class="page-num" href="{{$.BaseURL}}{{if gt . 1}}?page={{.}}{{end}}">{{.}}</a>
+    {{end}}
+  {{end}}
+</nav>
+{{end}}
+{{end}}

@@ -1,0 +1,7 @@
+data/
+uploads/
+bbs
+*.db
+*.db-wal
+*.db-shm
+.smoke/

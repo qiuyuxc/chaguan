@@ -1,0 +1,28 @@
+{{define "post"}}
+<article class="post card{{if .Post.IsFirst}} post-first{{end}}" id="p{{.Post.ID}}">
+  <div class="post-side">
+    {{if .Post.AuthorAvatar}}
+    <span class="avatar av-32"><img src="{{.Post.AuthorAvatar}}" alt="" aria-hidden="true"></span>
+    {{else}}
+    <span class="avatar av-32 c1" aria-hidden="true">{{initial .Post.AuthorName}}</span>
+    {{end}}
+  </div>
+  <div class="post-main">
+    <div class="post-head">
+      <a class="post-author" href="/u/{{.Post.AuthorID}}">{{.Post.AuthorName}}</a>
+      {{if eq .Post.AuthorRole "admin"}}<span class="badge badge-admin">管理员</span>
+      {{else if eq .Post.AuthorRole "mod"}}<span class="badge badge-mod">版主</span>{{end}}
+      {{if .Post.IsFirst}}<span class="badge">楼主</span>{{end}}
+      {{if and (not .Post.IsFirst) (canEditPost .Post .Viewer)}}
+      <a class="btn btn-ghost btn-sm" href="/p/{{.Post.ID}}/edit">编辑</a>
+      {{end}}
+      {{if canDeletePost .Post .Viewer}}
+      <button class="btn btn-ghost-danger btn-sm post-del" hx-post="/p/{{.Post.ID}}/delete" hx-confirm="确定删除这条回复?" hx-target="closest .post" hx-swap="delete">删除</button>
+      {{end}}
+      <a class="post-time" href="#p{{.Post.ID}}">{{relTime .Post.CreatedAt}}</a>
+      {{if .Post.EditedAt.Valid}}<span class="edited">· 编辑于 {{relTime .Post.EditedAt.Int64}}</span>{{end}}
+    </div>
+    <div class="post-body">{{safeHTML .Post.ContentHTML}}</div>
+  </div>
+</article>
+{{end}}

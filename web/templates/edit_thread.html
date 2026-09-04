@@ -1,0 +1,22 @@
+{{define "content"}}
+<nav class="crumb"><a href="/">版块</a><span aria-hidden="true">/</span><a href="/c/{{.Category.Slug}}">{{.Category.Name}}</a><span aria-hidden="true">/</span><span>编辑主题</span></nav>
+<div class="page-head">
+  <div>
+    <h1>编辑主题</h1>
+    <p class="page-sub">修改标题与首帖正文,保存后对所有访客生效</p>
+  </div>
+</div>
+
+<div class="card form-card">
+  {{if .Error}}<p class="form-error">{{.Error}}</p>{{end}}
+  <form method="post" action="/t/{{.Thread.ID}}/edit" class="form-grid">
+    {{csrfField .CSRF}}
+    <label>标题<input class="input" name="title" value="{{.Title}}" maxlength="120" required autofocus></label>
+    <label>正文<textarea class="input textarea" name="content" maxlength="10000" required rows="12">{{.Content}}</textarea></label>
+    <div class="form-actions">
+      <button class="btn btn-primary" type="submit">保存修改</button>
+      <a class="btn btn-secondary" href="/t/{{.Thread.ID}}">取消</a>
+    </div>
+  </form>
+</div>
+{{end}}

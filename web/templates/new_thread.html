@@ -1,0 +1,18 @@
+{{define "content"}}
+<div class="page-head">
+  <h1>发新帖 · {{.Category.Name}}</h1>
+</div>
+
+<div class="card form-card">
+  {{if .Error}}<p class="form-error">{{.Error}}</p>{{end}}
+  <form method="post" action="/c/{{.Category.Slug}}/new" class="form-grid">
+    {{csrfField .CSRF}}
+    <label>标题<input class="input" name="title" value="{{.Title}}" maxlength="120" required autofocus></label>
+    <label>正文<textarea class="input textarea" name="content" maxlength="10000" required rows="12">{{.Content}}</textarea></label>
+    <div class="form-actions">
+      <button class="btn btn-primary" type="submit">发布</button>
+      <a class="btn btn-secondary" href="/c/{{.Category.Slug}}">取消</a>
+    </div>
+  </form>
+</div>
+{{end}}

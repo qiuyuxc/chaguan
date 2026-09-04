@@ -1,0 +1,42 @@
+{{define "content"}}
+<div class="page-head">
+  <div>
+    <h1>版块</h1>
+    <p class="page-sub">选择一个版块，看看大家最近在聊什么</p>
+  </div>
+</div>
+
+{{if .Categories}}
+<div class="cat-list">
+  {{range .Categories}}
+  <a class="cat-row" href="/c/{{.Slug}}">
+    <span class="cat-mark" aria-hidden="true"></span>
+    <div class="cat-main">
+      <span class="cat-name">{{.Name}}</span>
+      {{if .Description}}<span class="cat-desc">{{.Description}}</span>{{end}}
+    </div>
+    <div class="cat-meta">
+      <span>{{.ThreadCount}} 主题</span>
+      {{if .LastPostAt.Valid}}<span>活跃于 {{relTime .LastPostAt.Int64}}</span>{{end}}
+    </div>
+    <svg class="cat-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+  </a>
+  {{end}}
+</div>
+{{else}}
+<p class="empty">还没有版块</p>
+{{end}}
+
+{{if .User.IsAdmin}}
+<details class="card admin-box">
+  <summary>新建版块</summary>
+  <form method="post" action="/admin/categories" class="form-grid">
+    {{csrfField .CSRF}}
+    <label>名称<input class="input" name="name" maxlength="30" required placeholder="如：技术分享"></label>
+    <label>slug<input class="input" name="slug" maxlength="30" required pattern="[a-z0-9-]+" placeholder="如：tech"></label>
+    <label>描述<input class="input" name="description" maxlength="100" placeholder="可选"></label>
+    <button class="btn btn-primary" type="submit">创建版块</button>
+  </form>
+</details>
+{{end}}
+{{end}}
