@@ -257,11 +257,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   background: var(--card); border: 1px solid var(--line); border-radius: var(--r-card);
   box-shadow: var(--shadow-card); padding: 14px 16px 16px;
 }
-.op-top { display: flex; align-items: center; gap: 7px; }
-.op-top .name { font-weight: 600; color: var(--ink-2); font-size: 13px; }
+.op-top { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.op-top .name { font-weight: 600; color: var(--ink-2); font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .op-top .op-acts { margin-left: auto; }
 .op-meta .op-time { margin-left: auto; color: var(--ink-4); }
-.op-card h1 { margin: 7px 0 0; font-size: 18px; font-weight: 700; color: var(--ink); line-height: 1.4; }
+.op-card h1 { margin: 7px 0 0; font-size: 18px; font-weight: 700; color: var(--ink); line-height: 1.45; }
+.op-card h1 .badge { vertical-align: 3px; margin-right: 0; }
 .op-meta {
   margin-top: 6px; font-size: 11px; color: var(--ink-3);
   display: flex; flex-wrap: wrap; align-items: center; gap: 3px 12px;
@@ -812,8 +813,8 @@ body.drawer-open { overflow: hidden; }
 .op-acts { display: inline-flex; align-items: center; gap: 1px; margin-left: 4px; }
 .reply-acts { display: inline-flex; align-items: center; gap: 1px; }
 .reply-acts .ic-act { width: 24px; height: 24px; }
-.op-top { flex-wrap: wrap; }
-.op-top .op-acts { margin-left: auto; }
+.op-top { flex-wrap: nowrap; }
+.op-top .op-acts { margin-left: auto; flex: none; }
 .op-acts .ic-act { width: 26px; height: 26px; }
 
 /* ---------- 回帖框:图标内置于框内,右下角回车键发送 ---------- */
@@ -1047,15 +1048,16 @@ html[data-theme="dark"] .avatar.c3, html[data-theme="dark"] .avatar.c4,
 html[data-theme="dark"] .avatar.c5, html[data-theme="dark"] .avatar.c6 { color: #fff; }
 
 /* ---------- 帖子页:文章点赞 + 主题收藏 + 回复点赞 ---------- */
-.op-reacts-bar { display: flex; align-items: center; gap: 8px; margin: 2px 0 14px; }
+.op-reacts-bar { display: flex; align-items: center; gap: 6px; margin: 9px 0 0; }
 .op-reacts { display: inline-flex; align-items: center; gap: 6px; }
 .op-reacts .react-btn {
-  display: inline-flex; align-items: center; gap: 4px;
-  height: 24px; padding: 0 9px;
+  display: inline-flex; align-items: center; gap: 3px;
+  height: 22px; padding: 0 8px;
   border: 1px solid var(--line); border-radius: 9999px;
   background: var(--card); color: var(--ink-3);
   font-size: 11px; cursor: pointer;
 }
+.op-reacts .react-btn .ic { width: 12px; height: 12px; }
 .op-reacts .react-btn:hover { color: var(--ink); border-color: var(--line-strong); }
 .op-reacts .react-btn.on { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 .op-reacts .react-btn.on .ic { fill: currentColor; }
@@ -1087,3 +1089,27 @@ html[data-theme="dark"] .avatar.c5, html[data-theme="dark"] .avatar.c6 { color: 
 .pl-btn.on .ic { fill: currentColor; }
 .pl-btn b { font-weight: 600; font-variant-numeric: tabular-nums; }
 .pl-btn + .ic-act { margin-left: 2px; }
+
+/* ---------- 内置确认面板(替代浏览器原生 confirm) ---------- */
+.modal { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 18px; }
+.modal[hidden] { display: none; }
+.modal-scrim { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.45); }
+.modal-card {
+  position: relative; width: min(360px, 100%);
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--r-card); box-shadow: var(--shadow-card);
+  padding: 18px 18px 14px;
+}
+.modal-text { margin: 0 0 18px; font-size: 14px; color: var(--ink); line-height: 1.6; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* ---------- 发帖:版块选择面板(替代浏览器原生下拉) ---------- */
+.board-pick { display: flex; flex-wrap: wrap; gap: 6px; }
+.board-opt {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 30px; padding: 0 13px; border-radius: 9999px;
+  border: 1px solid var(--line); background: var(--card);
+  color: var(--ink-2); font-size: 13px; cursor: pointer;
+}
+.board-opt:hover { border-color: var(--line-strong); color: var(--ink); }
+.board-opt.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }

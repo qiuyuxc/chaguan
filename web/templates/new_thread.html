@@ -16,13 +16,13 @@
     <input class="input" name="title" id="thread-title" value="{{.FormTitle}}" maxlength="120" required autofocus placeholder="一句话说清主题">
   </div>
   <div class="compose-field">
-    <label class="flabel" for="thread-category">版块</label>
-    <select class="input" name="category" id="thread-category" required>
-      {{if not .Category}}<option value="" disabled selected>选择版块</option>{{end}}
+    <span class="flabel">版块</span>
+    <div class="board-pick" role="radiogroup" data-board-pick aria-label="选择版块">
       {{range .Categories}}
-      <option value="{{.Slug}}"{{if $.Category}}{{if eq $.Category.Slug .Slug}} selected{{end}}{{end}}>{{.Name}}</option>
+      <button type="button" class="board-opt{{if and $.Category (eq $.Category.Slug .Slug)}} on{{end}}" role="radio" data-board-opt="{{.Slug}}" aria-checked="{{if and $.Category (eq $.Category.Slug .Slug)}}true{{else}}false{{end}}">{{.Name}}</button>
       {{end}}
-    </select>
+    </div>
+    <input type="hidden" name="category" id="thread-category" value="{{if .Category}}{{.Category.Slug}}{{end}}">
   </div>
   <div class="compose-field">
     <span class="flabel">正文</span>

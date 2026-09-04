@@ -613,3 +613,90 @@
   });
   syncAll(root.getAttribute("data-theme") === "dark");
 })();
+
+// 内置确认面板(替代浏览器原生 confirm / hx-confirm)
+(function () {
+  var modal = document.getElementById("bbs-modal");
+  if (!modal) return;
+  var textEl = document.getElementById("bbs-modal-text");
+  var okBtn = document.getElementById("bbs-modal-ok");
+  var lastFocus = null;
+  var pending = null;
+
+  function open(text, onYes) {
+    lastFocus = document.activeElement;
+    textEl.textContent = text;
+    pending = onYes;
+    modal.hidden = false;
+    okBtn.focus();
+  }
+  function close() {
+    modal.hidden = true;
+    pending = null;
+    if (lastFocus && lastFocus.focus) lastFocus.focus();
+  }
+  function resolve() {
+    var fn = pending;
+    close();
+    if (fn) fn();
+  }
+  okBtn.addEventListener("click", resolve);
+  Array.prototype.forEach.call(modal.querySelectorAll("[data-modal-cancel]"), function (el) {
+    el.addEventListener("click", close);
+  });
+  document.addEventListener("keydown", function (e) {
+    if (modal.hidden) return;
+    if (e.key === "Escape") close();
+    if (e.key === "Enter" && e.target === okBtn) resolve();
+  });
+  window.bbsConfirm = open;
+
+  // 普通表单:data-confirm="文案" → 内置确认后提交
+  document.addEventListener("submit", function (e) {
+    var form = e.target;
+    if (!form || !form.hasAttribute || !form.hasAttribute("data-confirm")) return;
+    e.preventDefault();
+    open(form.getAttribute("data-confirm"), function () { form.submit(); });
+  }, true);
+
+  // 按钮:data-confirm="文案" → 内置确认后提交所属表单(封禁等)
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest ? e.target.closest("button[data-confirm]") : null;
+    if (!btn) return;
+    var form = btn.closest("form");
+    if (!form) return;
+    e.preventDefault();
+    open(btn.getAttribute("data-confirm"), function () { form.submit(); });
+  }, true);
+
+  // htmx hx-confirm → 内置确认后放行请求
+  document.body.addEventListener("htmx:confirm", function (e) {
+    e.preventDefault();
+    open(e.detail.question, function () { e.detail.issueRequest(true); });
+  });
+})();
+
+// 发帖:版块选择面板(替代浏览器原生下拉)
+(function () {
+  var pick = document.querySelector("[data-board-pick]");
+  if (!pick) return;
+  var field = pick.closest(".compose-field");
+  if (!field) return;
+  var input = field.querySelector('input[name="category"]');
+  if (!input) return;
+  var opts = Array.prototype.slice.call(pick.querySelectorAll("[data-board-opt]"));
+  function sync(active) {
+    opts.forEach(function (o) {
+      var on = o === active || o.getAttribute("data-board-opt") === input.value;
+      o.classList.toggle("on", on);
+      o.setAttribute("aria-checked", on ? "true" : "false");
+    });
+  }
+  opts.forEach(function (o) {
+    o.addEventListener("click", function () {
+      input.value = o.getAttribute("data-board-opt");
+      sync(o);
+    });
+  });
+  sync(null);
+})();

@@ -25,6 +25,7 @@ echo "== 基础 =="
 check "healthz" "ok" "$(curl -s "$BASE/healthz")"
 HOME_HTML=$(curl -s -c "$JAR" "$BASE/")
 contains "首页含种子版块「综合」" "$HOME_HTML" "综合"
+contains "页面含内置确认面板" "$HOME_HTML" 'id="bbs-modal"'
 
 echo "== 注册(首用户应为 admin)=="
 csrf "$BASE/register"
@@ -78,11 +79,13 @@ contains "热帖页可访问" "$HOT" "热帖"
 CATF=$(curl -s -b "$JAR" "$BASE/?cat=tech")
 contains "分类筛选生效" "$CATF" "第一帖"
 NPP=$(curl -s -b "$JAR" "$BASE/new")
-contains "发帖页含版块下拉" "$NPP" 'name="category"'
+contains "发帖页含版块字段" "$NPP" 'name="category"'
+contains "发帖页用内置版块面板" "$NPP" 'data-board-pick'
 contains "发帖页列出版块" "$NPP" "技术分享"
 contains "发帖页用新式编辑器" "$NPP" 'class="composer"'
 PP=$(curl -s -b "$JAR" "$BASE/c/tech/new")
-contains "直达发帖预选版块" "$PP" 'value="tech" selected'
+contains "直达发帖预选版块" "$PP" 'value="tech"'
+contains "直达发帖版块预选高亮" "$PP" 'class="board-opt on"'
 contains "直达发帖含新式编辑器" "$PP" 'data-compose="upload"'
 code=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/admin/categories")
 check "未登录管理页被拒(跳登录)" "303" "$code"
@@ -369,6 +372,7 @@ check "带参搜索 200" "200" "$code"
 
 echo "== 最新/热帖排序 =="
 CSRF=$(curl -s -b "$JAR" -c "$JAR" "$REDIR2" | grep -o 'name="_csrf" value="[^"]*"' | head -1 | sed 's/.*value="//;s/"//')
+sleep 1
 code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" -H "X-CSRF-Token: $CSRF" -d "content=顶一下第二帖" "$REDIR2/reply")
 check "回复第二帖使之上浮" "200" "$code"
 HOMEL=$(curl -s -b "$JAR" "$BASE/")

@@ -162,7 +162,7 @@
       <option value="30">30 天</option>
       <option value="3650">10 年</option>
     </select>
-    <button class="btn btn-outline-danger btn-sm" type="submit" onclick="return confirm('确认封禁该用户?')">封禁</button>
+    <button class="btn btn-outline-danger btn-sm" type="submit" data-confirm="确认封禁该用户?">封禁</button>
   </form>
   {{if .Profile.BannedUntil.Valid}}
   <form method="post" action="/admin/users/{{.Profile.ID}}/unban" class="inline-form">

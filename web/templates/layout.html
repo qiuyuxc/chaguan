@@ -107,6 +107,17 @@
 </div>
 
 <footer class="footer">Powered by bbs</footer>
+
+<div class="modal" id="bbs-modal" hidden>
+  <div class="modal-scrim" data-modal-cancel></div>
+  <div class="modal-card" role="alertdialog" aria-modal="true" aria-labelledby="bbs-modal-text">
+    <p class="modal-text" id="bbs-modal-text"></p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-white" data-modal-cancel>取消</button>
+      <button type="button" class="btn btn-primary" id="bbs-modal-ok">确认</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>{{end}}
 {{define "sidenav"}}
