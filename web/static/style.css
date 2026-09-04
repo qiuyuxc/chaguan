@@ -1305,7 +1305,7 @@ html[data-theme="dark"] .avatar.c5, html[data-theme="dark"] .avatar.c6 { color: 
 .fchip:hover { color: var(--ink); border-color: var(--line-strong); }
 .fchip.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
 
-.ct-card { overflow: hidden; }
+.ct-card { overflow: visible; }
 .ct-head, .ct-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto auto;
@@ -1392,6 +1392,11 @@ html[data-theme="dark"] .avatar.c5, html[data-theme="dark"] .avatar.c6 { color: 
 .ct-menu-item .ic { width: 14px; height: 14px; flex: none; }
 .ct-menu-item.danger { color: #b23b33; }
 .ct-menu-item.danger:hover { background: #f6e9e8; color: #8f2a24; }
+/* 桌面圆角卡片放开 overflow 后,由首/末行自行收圆,避免「⋯」菜单被卡片裁掉 */
+@media (min-width: 900px) {
+  .ct-card > .ct-head { border-top-left-radius: var(--r-card); border-top-right-radius: var(--r-card); }
+  .ct-card > .ct-row:last-child { border-bottom-left-radius: var(--r-card); border-bottom-right-radius: var(--r-card); }
+}
 
 /* ---------- 账号认证:申请页状态卡 + 后台审批列表 ---------- */
 .verify-banner {

@@ -1,0 +1,29 @@
+{{define "content"}}
+<div class="page-head">
+  <div>
+    <h1>增加用户</h1>
+    <p class="page-sub">由管理员直接创建账号(邀请测试、补录等);创建后可在「用户管理」里继续编辑资料与认证</p>
+  </div>
+</div>
+
+{{if .Error}}<p class="form-error">{{.Error}}</p>{{end}}
+<form method="post" action="/admin/users/new" class="form-grid compose-form" autocomplete="off">
+  {{csrfField .CSRF}}
+  <div class="compose-field">
+    <label class="flabel" for="nu-name">账号名称</label>
+    <input class="input" name="name" id="nu-name" value="{{.Name}}" maxlength="24" required placeholder="2–24 个字符,不含空格/@/斜杠">
+  </div>
+  <div class="compose-field">
+    <label class="flabel" for="nu-email">邮箱(可选)</label>
+    <input class="input" name="email" id="nu-email" type="email" value="{{.Email}}" maxlength="120" placeholder="留空则无邮箱">
+  </div>
+  <div class="compose-field">
+    <label class="flabel" for="nu-pass">初始密码</label>
+    <input class="input" name="password" id="nu-pass" type="password" minlength="8" maxlength="72" required placeholder="至少 8 位,对方登录后可自行修改" autocomplete="new-password">
+  </div>
+  <div class="form-actions">
+    <button class="btn btn-primary" type="submit">创建用户</button>
+    <a class="btn btn-white" href="/admin/users">返回用户管理</a>
+  </div>
+</form>
+{{end}}

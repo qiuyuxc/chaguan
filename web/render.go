@@ -263,7 +263,7 @@ var pageNames = []string{
 	"home", "login", "register", "category", "thread", "new_thread",
 	"edit_thread", "edit_post", "profile", "edit_profile", "notifications",
 	"verify_apply",
-	"admin_categories", "admin_overview", "admin_users", "admin_threads", "admin_verify", "search",
+	"admin_categories", "admin_overview", "admin_users", "admin_threads", "admin_verify", "admin_user_new", "search",
 }
 
 func NewRenderer() (*Renderer, error) {

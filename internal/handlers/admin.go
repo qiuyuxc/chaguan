@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"bbs/internal/auth"
 	"bbs/internal/db"
@@ -376,4 +377,71 @@ func (s *Server) adminThreads(w http.ResponseWriter, r *http.Request) {
 		HasQ:    q != "" || catID > 0,
 		Next:    adminPageURL(adminThreadsFilterHref(q, catID), "", page),
 	})
+}
+
+// ---------- 增加用户 ----------
+
+type adminUserNewData struct {
+	web.Base
+	ATab  string
+	Error string
+	Name  string
+	Email string
+}
+
+func (s *Server) adminUserNewForm(w http.ResponseWriter, r *http.Request) {
+	if s.requireAdmin(w, r) == nil {
+		return
+	}
+	s.rend.RenderAdmin(w, 200, "admin_user_new", adminUserNewData{
+		Base: s.base(r, "增加用户"),
+		ATab: "users",
+	})
+}
+
+func (s *Server) adminUserNew(w http.ResponseWriter, r *http.Request) {
+	if s.requireAdmin(w, r) == nil {
+		return
+	}
+	name := strings.TrimSpace(r.FormValue("name"))
+	email := strings.TrimSpace(r.FormValue("email"))
+	password := r.FormValue("password")
+
+	fail := func(msg string) {
+		s.rend.RenderAdmin(w, 200, "admin_user_new", adminUserNewData{
+			Base:  s.base(r, "增加用户"),
+			ATab:  "users",
+			Error: msg, Name: name, Email: email,
+		})
+	}
+
+	switch {
+	case utf8.RuneCountInString(name) < 2 || utf8.RuneCountInString(name) > 24:
+		fail("用户名需要 2–24 个字符")
+		return
+	case strings.ContainsAny(name, " \t\r\n@/"):
+		fail("用户名不能包含空格、@ 或斜杠")
+		return
+	case email != "" && (strings.ContainsAny(email, " \t\r\n") || !strings.Contains(email, "@")):
+		fail("邮箱格式不正确(可留空)")
+		return
+	case len(password) < 8:
+		fail("密码至少 8 位")
+		return
+	}
+
+	hash, err := auth.HashPassword(password)
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	if _, err := s.store.CreateUser(name, email, hash); err != nil {
+		if err == db.ErrDuplicateName {
+			fail("用户名或邮箱已被占用")
+			return
+		}
+		s.serverError(w, err)
+		return
+	}
+	http.Redirect(w, r, "/admin/users", http.StatusSeeOther)
 }
