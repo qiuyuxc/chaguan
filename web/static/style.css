@@ -1346,7 +1346,12 @@ html[data-theme="dark"] .avatar.c5, html[data-theme="dark"] .avatar.c6 { color: 
   .ct-row { grid-template-columns: minmax(0, 1fr) auto; row-gap: 8px; }
   .ct-row > .ct-nums { grid-column: 1; }
   .ct-row > .ct-state { display: none; }
-  .ct-row > .ct-acts { grid-column: 1 / -1; justify-content: flex-start; border-top: 1px dashed var(--line); padding-top: 8px; }
+  /* 手机端操作键放行内容右侧(侧边),不再单独占一行压到底部 */
+  .ct-row > .ct-acts {
+    grid-column: 2; grid-row: 1 / span 2;
+    align-self: center; justify-content: flex-end;
+    border-top: 0; padding-top: 0;
+  }
 }
 
 /* ---------- 认证蓝标:蓝色「V」,个人主页角标 + UID 下认证行 + 帖内作者同步 ---------- */
