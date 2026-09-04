@@ -30,8 +30,57 @@
       <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
       <span class="notif-count" id="notif-count" hidden></span>
     </a>
-    {{if .User.AvatarPath}}<a class="avatar av-32 nav-user" href="/u/{{.User.ID}}" title="{{.User.Name}}"><img src="{{.User.AvatarPath}}" alt=""></a>
-    {{else}}<a class="avatar av-32 c1 nav-user" href="/u/{{.User.ID}}" title="{{.User.Name}}">{{initial .User.Name}}</a>{{end}}
+    <div class="acc-wrap" data-acc-wrap>
+      <button type="button" class="avatar av-32 nav-user acc-trigger" data-acc-toggle aria-haspopup="true" aria-expanded="false" title="账户菜单" aria-label="账户菜单">
+        {{if .User.AvatarPath}}<img src="{{.User.AvatarPath}}" alt="">{{else}}{{initial .User.Name}}{{end}}
+      </button>
+      <div class="acc-pop" data-acc-pop hidden>
+        <a class="su-id" href="/u/{{.User.ID}}">
+          {{if .User.AvatarPath}}<span class="avatar su-av"><img src="{{.User.AvatarPath}}" alt="{{.User.Name}}"></span>
+          {{else}}<span class="avatar su-av {{avColor .User.ID}}" aria-hidden="true">{{initial .User.Name}}</span>{{end}}
+          <span class="su-info">
+            <span class="su-name-row"><span class="su-name">{{.User.Name}}</span>{{roleBadge .User.Role .User.BadgeText}}</span>
+            <span class="su-lv"><span class="lv-badge">LV{{.Level}}</span><span class="su-exp">经验 {{.Exp}}</span></span>
+          </span>
+        </a>
+        <div class="su-body">
+          <div class="su-sec">
+            <div class="su-sec-title">常用</div>
+            <nav class="su-links">
+              <a class="side-link" href="/u/{{.User.ID}}?tab=posts">
+                <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+                我的帖子
+              </a>
+              <span class="side-link su-off" title="我的收藏即将上线">
+                <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                我的收藏
+              </span>
+            </nav>
+          </div>
+          <div class="su-sec">
+            <div class="su-sec-title">功能与设置</div>
+            <nav class="su-links">
+              <button type="button" class="side-link side-link-btn su-theme" data-theme-toggle aria-pressed="false">
+                <svg class="ic ic-sm th-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+                <svg class="ic ic-sm th-sun" viewBox="0 0 24 24" aria-hidden="true" hidden><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+                <span class="th-label">夜间模式</span>
+              </button>
+              <span class="side-link su-off" title="设置页即将上线">
+                <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+                设置
+              </span>
+            </nav>
+          </div>
+          <form method="post" action="/logout" class="su-out">
+            {{csrfField .CSRF}}
+            <button class="btn btn-ghost su-out-btn" type="submit">
+              <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+              退出登录
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
     {{else}}
     <a class="btn btn-primary btn-sm" href="/login">
       <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><line x1="15" x2="3" y1="12" y2="12"/></svg>
@@ -86,57 +135,4 @@
     <div><b>{{.TotalThreads}}</b><span>主题</span></div>
   </div>
 </div>
-{{if .User}}
-<div class="side-card side-user" data-side-user>
-  <div class="su-top">
-    <a class="su-id" href="/u/{{.User.ID}}">
-      {{if .User.AvatarPath}}<span class="avatar su-av"><img src="{{.User.AvatarPath}}" alt="{{.User.Name}}"></span>
-      {{else}}<span class="avatar su-av {{avColor .User.ID}}" aria-hidden="true">{{initial .User.Name}}</span>{{end}}
-      <span class="su-info">
-        <span class="su-name-row"><span class="su-name">{{.User.Name}}</span>{{roleBadge .User.Role .User.BadgeText}}</span>
-        <span class="su-lv"><span class="lv-badge">LV{{.Level}}</span><span class="su-exp">经验 {{.Exp}}</span></span>
-      </span>
-    </a>
-    <button type="button" class="su-toggle" data-su-toggle aria-expanded="true" aria-label="收起/展开常用功能" title="收起/展开">
-      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
-    </button>
-  </div>
-  <div class="su-body" data-su-body>
-    <div class="su-sec">
-      <div class="su-sec-title">常用</div>
-      <nav class="su-links">
-        <a class="side-link" href="/u/{{.User.ID}}?tab=posts">
-          <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
-          我的帖子
-        </a>
-        <span class="side-link su-off" title="我的收藏即将上线">
-          <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-          我的收藏
-        </span>
-      </nav>
-    </div>
-    <div class="su-sec">
-      <div class="su-sec-title">功能与设置</div>
-      <nav class="su-links">
-        <button type="button" class="side-link side-link-btn su-theme" data-theme-toggle aria-pressed="false">
-          <svg class="ic ic-sm th-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
-          <svg class="ic ic-sm th-sun" viewBox="0 0 24 24" aria-hidden="true" hidden><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
-          <span class="th-label">夜间模式</span>
-        </button>
-        <span class="side-link su-off" title="设置页即将上线">
-          <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
-          设置
-        </span>
-      </nav>
-    </div>
-    <form method="post" action="/logout" class="su-out">
-      {{csrfField .CSRF}}
-      <button class="btn btn-ghost su-out-btn" type="submit">
-        <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
-        退出登录
-      </button>
-    </form>
-  </div>
-</div>
-{{end}}
 {{end}}

@@ -982,11 +982,21 @@ body.drawer-open { overflow: hidden; }
 /* 回复框展开时滚动定位避开吸顶顶栏 */
 .reply-form-card.open { scroll-margin-top: 72px; }
 
-/* ---------- 侧栏账户:头像/等级 + 常用 + 功能与设置 + 退出(三区) ---------- */
-.side-user { padding: 11px 10px 10px; }
-.su-top { display: flex; align-items: center; gap: 4px; }
-.su-id { flex: 1; min-width: 0; display: flex; align-items: center; gap: 9px; }
-.su-av { width: 38px; height: 38px; font-size: 15px; flex: none; }
+/* ---------- 顶栏账户菜单:点头像展开(头像/等级 + 常用 + 功能与设置 + 退出) ---------- */
+.acc-wrap { position: relative; display: flex; }
+.acc-trigger { padding: 0; border: 0; cursor: pointer; }
+.acc-trigger:hover { box-shadow: 0 0 0 3px var(--hover-bg); }
+.acc-pop {
+  position: absolute; top: calc(100% + 8px); right: 0; z-index: 60;
+  width: 272px; max-width: calc(100vw - 24px);
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.14), 0 2px 8px rgba(0, 0, 0, 0.08);
+  padding: 12px 11px 11px;
+}
+.acc-pop[hidden] { display: none; }
+.su-id { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.su-av { width: 40px; height: 40px; font-size: 16px; flex: none; }
 .su-info { min-width: 0; display: grid; gap: 3px; }
 .su-name-row { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .su-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 600; color: var(--ink); }
@@ -994,18 +1004,9 @@ body.drawer-open { overflow: hidden; }
 .su-lv { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .su-lv .lv-badge { height: 16px; min-width: 28px; font-size: 9px; border-radius: 4px; }
 .su-exp { font-size: 10px; color: var(--ink-4); font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.su-toggle {
-  flex: none; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 6px;
-  background: transparent; color: var(--ink-3); cursor: pointer;
-  display: inline-flex; align-items: center; justify-content: center;
-  transition: transform 160ms ease;
-}
-.su-toggle:hover { background: var(--hover-bg); color: var(--ink); }
-.su-toggle .ic { width: 15px; height: 15px; }
-.side-user.closed .su-toggle .ic { transform: rotate(180deg); }
-.su-body { display: grid; gap: 10px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
-.su-body[hidden] { display: none; }
+.su-body { margin-top: 9px; padding-top: 9px; border-top: 1px solid var(--line); }
 .su-sec { margin: 0; }
+.su-sec + .su-sec { margin-top: 9px; padding-top: 9px; border-top: 1px solid var(--line); }
 .su-sec-title { margin: 0 0 3px 10px; font-size: 11px; font-weight: 600; color: var(--ink-4); letter-spacing: 0.08em; }
 .su-links { display: flex; flex-direction: column; gap: 2px; }
 .su-links .side-link .ic { width: 15px; height: 15px; }
@@ -1013,12 +1014,9 @@ body.drawer-open { overflow: hidden; }
 .su-links .su-off:hover { background: transparent; color: var(--ink-4); }
 .su-theme { font-family: var(--font); }
 .su-theme .th-sun[hidden] { display: none; }
-.su-out { margin: 0; padding-top: 10px; border-top: 1px solid var(--line); }
+.su-out { margin: 9px 0 0; padding-top: 9px; border-top: 1px solid var(--line); }
 .su-out-btn { width: 100%; min-height: 32px; font-size: 12px; color: var(--ink-3); justify-content: center; }
 .su-out-btn:hover { background: var(--hover-bg); color: var(--ink); }
-.side-card + .side-user { margin-top: 12px; }
-.drawer .side-user { margin: 0; padding: 12px 8px; }
-.drawer .side-user .su-name { font-size: 12px; }
 
 /* ---------- 夜间模式 ---------- */
 html[data-theme="dark"] {

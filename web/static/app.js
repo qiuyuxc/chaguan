@@ -562,26 +562,29 @@
   });
 })();
 
-// 侧栏账户区:折叠/展开 常用与功能面板,状态记本地(默认展开)
+// 顶栏头像:点击展开/收起账户菜单(常用 / 功能与设置 / 退出登录)
 (function () {
-  function bind(card) {
-    var toggle = card.querySelector("[data-su-toggle]");
-    var body = card.querySelector("[data-su-body]");
-    if (!toggle || !body) return;
-    function setOpen(open) {
-      card.classList.toggle("closed", !open);
-      toggle.setAttribute("aria-expanded", open ? "true" : "false");
-      body.hidden = !open;
-    }
-    toggle.addEventListener("click", function () {
-      setOpen(card.classList.contains("closed"));
-      try { localStorage.setItem("bbs-side-user", card.classList.contains("closed") ? "0" : "1"); } catch (e) {}
-    });
-    var saved = null;
-    try { saved = localStorage.getItem("bbs-side-user"); } catch (e) {}
-    setOpen(saved !== "0");
+  var wrap = document.querySelector("[data-acc-wrap]");
+  if (!wrap) return;
+  var trigger = wrap.querySelector("[data-acc-toggle]");
+  var pop = wrap.querySelector("[data-acc-pop]");
+  if (!trigger || !pop) return;
+
+  function setOpen(open) {
+    pop.hidden = !open;
+    trigger.setAttribute("aria-expanded", open ? "true" : "false");
   }
-  document.querySelectorAll("[data-side-user]").forEach(bind);
+  trigger.addEventListener("click", function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    setOpen(pop.hidden);
+  });
+  document.addEventListener("click", function (e) {
+    if (!e.target.closest("[data-acc-wrap]")) setOpen(false);
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") setOpen(false);
+  });
 })();
 
 // 夜间模式:切换 <html data-theme>,持久化到本地
