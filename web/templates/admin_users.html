@@ -230,8 +230,33 @@
   </section>
 
   <section class="um-sec">
+    <h3 class="um-sec-h">社交数据</h3>
+    <p class="um-tip">关注 / 粉丝 / 获赞可手动指定(留空 = 按真实统计自动);主页与个人卡片展示这里的数值。</p>
+    <form method="post" action="/admin/users/{{.Target.ID}}/social">
+      {{csrfField .CSRF}}<input type="hidden" name="next" value="{{.Next}}">
+      <div class="um-social">
+        <label class="um-f">
+          <span class="um-f-lb">关注</span>
+          <input class="input input-sm" type="number" name="following" min="0" max="1000000000" value="{{if .Target.StatFollowing.Valid}}{{.Target.StatFollowing.Int64}}{{end}}" placeholder="自动">
+        </label>
+        <label class="um-f">
+          <span class="um-f-lb">粉丝</span>
+          <input class="input input-sm" type="number" name="followers" min="0" max="1000000000" value="{{if .Target.StatFollowers.Valid}}{{.Target.StatFollowers.Int64}}{{end}}" placeholder="自动">
+        </label>
+        <label class="um-f">
+          <span class="um-f-lb">获赞</span>
+          <input class="input input-sm" type="number" name="liked" min="0" max="1000000000" value="{{if .Target.StatLiked.Valid}}{{.Target.StatLiked.Int64}}{{end}}" placeholder="自动">
+        </label>
+      </div>
+      <div class="um-act">
+        <button class="btn btn-primary btn-sm" type="submit">保存社交数据</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="um-sec">
     <h3 class="um-sec-h">账号认证</h3>
-    <p class="um-tip">选分类定 V 颜色:官方/厂商红 V、作者黄 V;文案写清具体对象,如「米哈游官方」「游戏作者」。不选分类即取消认证{{if or (eq .Target.Role "admin") (eq .Target.Role "mod")}}(管理员/版主可回到按身份自动显示){{end}}。</p>
+    <p class="um-tip">选分类定 V 颜色:官方蓝 V、厂商红 V、作者黄 V;文案写清具体对象,如「米哈游官方」「游戏作者」。不选分类即取消认证{{if or (eq .Target.Role "admin") (eq .Target.Role "mod")}}(管理员/版主可回到按身份自动显示){{end}}。</p>
     <form method="post" action="/admin/users/{{.Target.ID}}/verify">
       {{csrfField .CSRF}}<input type="hidden" name="next" value="{{.Next}}">
       <input type="hidden" name="kind" value="{{if .Target.VerifyKind.Valid}}{{.Target.VerifyKind.String}}{{end}}">
@@ -239,7 +264,7 @@
            data-auto="{{if eq .Target.Role "mod"}}版主认证{{else if eq .Target.Role "admin"}}管理员认证{{end}}">
         <div class="pick-chips" role="group" aria-label="认证分类">
           <button type="button" class="pick-chip" data-kind="">无认证</button>
-          <button type="button" class="pick-chip" data-kind="官方"><span class="vdot v-red" aria-hidden="true">V</span>官方</button>
+          <button type="button" class="pick-chip" data-kind="官方"><span class="vdot" aria-hidden="true">V</span>官方</button>
           <button type="button" class="pick-chip" data-kind="厂商"><span class="vdot v-red" aria-hidden="true">V</span>厂商</button>
           <button type="button" class="pick-chip" data-kind="作者"><span class="vdot v-yellow" aria-hidden="true">V</span>作者</button>
         </div>
@@ -250,7 +275,7 @@
                  placeholder="如:米哈游官方、任天堂官方、游戏作者、文学作者" aria-label="认证文案">
         </div>
         <div class="verify-preview">
-          <span class="vb-seal{{if eq .Target.VerifyKind.String "官方"}} v-red{{else if eq .Target.VerifyKind.String "厂商"}} v-red{{else if eq .Target.VerifyKind.String "作者"}} v-yellow{{end}}" aria-hidden="true">V</span>
+          <span class="vb-seal{{if eq .Target.VerifyKind.String "厂商"}} v-red{{else if eq .Target.VerifyKind.String "作者"}} v-yellow{{end}}" aria-hidden="true">V</span>
           <span class="verify-preview-txt" data-verify-preview>{{if .Target.VerifyTitle.Valid}}{{.Target.VerifyTitle.String}}{{else if eq .Target.VerifyKind.String "官方"}}官方{{else if eq .Target.VerifyKind.String "厂商"}}厂商{{else if eq .Target.VerifyKind.String "作者"}}作者{{else if eq .Target.Role "admin"}}管理员认证{{else if eq .Target.Role "mod"}}版主认证{{else}}不显示 V 标{{end}}</span>
         </div>
       </div>

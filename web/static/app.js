@@ -825,7 +825,7 @@
       var seal = box.querySelector(".vb-seal");
       var auto = box.getAttribute("data-auto") || "";
       function kindCls(k) {
-        if (k === "官方" || k === "厂商") return "v-red";
+        if (k === "厂商") return "v-red";
         if (k === "作者") return "v-yellow";
         return "";
       }

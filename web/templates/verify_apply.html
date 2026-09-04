@@ -2,7 +2,7 @@
 <div class="page-head">
   <div>
     <h1>账号认证</h1>
-    <p class="page-sub">通过后名字旁出现 V 标并同步主页、帖子与回复;官方/厂商红 V、作者黄 V,文案自定义</p>
+    <p class="page-sub">通过后名字旁出现 V 标并同步主页、帖子与回复;官方蓝 V、厂商红 V、作者黄 V,文案自定义</p>
   </div>
 </div>
 
@@ -33,7 +33,7 @@
     <div class="vopts" role="radiogroup" aria-label="认证分类">
       <label class="vopt">
         <input type="radio" name="kind" value="官方"{{if eq .Kind "官方"}} checked{{end}}>
-        <span class="vdot v-red" aria-hidden="true">V</span>
+        <span class="vdot" aria-hidden="true">V</span>
         <span class="vopt-txt"><b>官方</b><i>机构、组织、产品/项目的官方账号</i></span>
       </label>
       <label class="vopt">
@@ -47,7 +47,7 @@
         <span class="vopt-txt"><b>作者</b><i>游戏、文学、技术等领域的创作者</i></span>
       </label>
     </div>
-    <span class="form-note">官方/厂商对应红 V · 作者对应黄 V;具体是什么,由下面的文案自定义</span>
+    <span class="form-note">官方对应蓝 V · 厂商对应红 V · 作者对应黄 V;具体是什么,由下面的文案自定义</span>
   </div>
   <div class="compose-field">
     <label class="flabel" for="verify-subject">认证文案</label>

@@ -1546,3 +1546,9 @@ html[data-theme="dark"] .avatar.c5, html[data-theme="dark"] .avatar.c6 { color: 
 .mod-rm .ic { width: 12px; height: 12px; }
 .mod-rm:hover { color: var(--danger, #b23b33); background: transparent; }
 .lv-pick .pick-chip { gap: 6px; }
+
+/* 管理后台:社交数据覆盖输入(关注/粉丝/获赞) */
+.um-social { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 560px) {
+  .um-social { grid-template-columns: 1fr; }
+}

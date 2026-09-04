@@ -67,19 +67,31 @@ func levelOf(exp int64) int {
 	return lv
 }
 
-// levelInfo 求最终等级与经验条区间:管理员手动覆盖(0..6)优先,
-// 否则按经验自动;区间从最终等级对应的门槛起算。
-func levelInfo(exp int64, override sql.NullInt64) (lv int, start, next int64) {
+// levelInfo 求最终等级与展示经验:
+// 管理员手动指定等级时,经验按“该级起点”兜底(真实经验低于门槛就补到门槛),
+// LV6 顶级固定满经验 16000(顶级不再往上,显示即满);自动升级按真实经验展示。
+func levelInfo(exp int64, override sql.NullInt64) (lv int, shown, start, next int64) {
 	lv = levelOf(exp)
+	manual := false
 	if override.Valid && override.Int64 >= 0 && override.Int64 < int64(len(levelThresholds)) {
 		lv = int(override.Int64)
+		manual = true
 	}
 	start = levelThresholds[lv]
 	next = levelThresholds[len(levelThresholds)-1]
 	if lv < len(levelThresholds)-1 {
 		next = levelThresholds[lv+1]
 	}
-	return lv, start, next
+	shown = exp
+	if manual {
+		shown = start
+		if lv == 6 {
+			shown = start // 顶级:满 16000,不显示真实累计
+		} else if exp > start {
+			shown = exp
+		}
+	}
+	return lv, shown, start, next
 }
 
 // clipRunes 给正文预览截断到 n 个字符。
@@ -134,10 +146,10 @@ func (s *Server) profile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	exp := socialExp(threads, replies, stats.Liked)
-	level, expStart, expNext := levelInfo(exp, u.LevelOverride)
+	level, expShown, expStart, expNext := levelInfo(exp, u.LevelOverride)
 	expPct := 100
 	if expNext > expStart {
-		expPct = int((exp - expStart) * 100 / (expNext - expStart))
+		expPct = int((expShown - expStart) * 100 / (expNext - expStart))
 		if expPct > 100 {
 			expPct = 100
 		}
@@ -201,7 +213,7 @@ func (s *Server) profile(w http.ResponseWriter, r *http.Request) {
 		Liked:         stats.Liked,
 		LikeTotal:     likeTotal,
 		FavTotal:      favTotal,
-		Exp:           exp,
+		Exp:           expShown,
 		Level:         level,
 		ExpStart:      expStart,
 		ExpNext:       expNext,

@@ -345,6 +345,38 @@ func (s *Server) setUserLevel(w http.ResponseWriter, r *http.Request) {
 	s.redirectAfter(w, r, "/admin/users")
 }
 
+// setSocialStats POST /admin/users/{id}/social:覆盖展示用社交数据(关注/粉丝/获赞),
+// 留空表示按真实统计自动;主页资料卡与统计展示会使用这里的数值。
+func (s *Server) setSocialStats(w http.ResponseWriter, r *http.Request) {
+	target, ok := s.adminTarget(w, r)
+	if !ok {
+		return
+	}
+	parse := func(name string) (sql.NullInt64, bool) {
+		v := strings.TrimSpace(r.FormValue(name))
+		if v == "" {
+			return sql.NullInt64{}, true
+		}
+		n, err := strconv.ParseInt(v, 10, 64)
+		if err != nil || n < 0 || n > 1_000_000_000 {
+			return sql.NullInt64{}, false
+		}
+		return sql.NullInt64{Int64: n, Valid: true}, true
+	}
+	following, ok1 := parse("following")
+	followers, ok2 := parse("followers")
+	liked, ok3 := parse("liked")
+	if !ok1 || !ok2 || !ok3 {
+		http.Error(w, "数值需在 0–1000000000 之间", http.StatusBadRequest)
+		return
+	}
+	if err := s.store.SetSocialStats(target.ID, following, followers, liked); err != nil {
+		s.serverError(w, err)
+		return
+	}
+	s.redirectAfter(w, r, "/admin/users")
+}
+
 // removeModCategory POST /admin/users/{id}/modcat/remove:撤销某版块的版主登记,
 // 只影响该版块;若用户已无任何管辖版块则自动整体降为普通用户。
 func (s *Server) removeModCategory(w http.ResponseWriter, r *http.Request) {

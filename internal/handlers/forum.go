@@ -31,13 +31,13 @@ func (s *Server) base(r *http.Request, title string) web.Base {
 			if replies, err := s.store.CountUserReplies(u.ID); err == nil {
 				if stats, err := s.store.SocialStats(u.ID); err == nil {
 					exp := socialExp(threads, replies, stats.Liked)
-					level, start, next := levelInfo(exp, u.LevelOverride)
-					b.Exp = exp
+					level, shown, start, next := levelInfo(exp, u.LevelOverride)
+					b.Exp = shown
 					b.Level = level
 					b.ExpNext = next
 					b.ExpPct = 100
 					if next > start {
-						b.ExpPct = int((exp - start) * 100 / (next - start))
+						b.ExpPct = int((shown - start) * 100 / (next - start))
 						if b.ExpPct > 100 {
 							b.ExpPct = 100
 						}

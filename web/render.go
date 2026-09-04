@@ -132,7 +132,7 @@ func roleBadge(role string, badge sql.NullString) template.HTML {
 	return template.HTML(`<span class="` + cls + `">` + template.HTMLEscapeString(label) + `</span>`)
 }
 
-// verifyKindName 归一化分类:官方/厂商=红 V(组织与品牌),作者=黄 V;
+// verifyKindName 归一化分类:官方=蓝 V、厂商=红 V、作者=黄 V;
 // 兼容旧数据里的「官号」「认证作者」写法。
 func verifyKindName(kind sql.NullString) string {
 	if !kind.Valid {
@@ -166,22 +166,18 @@ func vLabelOf(role string, kind, title sql.NullString) string {
 	return ""
 }
 
-// vColorClass 认证 V 的配色:官方/厂商=红,作者=黄,其余(含按身份认证)默认蓝。
+// vColorClass 认证 V 的配色:官方=默认蓝,厂商=红,作者=黄;
+// 旧数据无分类时按文案兜底(官号归蓝、认证作者归黄)。
 func vColorClass(kind, title sql.NullString) string {
 	switch verifyKindName(kind) {
-	case "官方", "厂商":
+	case "厂商":
 		return " v-red"
 	case "作者":
 		return " v-yellow"
 	}
-	// 旧数据可能只有文案没有分类:按文案兜底配色
-	if title.Valid {
-		switch strings.TrimSpace(title.String) {
-		case "官号":
-			return " v-red"
-		case "认证作者":
-			return " v-yellow"
-		}
+	// 旧数据可能只有文案没有分类:按文案兜底配色(官号归蓝,即默认)
+	if title.Valid && strings.TrimSpace(title.String) == "认证作者" {
+		return " v-yellow"
 	}
 	return ""
 }

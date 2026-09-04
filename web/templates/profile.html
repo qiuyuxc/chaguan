@@ -48,7 +48,7 @@
   {{end}}
   <div class="member-level" title="经验 {{.Exp}}">
     <span class="lv-track"><span class="lv-fill" style="width:{{.ExpPct}}%"></span></span>
-    <span class="lv-exp">经验 {{.Exp}} / {{.ExpNext}}</span>
+    {{if eq .Level 6}}<span class="lv-exp">经验 {{.Exp}} · 满级</span>{{else}}<span class="lv-exp">经验 {{.Exp}} / {{.ExpNext}}</span>{{end}}
   </div>
   <p class="member-meta muted">UID {{.Profile.ID}} · {{date .Profile.CreatedAt}} 加入</p>
   {{if .CertText}}

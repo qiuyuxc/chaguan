@@ -121,6 +121,9 @@ type User struct {
 	VerifyKind    sql.NullString // 认证分类:官方/厂商/作者; NULL=无认证(管理员/版主可按身份)
 	VerifyTitle   sql.NullString // 认证显示文案(自定义,如「米哈游官方」「游戏作者」;空则回退分类)
 	LevelOverride sql.NullInt64  // 管理员手动指定等级 0..6; NULL=按经验自动
+	StatFollowing sql.NullInt64  // 展示用关注数覆盖; NULL=按真实统计
+	StatFollowers sql.NullInt64  // 展示用粉丝数覆盖; NULL=按真实统计
+	StatLiked     sql.NullInt64  // 展示用获赞数覆盖; NULL=按真实统计
 }
 
 func (u *User) IsAdmin() bool { return u != nil && u.Role == "admin" }
@@ -261,13 +264,13 @@ func (s *Store) CreateUser(name, email, passwordHash string) (int64, error) {
 const userCols = `
 	id, name, COALESCE(email,''), password_hash, role, COALESCE(avatar_path,''),
 	COALESCE(bio,''), created_at, banned_until, badge_text, verify_kind, verify_title,
-	level_override`
+	level_override, stat_following, stat_followers, stat_liked`
 
 func scanUser(row interface{ Scan(...any) error }) (*User, error) {
 	u := &User{}
 	err := row.Scan(&u.ID, &u.Name, &u.Email, &u.PasswordHash, &u.Role, &u.AvatarPath,
 		&u.Bio, &u.CreatedAt, &u.BannedUntil, &u.BadgeText, &u.VerifyKind, &u.VerifyTitle,
-		&u.LevelOverride)
+		&u.LevelOverride, &u.StatFollowing, &u.StatFollowers, &u.StatLiked)
 	return u, err
 }
 
@@ -429,14 +432,29 @@ type SocialStats struct {
 
 func (s *Store) SocialStats(userID int64) (SocialStats, error) {
 	var st SocialStats
+	// 管理员设置过覆盖值时优先展示,否则按真实统计聚合。
 	err := s.DB.QueryRow(`
 		SELECT
-			(SELECT COUNT(*) FROM follows WHERE follower_id = ?),
-			(SELECT COUNT(*) FROM follows WHERE followee_id = ?),
-			(SELECT COUNT(*) FROM post_likes pl JOIN posts p ON p.id = pl.post_id
-			 WHERE p.author_id = ?)`,
-		userID, userID, userID).Scan(&st.Following, &st.Followers, &st.Liked)
+			COALESCE(u.stat_following, (SELECT COUNT(*) FROM follows WHERE follower_id = u.id)),
+			COALESCE(u.stat_followers, (SELECT COUNT(*) FROM follows WHERE followee_id = u.id)),
+			COALESCE(u.stat_liked, (SELECT COUNT(*) FROM post_likes pl JOIN posts p ON p.id = pl.post_id
+			 WHERE p.author_id = u.id))
+		FROM users u WHERE u.id = ?`, userID).Scan(&st.Following, &st.Followers, &st.Liked)
 	return st, err
+}
+
+// SetSocialStats 后台覆盖展示用社交数据;NullInt64 无效值表示恢复真实统计。
+func (s *Store) SetSocialStats(userID int64, following, followers, liked sql.NullInt64) error {
+	arg := func(v sql.NullInt64) any {
+		if v.Valid {
+			return v.Int64
+		}
+		return nil
+	}
+	_, err := s.DB.Exec(`UPDATE users
+		SET stat_following = ?, stat_followers = ?, stat_liked = ? WHERE id = ?`,
+		arg(following), arg(followers), arg(liked), userID)
+	return err
 }
 
 // ListUserThreads 某用户发起过的主题(资料页「TA 的主题」)。

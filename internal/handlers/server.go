@@ -69,6 +69,7 @@ func Routes(store *db.Store, rend *web.Renderer, uploadsDir string) http.Handler
 	mux.HandleFunc("POST /admin/users/{id}/verify", s.setVerify)
 	mux.HandleFunc("POST /admin/users/{id}/level", s.setUserLevel)
 	mux.HandleFunc("POST /admin/users/{id}/modcat/remove", s.removeModCategory)
+	mux.HandleFunc("POST /admin/users/{id}/social", s.setSocialStats)
 	mux.HandleFunc("POST /admin/users/{id}/edit", s.adminEditUser)
 	mux.HandleFunc("POST /admin/users/{id}/avatar", s.adminSetAvatar)
 	mux.HandleFunc("GET /verify/apply", s.verifyApplyForm)
