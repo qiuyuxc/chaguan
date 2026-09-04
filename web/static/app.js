@@ -814,6 +814,38 @@
       });
       sync();
     });
+    // 账号认证:快捷芯片 + 自定义称号 + 实时预览(自定义文案优先于按身份认证)
+    root.querySelectorAll("[data-verify-edit]").forEach(function (box) {
+      var input = box.querySelector('input[name="title"]');
+      if (!input) return;
+      var chips = Array.prototype.slice.call(box.querySelectorAll(".pick-chip"));
+      var preview = box.querySelector("[data-verify-preview]");
+      var seal = box.querySelector(".vb-seal");
+      var auto = box.getAttribute("data-auto") || "";
+      function cur() {
+        var v = input.value.trim();
+        return v || auto;
+      }
+      function sync() {
+        var v = input.value.trim();
+        chips.forEach(function (c) {
+          var on = c.getAttribute("data-val") === v;
+          c.classList.toggle("on", on);
+          c.setAttribute("aria-pressed", on ? "true" : "false");
+        });
+        var c = cur();
+        if (preview) preview.textContent = c || "不显示 V 标";
+        box.classList.toggle("off", !c);
+      }
+      chips.forEach(function (c) {
+        c.addEventListener("click", function () {
+          input.value = c.getAttribute("data-val");
+          sync();
+        });
+      });
+      input.addEventListener("input", sync);
+      sync();
+    });
     // 聚焦第一个可交互控件,方便键盘操作
     var first = root.querySelector("button:not([disabled]), input:not([type=hidden])");
     if (first) try { first.focus(); } catch (e) {}

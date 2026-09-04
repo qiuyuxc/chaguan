@@ -1424,3 +1424,18 @@ html[data-theme="dark"] .avatar.c5, html[data-theme="dark"] .avatar.c6 { color: 
 @media (max-width: 640px) {
   .vr-acts { flex-wrap: wrap; justify-content: flex-start; }
 }
+
+/* 管理后台:认证编辑器(快捷芯片 + 自定义称号 + 实时预览) */
+.verify-edit { display: grid; gap: 7px; }
+.verify-edit-row { display: flex; align-items: center; gap: 8px; }
+.verify-edit-row .pick-lb { flex: none; }
+.verify-edit-row .input { flex: 1; min-width: 0; }
+.verify-preview {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 5px 10px; border: 1px dashed var(--line-strong); border-radius: var(--r-ctl);
+  background: var(--bg); align-self: flex-start;
+}
+.verify-preview .vb-seal { width: 20px; height: 20px; font-size: 10px; }
+.verify-preview-txt { font-size: 12px; font-weight: 600; color: var(--ink-2); }
+.verify-edit.off .verify-preview-txt { color: var(--ink-4); font-weight: 400; }
+.verify-edit.off .vb-seal { background: #9c9c9c; }

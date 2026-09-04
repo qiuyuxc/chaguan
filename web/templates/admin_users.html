@@ -152,27 +152,43 @@
       {{end}}
     </section>
   </div>
+  {{end}}
 
   <section class="um-sec">
     <h3 class="um-sec-h">账号认证</h3>
-    {{if eq .Target.Role "mod"}}
-    <p class="um-tip">版主已按身份自动认证(蓝色 V 标),无需额外设置。</p>
+    {{if eq .Target.Role "admin"}}
+    <p class="um-tip">留空时按身份自动显示「管理员认证」;填入自定义称号可覆盖预览。</p>
+    {{else if eq .Target.Role "mod"}}
+    <p class="um-tip">留空时按身份自动显示「版主认证」;填入自定义称号可覆盖预览。</p>
     {{else}}
-    <p class="um-tip">设置后,名字旁会显示蓝色 V 标,并同步出现在主页、帖子与回复中。</p>
+    <p class="um-tip">留空 = 无认证(不显示 V);填入后名字旁出现蓝色 V 标,并同步主页、帖子与回复。</p>
+    {{end}}
     <form method="post" action="/admin/users/{{.Target.ID}}/verify">
       {{csrfField .CSRF}}<input type="hidden" name="next" value="{{.Next}}">
-      <input type="hidden" name="title" value="{{.Target.VerifyTitle.String}}">
-      <div class="pick-chips" data-pick="title" data-optional="1">
-        <button type="button" class="pick-chip{{if not .Target.VerifyTitle.Valid}} on{{end}}" data-val="">无认证</button>
-        <button type="button" class="pick-chip{{if and .Target.VerifyTitle.Valid (eq .Target.VerifyTitle.String "官号")}} on{{end}}" data-val="官号">官号</button>
-        <button type="button" class="pick-chip{{if and .Target.VerifyTitle.Valid (eq .Target.VerifyTitle.String "认证作者")}} on{{end}}" data-val="认证作者">认证作者</button>
+      <div class="verify-edit" data-verify-edit
+           data-auto="{{if eq .Target.Role "mod"}}版主认证{{else if eq .Target.Role "admin"}}管理员认证{{end}}"
+           data-role="{{.Target.Role}}">
+        <div class="pick-chips" role="group" aria-label="快捷认证">
+          <button type="button" class="pick-chip{{if not .Target.VerifyTitle.Valid}} on{{end}}" data-val="">无认证</button>
+          <button type="button" class="pick-chip{{if and .Target.VerifyTitle.Valid (eq .Target.VerifyTitle.String "官号")}} on{{end}}" data-val="官号">官号</button>
+          <button type="button" class="pick-chip{{if and .Target.VerifyTitle.Valid (eq .Target.VerifyTitle.String "认证作者")}} on{{end}}" data-val="认证作者">认证作者</button>
+        </div>
+        <div class="verify-edit-row">
+          <span class="pick-lb">或自定义</span>
+          <input class="input input-sm" type="text" name="title" maxlength="20"
+                 value="{{if .Target.VerifyTitle.Valid}}{{.Target.VerifyTitle.String}}{{end}}"
+                 placeholder="直接输入:如 Figma 官方、某工作室、专栏作者" aria-label="自定义认证称号">
+        </div>
+        <div class="verify-preview">
+          <span class="vb-seal" aria-hidden="true">V</span>
+          <span class="verify-preview-txt" data-verify-preview>{{if .Target.VerifyTitle.Valid}}{{.Target.VerifyTitle.String}}{{else if eq .Target.Role "admin"}}管理员认证{{else if eq .Target.Role "mod"}}版主认证{{else}}不显示 V 标{{end}}</span>
+        </div>
       </div>
       <div class="um-act">
         <button class="btn btn-primary btn-sm" type="submit">保存认证</button>
+        <a class="btn btn-white btn-sm" href="/u/{{.Target.ID}}" target="_blank" rel="noopener">查看主页效果</a>
       </div>
     </form>
-    {{end}}
   </section>
-  {{end}}
 </div>
 {{end}}

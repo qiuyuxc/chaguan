@@ -161,15 +161,12 @@ func (s *Server) setUserRole(w http.ResponseWriter, r *http.Request) {
 	s.redirectAfter(w, r, "/admin/users")
 }
 
-// setVerify POST /admin/users/{id}/verify:为普通成员设置认证称号(官号/认证作者等),
-// 空 title 表示取消认证。管理员/版主按身份自动认证,不走此字段。
+// setVerify POST /admin/users/{id}/verify:直接写入认证称号,可自定义任意文案
+// (官号 / 认证作者 / 具体对象等),用于同步预览主页、帖子与回复里的 V 标与认证行。
+// 空 title 表示清除:普通用户回到无认证,管理员/版主回到按身份自动认证。
 func (s *Server) setVerify(w http.ResponseWriter, r *http.Request) {
 	target, ok := s.adminTarget(w, r)
 	if !ok {
-		return
-	}
-	if target.Role != "user" {
-		http.Error(w, "管理员/版主已按身份自动认证", http.StatusBadRequest)
 		return
 	}
 	title := strings.TrimSpace(r.FormValue("title"))
