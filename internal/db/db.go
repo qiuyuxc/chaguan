@@ -1265,6 +1265,110 @@ func (s *Store) SetUserRole(userID int64, role string) error {
 	return err
 }
 
+// VerifyRequest 认证申请(官号/认证作者),管理员通过后写入 users.verify_title。
+type VerifyRequest struct {
+	ID            int64
+	UserID        int64
+	Kind          string // 官号 | 认证作者
+	Subject       string // 哪个官号 / 认证领域(申请人自述)
+	Note          string // 补充说明
+	Status        string // pending | approved | rejected
+	CreatedAt     int64
+	HandledAt     sql.NullInt64
+	HandledBy     sql.NullInt64
+	UserName      string
+	UserRole      string
+	UserAvatar    sql.NullString
+	UserVerify    sql.NullString
+	HandledByName sql.NullString
+}
+
+// CreateVerifyRequest 提交认证申请;同一用户存在 pending 时返回 false。
+func (s *Store) CreateVerifyRequest(userID int64, kind, subject, note string) (bool, error) {
+	var n int64
+	if err := s.DB.QueryRow(
+		`SELECT COUNT(*) FROM verify_requests WHERE user_id = ? AND status = 'pending'`,
+		userID).Scan(&n); err != nil {
+		return false, err
+	}
+	if n > 0 {
+		return false, nil
+	}
+	_, err := s.DB.Exec(`INSERT INTO verify_requests
+		(user_id, kind, subject, note, status, created_at)
+		VALUES (?, ?, ?, ?, 'pending', ?)`,
+		userID, kind, subject, note, time.Now().Unix())
+	return err == nil, err
+}
+
+// ListVerifyRequests 后台申请列表:待审在前,其余按提交时间倒序。
+func (s *Store) ListVerifyRequests() ([]VerifyRequest, error) {
+	rows, err := s.DB.Query(`
+		SELECT vr.id, vr.user_id, vr.kind, vr.subject, vr.note, vr.status,
+		       vr.created_at, vr.handled_at, vr.handled_by,
+		       u.name, u.role, u.avatar_path, u.verify_title, h.name
+		FROM verify_requests vr
+		JOIN users u ON u.id = vr.user_id
+		LEFT JOIN users h ON h.id = vr.handled_by
+		ORDER BY (vr.status = 'pending') DESC, vr.created_at DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []VerifyRequest
+	for rows.Next() {
+		var r VerifyRequest
+		if err := rows.Scan(&r.ID, &r.UserID, &r.Kind, &r.Subject, &r.Note, &r.Status,
+			&r.CreatedAt, &r.HandledAt, &r.HandledBy,
+			&r.UserName, &r.UserRole, &r.UserAvatar, &r.UserVerify, &r.HandledByName); err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
+// PendingVerify 某用户是否有待审申请。
+func (s *Store) PendingVerify(userID int64) (bool, error) {
+	var n int64
+	err := s.DB.QueryRow(
+		`SELECT COUNT(*) FROM verify_requests WHERE user_id = ? AND status = 'pending'`,
+		userID).Scan(&n)
+	return n > 0, err
+}
+
+// ResolveVerify 处理申请:approved 把称号写入 users.verify_title;
+// rejected 不改称号。幂等:已处理的申请再次操作直接跳过。
+func (s *Store) ResolveVerify(reqID, adminID int64, approve bool) error {
+	return s.withTx(func(tx *sql.Tx) error {
+		var status, kind string
+		var userID int64
+		err := tx.QueryRow(`SELECT status, kind, user_id FROM verify_requests WHERE id = ?`,
+			reqID).Scan(&status, &kind, &userID)
+		if err != nil {
+			return err
+		}
+		if status != "pending" {
+			return nil
+		}
+		now := time.Now().Unix()
+		st := "rejected"
+		if approve {
+			st = "approved"
+		}
+		if _, err := tx.Exec(`UPDATE verify_requests
+			SET status = ?, handled_at = ?, handled_by = ? WHERE id = ?`,
+			st, now, adminID, reqID); err != nil {
+			return err
+		}
+		if approve {
+			_, err := tx.Exec(`UPDATE users SET verify_title = ? WHERE id = ?`, kind, userID)
+			return err
+		}
+		return nil
+	})
+}
+
 // SetVerifyTitle 设置用户认证称号(官号/认证作者等);title 为空表示取消认证。
 func (s *Store) SetVerifyTitle(userID int64, title string) error {
 	if title = strings.TrimSpace(title); title == "" {

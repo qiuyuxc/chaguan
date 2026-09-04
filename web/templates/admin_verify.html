@@ -1,0 +1,55 @@
+{{define "content"}}
+<div class="page-head">
+  <div>
+    <h1>认证申请</h1>
+    <p class="page-sub">共 {{len .List}} 条 · 通过后申请人的名字旁会出现蓝色 V 标</p>
+  </div>
+</div>
+
+{{if .List}}
+<div class="thread-card vr-card">
+  {{range .List}}
+  <div class="tr vr-row">
+    <a class="tr-av" href="/u/{{.UserID}}" title="查看资料">
+      {{if .UserAvatar.Valid}}{{if .UserAvatar.String}}<span class="avatar av-40"><img src="{{.UserAvatar.String}}" alt=""></span>
+      {{else}}<span class="avatar av-40 {{avColor .UserID}}" aria-hidden="true">{{initial .UserName}}</span>{{end}}
+      {{else}}<span class="avatar av-40 {{avColor .UserID}}" aria-hidden="true">{{initial .UserName}}</span>{{end}}
+    </a>
+    <div class="tr-main">
+      <div class="tr-top">
+        <span class="badge vr-kind">{{.Kind}}</span>
+        <a class="author" href="/u/{{.UserID}}">{{.UserName}}</a>
+        {{if eq .Status "pending"}}<span class="badge badge-admin">待审核</span>
+        {{else if eq .Status "approved"}}<span class="badge">已通过</span>
+        {{else}}<span class="badge badge-lock">已拒绝</span>{{end}}
+        <span class="m">提交于 {{relTime .CreatedAt}}</span>
+      </div>
+      <div class="vr-claim">{{.Subject}}</div>
+      {{if .Note}}<div class="vr-note">{{.Note}}</div>{{end}}
+      {{if and (ne .Status "pending") .HandledAt.Valid}}
+      <div class="tr-meta">
+        <span>处理于 {{date .HandledAt.Int64}}{{if .HandledByName.Valid}}{{if .HandledByName.String}} · {{.HandledByName.String}}{{end}}{{end}}</span>
+      </div>
+      {{end}}
+    </div>
+    <div class="vr-acts">
+      {{if eq .Status "pending"}}
+      <form method="post" action="/admin/verify/{{.ID}}/approve">
+        {{csrfField $.CSRF}}
+        <button class="btn btn-primary btn-sm" type="submit">同意</button>
+      </form>
+      <form method="post" action="/admin/verify/{{.ID}}/reject">
+        {{csrfField $.CSRF}}
+        <button class="btn btn-white btn-sm" type="submit" data-confirm="拒绝 {{.UserName}} 的认证申请?">拒绝</button>
+      </form>
+      {{else}}
+      <span class="muted">已处理</span>
+      {{end}}
+    </div>
+  </div>
+  {{end}}
+</div>
+{{else}}
+<p class="empty">还没有认证申请</p>
+{{end}}
+{{end}}

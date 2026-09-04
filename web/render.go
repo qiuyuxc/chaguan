@@ -211,7 +211,8 @@ type Renderer struct {
 var pageNames = []string{
 	"home", "login", "register", "category", "thread", "new_thread",
 	"edit_thread", "edit_post", "profile", "edit_profile", "notifications",
-	"admin_categories", "admin_overview", "admin_users", "admin_threads", "search",
+	"verify_apply",
+	"admin_categories", "admin_overview", "admin_users", "admin_threads", "admin_verify", "search",
 }
 
 func NewRenderer() (*Renderer, error) {

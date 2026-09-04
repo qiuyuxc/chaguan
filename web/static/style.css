@@ -1350,12 +1350,14 @@ html[data-theme="dark"] .avatar.c5, html[data-theme="dark"] .avatar.c6 { color: 
 
 /* ---------- 认证蓝标:蓝色「V」,个人主页角标 + UID 下认证行 + 帖内作者同步 ---------- */
 .member-av { position: relative; flex: none; display: inline-flex; }
+/* V 直接压在头像右下弧线上,不另占位、不套外框 */
 .v-mark {
-  position: absolute; right: -3px; bottom: -3px;
-  width: 21px; height: 21px; border-radius: 5px;
-  background: #1f7bff; border: 2px solid var(--card);
-  color: #fff; font-size: 11px; font-weight: 900; line-height: 1;
+  position: absolute; right: -2px; bottom: -2px;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: #1f7bff;
+  color: #fff; font-size: 10px; font-weight: 900; line-height: 1;
   display: inline-flex; align-items: center; justify-content: center;
+  cursor: default;
 }
 .v-badge {
   display: inline-flex; align-items: center; justify-content: center;
@@ -1389,3 +1391,36 @@ html[data-theme="dark"] .avatar.c5, html[data-theme="dark"] .avatar.c6 { color: 
 .ct-menu-item .ic { width: 14px; height: 14px; flex: none; }
 .ct-menu-item.danger { color: #b23b33; }
 .ct-menu-item.danger:hover { background: #f6e9e8; color: #8f2a24; }
+
+/* ---------- 账号认证:申请页状态卡 + 后台审批列表 ---------- */
+.verify-banner {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 14px 16px; margin-bottom: 16px;
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--r-card); box-shadow: var(--shadow-card);
+}
+.vb-seal {
+  flex: none; width: 34px; height: 34px; border-radius: 50%;
+  background: #1f7bff; color: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 900; line-height: 1;
+}
+.verify-banner-txt { flex: 1; min-width: 0; }
+.verify-banner-txt b { display: block; font-size: 14px; color: var(--ink); }
+.verify-banner-txt .page-sub { margin-top: 2px; }
+.verify-banner .btn { flex: none; }
+.vr-row { align-items: start; }
+.vr-kind { margin-left: 0; }
+.vr-claim {
+  font-size: 14px; font-weight: 600; color: var(--ink); line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.vr-note {
+  margin-top: 4px; font-size: 12px; color: var(--ink-3); line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.vr-acts { flex: none; display: flex; align-items: center; gap: 6px; }
+.vr-acts form { margin: 0; }
+@media (max-width: 640px) {
+  .vr-acts { flex-wrap: wrap; justify-content: flex-start; }
+}
