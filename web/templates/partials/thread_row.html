@@ -1,0 +1,23 @@
+{{define "thread_row"}}
+<div class="tr">
+  {{if .AuthorAvatar}}
+  <span class="avatar av-40"><img src="{{.AuthorAvatar}}" alt="" aria-hidden="true"></span>
+  {{else}}
+  <span class="avatar av-40 c1" aria-hidden="true">{{initial .AuthorName}}</span>
+  {{end}}
+  <div class="tr-main">
+    <div class="tr-top"><a class="author" href="/u/{{.AuthorID}}">{{.AuthorName}}</a><span>{{relTime .LastPostAt}}</span></div>
+    <a class="tr-title" href="/t/{{.ID}}">
+      {{if .IsPinned}}<span class="badge badge-pin">置顶</span>{{end}}
+      {{if .IsLocked}}<span class="badge badge-lock">锁定</span>{{end}}
+      {{.Title}}
+    </a>
+    <div class="tr-meta">
+      {{if .CategoryName}}<span class="bcat bcat-1">{{.CategoryName}}</span>{{end}}
+      <span class="m">{{.ReplyCount}} 回复</span>
+      <span class="m">{{.ViewCount}} 浏览</span>
+      <span class="m">最后回复 {{.LastPostBy}}</span>
+    </div>
+  </div>
+</div>
+{{end}}

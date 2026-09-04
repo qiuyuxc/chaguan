@@ -1,0 +1,51 @@
+{{define "content"}}
+<nav class="crumb"><a href="/">首页</a><span aria-hidden="true">/</span><span>版块管理</span></nav>
+<div class="page-head">
+  <div>
+    <h1>版块管理</h1>
+    <p class="page-sub">只有空版块可以删除,删除会同时移除其下全部主题</p>
+  </div>
+</div>
+
+{{if .Categories}}
+<div class="thread-card">
+  {{range .Categories}}
+  <div class="tr">
+    <span class="avatar av-40 c1" aria-hidden="true">{{initial .Name}}</span>
+    <div class="tr-main">
+      <div class="tr-top"><span class="author">{{.Name}}</span><span>{{.ThreadCount}} 主题</span></div>
+      <div class="tr-meta">
+        <span class="m">slug: {{.Slug}}</span>
+        {{if .Description}}<span class="m">{{.Description}}</span>{{end}}
+      </div>
+    </div>
+    {{if eq .ThreadCount 0}}
+    <form method="post" action="/admin/categories/{{.ID}}/delete" onsubmit="return confirm('删除版块「{{.Name}}」?')">
+      {{csrfField $.CSRF}}
+      <button class="btn btn-ghost-danger btn-sm" type="submit">删除</button>
+    </form>
+    {{else}}
+    <span class="m" style="white-space:nowrap">不可删</span>
+    {{end}}
+  </div>
+  {{end}}
+</div>
+{{else}}
+<p class="empty">还没有版块</p>
+{{end}}
+
+<div class="card form-card" style="margin-top:16px">
+  <div class="side-title">新建版块</div>
+  {{if .Error}}<p class="form-error">{{.Error}}</p>{{end}}
+  <form method="post" action="/admin/categories" class="form-grid">
+    {{csrfField .CSRF}}
+    <label>名称<input class="input" name="name" maxlength="30" required placeholder="如：技术分享"></label>
+    <label>slug<input class="input" name="slug" maxlength="30" required pattern="[a-z0-9-]+" placeholder="如：tech"></label>
+    <label>描述<input class="input" name="description" maxlength="100" placeholder="可选"></label>
+    <div class="form-actions">
+      <button class="btn btn-primary" type="submit">创建版块</button>
+      <a class="btn btn-secondary" href="/">返回首页</a>
+    </div>
+  </form>
+</div>
+{{end}}

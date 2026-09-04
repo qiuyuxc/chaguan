@@ -1,0 +1,26 @@
+{{define "content"}}
+<div class="page-head">
+  <div>
+    <h1>搜索</h1>
+    <p class="page-sub">按标题与正文检索主题</p>
+  </div>
+</div>
+
+<div class="card form-card">
+  <form method="get" action="/search" class="form-grid">
+    <label>关键词<input class="input" name="q" value="{{.Query}}" maxlength="100" required autofocus placeholder="如：SQLite、备份"></label>
+    <div class="form-actions"><button class="btn btn-primary" type="submit">搜索</button></div>
+  </form>
+</div>
+
+{{if not .HasQuery}}
+<p class="empty">输入关键词,搜索主题标题与回复正文</p>
+{{else if .NoResult}}
+<p class="empty">没有找到与「{{.Query}}」相关的内容</p>
+{{else if .Threads}}
+<div class="thread-card" style="margin-top:14px">
+  {{range .Threads}}{{template "thread_row" .}}{{end}}
+</div>
+{{template "pagination" .}}
+{{end}}
+{{end}}

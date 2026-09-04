@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -18,11 +19,68 @@ func base(r *http.Request, title string) web.Base {
 	return web.Base{Title: title, User: i.User, CSRF: i.CSRF}
 }
 
-// ---------- 首页:版块列表 ----------
+// ---------- 搜索 ----------
+
+type searchData struct {
+	web.Base
+	Query       string
+	Threads     []db.Thread
+	HasQuery    bool
+	NoResult    bool
+	Page, Pages int
+	BaseURL     string
+	HasQ        bool
+}
+
+func (s *Server) search(w http.ResponseWriter, r *http.Request) {
+	q := strings.TrimSpace(r.URL.Query().Get("q"))
+	if runes := []rune(q); len(runes) > 100 {
+		q = string(runes[:100])
+	}
+	page := pageParam(r)
+	data := searchData{
+		Base:     base(r, "搜索"),
+		Query:    q,
+		HasQuery: q != "",
+		Page:     page,
+		Pages:    1,
+		BaseURL:  "/search",
+	}
+	if q != "" {
+		total, err := s.store.CountSearchThreads(q)
+		if err != nil {
+			s.serverError(w, err)
+			return
+		}
+		data.Pages = totalPages(total, threadsPerPage)
+		if total > 0 {
+			threads, err := s.store.SearchThreads(q, threadsPerPage, (page-1)*threadsPerPage)
+			if err != nil {
+				s.serverError(w, err)
+				return
+			}
+			data.Threads = threads
+		} else {
+			data.NoResult = true
+		}
+		data.BaseURL = "/search?q=" + url.QueryEscape(q)
+		data.HasQ = true
+	}
+	s.rend.Render(w, 200, "search", data)
+}
+
+// ---------- 首页:帖子流(最新/热帖 + 分类筛选)----------
 
 type homeData struct {
 	web.Base
-	Categories []db.Category
+	Threads     []db.Thread
+	Categories  []db.Category
+	ActiveCat   string
+	Hot         bool
+	IsEmpty     bool
+	Page, Pages int
+	BaseURL     string
+	HasQ        bool
 }
 
 func (s *Server) home(w http.ResponseWriter, r *http.Request) {
@@ -31,10 +89,114 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, err)
 		return
 	}
-	s.rend.Render(w, 200, "home", homeData{Base: base(r, "首页"), Categories: cats})
+	catSlug := strings.TrimSpace(r.URL.Query().Get("cat"))
+	hot := r.URL.Query().Get("tab") == "hot"
+	valid := false
+	for _, c := range cats {
+		if c.Slug == catSlug {
+			valid = true
+			break
+		}
+	}
+	if !valid {
+		catSlug = ""
+	}
+	page := pageParam(r)
+	total, err := s.store.CountFeedThreads(catSlug)
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	threads, err := s.store.ListFeedThreads(catSlug, hot, threadsPerPage, (page-1)*threadsPerPage)
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	var q []string
+	if hot {
+		q = append(q, "tab=hot")
+	}
+	if catSlug != "" {
+		q = append(q, "cat="+catSlug)
+	}
+	baseURL := "/"
+	if len(q) > 0 {
+		baseURL += "?" + strings.Join(q, "&")
+	}
+	s.rend.Render(w, 200, "home", homeData{
+		Base:       base(r, "首页"),
+		Threads:    threads,
+		Categories: cats,
+		ActiveCat:  catSlug,
+		Hot:        hot,
+		IsEmpty:    total == 0,
+		Page:       page,
+		Pages:      totalPages(total, threadsPerPage),
+		BaseURL:    baseURL,
+		HasQ:       strings.Contains(baseURL, "?"),
+	})
 }
 
-// admin 在首页内联创建版块
+// ---------- 版块管理(管理后台,建版块/删空版块)----------
+
+type adminCatsData struct {
+	web.Base
+	Categories []db.Category
+	Error      string
+}
+
+func (s *Server) adminCategories(w http.ResponseWriter, r *http.Request) {
+	user := s.currentUser(w, r)
+	if user == nil {
+		return
+	}
+	if !user.IsAdmin() {
+		http.Error(w, "仅管理员可管理版块", http.StatusForbidden)
+		return
+	}
+	cats, err := s.store.ListCategories()
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	s.rend.Render(w, 200, "admin_categories", adminCatsData{
+		Base:       base(r, "版块管理"),
+		Categories: cats,
+	})
+}
+
+// deleteCategory 删除空版块(有主题的版块禁止删除,防止级联清空)。
+func (s *Server) deleteCategory(w http.ResponseWriter, r *http.Request) {
+	user := s.currentUser(w, r)
+	if user == nil {
+		return
+	}
+	if !user.IsAdmin() {
+		http.Error(w, "仅管理员可删除版块", http.StatusForbidden)
+		return
+	}
+	id, ok := pathID(r, "id")
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	n, err := s.store.CountThreads(id)
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	if n > 0 {
+		http.Error(w, "版块内还有主题,不能删除", http.StatusBadRequest)
+		return
+	}
+	if err := s.store.DeleteCategory(id); err != nil {
+		s.serverError(w, err)
+		return
+	}
+	http.Redirect(w, r, "/admin/categories", http.StatusSeeOther)
+}
+
+// createCategory POST /admin/categories:管理员建版块。
 func (s *Server) createCategory(w http.ResponseWriter, r *http.Request) {
 	user := s.currentUser(w, r)
 	if user == nil {
@@ -57,7 +219,7 @@ func (s *Server) createCategory(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, err)
 		return
 	}
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	http.Redirect(w, r, "/admin/categories", http.StatusSeeOther)
 }
 
 // ---------- 版块页:主题列表 ----------
@@ -68,6 +230,7 @@ type categoryData struct {
 	Threads     []db.Thread
 	Page, Pages int
 	BaseURL     string
+	HasQ        bool
 	IsEmpty     bool
 }
 
@@ -184,6 +347,7 @@ type threadData struct {
 	PostViews   []web.PostView
 	Page, Pages int
 	BaseURL     string
+	HasQ        bool
 }
 
 func (s *Server) thread(w http.ResponseWriter, r *http.Request) {

@@ -5,7 +5,7 @@
     {{if eq . $.Page}}
       <span class="page-cur">{{.}}</span>
     {{else}}
-      <a class="page-num" href="{{$.BaseURL}}{{if gt . 1}}?page={{.}}{{end}}">{{.}}</a>
+      <a class="page-num" href="{{pageURL $.BaseURL $.HasQ .}}">{{.}}</a>
     {{end}}
   {{end}}
 </nav>

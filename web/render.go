@@ -53,6 +53,16 @@ var funcs = template.FuncMap{
 	"postView": func(p db.Post, viewer *db.User) PostView {
 		return PostView{Post: p, Viewer: viewer}
 	},
+	"pageURL": func(baseURL string, hasQ bool, page int) string {
+		if page <= 1 {
+			return baseURL
+		}
+		sep := "?"
+		if hasQ {
+			sep = "&"
+		}
+		return fmt.Sprintf("%s%spage=%d", baseURL, sep, page)
+	},
 	"canDeletePost": canDeletePost,
 	"canEditPost":   canEditPost,
 	"pages": func(n int) []int {
@@ -109,6 +119,7 @@ type Renderer struct {
 var pageNames = []string{
 	"home", "login", "register", "category", "thread", "new_thread",
 	"edit_thread", "edit_post", "profile", "edit_profile", "notifications",
+	"admin_categories", "search",
 }
 
 func NewRenderer() (*Renderer, error) {
@@ -118,6 +129,7 @@ func NewRenderer() (*Renderer, error) {
 			"templates/layout.html",
 			"templates/partials/post.html",
 			"templates/partials/pagination.html",
+			"templates/partials/thread_row.html",
 			"templates/"+name+".html",
 		)
 		if err != nil {

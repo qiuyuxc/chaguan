@@ -64,6 +64,10 @@ func Routes(store *db.Store, rend *web.Renderer, uploadsDir string) http.Handler
 
 	mux.HandleFunc("GET /notifications", s.notifications)
 	mux.HandleFunc("GET /notifications/unread", s.unreadCount)
+	mux.HandleFunc("GET /search", s.search)
+
+	mux.HandleFunc("GET /admin/categories", s.adminCategories)
+	mux.HandleFunc("POST /admin/categories/{id}/delete", s.deleteCategory)
 
 	mux.HandleFunc("POST /admin/categories", s.createCategory)
 

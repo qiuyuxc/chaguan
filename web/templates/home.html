@@ -1,42 +1,32 @@
 {{define "content"}}
-<div class="page-head">
-  <div>
-    <h1>版块</h1>
-    <p class="page-sub">选择一个版块，看看大家最近在聊什么</p>
-  </div>
-</div>
-
-{{if .Categories}}
-<div class="cat-list">
-  {{range .Categories}}
-  <a class="cat-row" href="/c/{{.Slug}}">
-    <span class="cat-mark" aria-hidden="true"></span>
-    <div class="cat-main">
-      <span class="cat-name">{{.Name}}</span>
-      {{if .Description}}<span class="cat-desc">{{.Description}}</span>{{end}}
-    </div>
-    <div class="cat-meta">
-      <span>{{.ThreadCount}} 主题</span>
-      {{if .LastPostAt.Valid}}<span>活跃于 {{relTime .LastPostAt.Int64}}</span>{{end}}
-    </div>
-    <svg class="cat-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
-  </a>
+<div class="feed-tabs">
+  {{if .Hot}}
+  <a class="feed-tab" href="/{{if .ActiveCat}}?cat={{.ActiveCat}}{{end}}">最新</a>
+  <a class="feed-tab on" href="/?tab=hot{{if .ActiveCat}}&cat={{.ActiveCat}}{{end}}">热帖</a>
+  {{else}}
+  <a class="feed-tab on" href="/{{if .ActiveCat}}?cat={{.ActiveCat}}{{end}}">最新</a>
+  <a class="feed-tab" href="/?tab=hot{{if .ActiveCat}}&cat={{.ActiveCat}}{{end}}">热帖</a>
   {{end}}
 </div>
+<div class="cat-pills">
+  {{if eq .ActiveCat ""}}<a class="cat-pill on" href="/{{if .Hot}}?tab=hot{{end}}">全部</a>
+  {{else}}<a class="cat-pill" href="/{{if .Hot}}?tab=hot{{end}}">全部</a>{{end}}
+  {{range .Categories}}
+  {{if eq $.ActiveCat .Slug}}<a class="cat-pill on" href="/?cat={{.Slug}}{{if $.Hot}}&tab=hot{{end}}">{{.Name}}</a>
+  {{else}}<a class="cat-pill" href="/?cat={{.Slug}}{{if $.Hot}}&tab=hot{{end}}">{{.Name}}</a>{{end}}
+  {{end}}
+</div>
+
+{{if .IsEmpty}}
+<p class="empty">还没有主题,来发第一帖吧</p>
 {{else}}
-<p class="empty">还没有版块</p>
+<div class="thread-card">
+  {{range .Threads}}{{template "thread_row" .}}{{end}}
+</div>
+{{template "pagination" .}}
 {{end}}
 
 {{if .User.IsAdmin}}
-<details class="card admin-box">
-  <summary>新建版块</summary>
-  <form method="post" action="/admin/categories" class="form-grid">
-    {{csrfField .CSRF}}
-    <label>名称<input class="input" name="name" maxlength="30" required placeholder="如：技术分享"></label>
-    <label>slug<input class="input" name="slug" maxlength="30" required pattern="[a-z0-9-]+" placeholder="如：tech"></label>
-    <label>描述<input class="input" name="description" maxlength="100" placeholder="可选"></label>
-    <button class="btn btn-primary" type="submit">创建版块</button>
-  </form>
-</details>
+<div class="feed-admin"><a class="btn btn-ghost btn-sm" href="/admin/categories">版块管理</a></div>
 {{end}}
 {{end}}

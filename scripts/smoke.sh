@@ -33,7 +33,7 @@ code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" -c "$JAR" \
 check "注册跳转" "303" "$code"
 HOME_HTML=$(curl -s -b "$JAR" "$BASE/")
 contains "admin 登录态" "$HOME_HTML" "admin"
-contains "admin 可见建版块入口" "$HOME_HTML" "新建版块"
+contains "admin 可见版块管理入口" "$HOME_HTML" "版块管理"
 
 echo "== CSRF 负路径 =="
 code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" \
@@ -54,6 +54,32 @@ contains "发帖后跳转到主题页" "$THREAD_URL" "/t/"
 THREAD_HTML=$(curl -s -b "$JAR" "$THREAD_URL")
 contains "主题页含标题" "$THREAD_HTML" "第一帖"
 contains "主题页含正文" "$THREAD_HTML" "大家好"
+
+echo "== 首页帖子流 =="
+FEED=$(curl -s -b "$JAR" "$BASE/")
+contains "帖子流含最新主题" "$FEED" "第一帖"
+contains "帖子流含分类徽章" "$FEED" "技术分享"
+contains "帖子流含热帖 Tab" "$FEED" "热帖"
+HOT=$(curl -s -b "$JAR" "$BASE/?tab=hot")
+contains "热帖页可访问" "$HOT" "热帖"
+CATF=$(curl -s -b "$JAR" "$BASE/?cat=tech")
+contains "分类筛选生效" "$CATF" "第一帖"
+code=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/admin/categories")
+check "未登录管理页被拒(跳登录)" "303" "$code"
+
+echo "== 版块管理 =="
+csrf "$BASE/admin/categories"
+code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" \
+  -d "_csrf=$CSRF&name=日常&slug=daily&description=随便聊聊" "$BASE/admin/categories")
+check "后台建版块" "303" "$code"
+ADMINPAGE=$(curl -s -b "$JAR" "$BASE/admin/categories")
+contains "后台列表含新板块" "$ADMINPAGE" "日常"
+code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" \
+  -d "_csrf=$CSRF" "$BASE/admin/categories/3/delete")
+check "删除空版块" "303" "$code"
+code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" \
+  -d "_csrf=$CSRF" "$BASE/admin/categories/2/delete")
+check "删除非空版块被拒" "400" "$code"
 
 echo "== 回复(htmx)==="
 CSRF=$(curl -s -b "$JAR" "$THREAD_URL" | grep -o 'name="_csrf" value="[^"]*"' | head -1 | sed 's/.*value="//;s/"//')
@@ -84,7 +110,9 @@ JAR2=$(mktemp)
 CSRF=$(curl -s -c "$JAR2" "$BASE/register" | grep -o 'name="_csrf" value="[^"]*"' | head -1 | sed 's/.*value="//;s/"//')
 curl -s -o /dev/null -b "$JAR2" -c "$JAR2" -d "_csrf=$CSRF&name=bob&password=password456" "$BASE/register"
 H=$(curl -s -b "$JAR2" "$BASE/")
-if echo "$H" | grep -q "新建版块"; then bad "普通用户可见管理入口"; else ok "普通用户无管理入口"; fi
+if echo "$H" | grep -q "版块管理"; then bad "普通用户可见管理入口"; else ok "普通用户无管理入口"; fi
+code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR2" "$BASE/admin/categories")
+check "普通用户管理页被拒" "403" "$code"
 
 echo ""
 echo "== Markdown 渲染(回复)=="
@@ -228,6 +256,17 @@ check "admin 打开后清零" '{"unread":0}' "$UN"
 
 UN=$(curl -s "$BASE/notifications/unread")
 check "匿名未读为 0" '{"unread":0}' "$UN"
+echo "== 搜索 =="
+code=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/search")
+check "搜索页可访问" "200" "$code"
+S=$(curl -s --get --data-urlencode "q=大家好" "$BASE/search")
+contains "正文命中主题" "$S" "第一帖(改)"
+S2=$(curl -s --get --data-urlencode "q=新内容" "$BASE/search")
+contains "回复命中主题" "$S2" "第一帖(改)"
+S3=$(curl -s --get --data-urlencode "q=完全不存在的词xyz" "$BASE/search")
+contains "无结果提示" "$S3" "没有找到"
+code=$(curl -s -o /dev/null -w '%{http_code}' --get --data-urlencode "q=大家好" "$BASE/search")
+check "带参搜索 200" "200" "$code"
 rm -f "$AV"
 echo "结果: $PASS 通过, $FAIL 失败"
 [ "$FAIL" -eq 0 ] && echo "SMOKE OK" || exit 1

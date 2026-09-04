@@ -581,3 +581,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   font-size: 9px; line-height: 15px; text-align: center; font-weight: 700;
 }
 .notif-count[hidden] { display: none; }
+
+/* ---------- 首页帖子流 ---------- */
+.feed-admin { margin-top: 14px; display: flex; justify-content: center; }

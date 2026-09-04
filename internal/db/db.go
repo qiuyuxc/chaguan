@@ -133,6 +133,8 @@ type Category struct {
 type Thread struct {
 	ID           int64
 	CategoryID   int64
+	CategorySlug string
+	CategoryName string
 	AuthorID     int64
 	AuthorName   string
 	AuthorAvatar string
@@ -355,17 +357,21 @@ func (s *Store) CreateCategory(slug, name, description string) (int64, error) {
 // ---------- threads ----------
 
 const threadCols = `
-	t.id, t.category_id, t.author_id, u.name, COALESCE(u.avatar_path,''), t.title, t.is_pinned, t.is_locked,
+	t.id, t.category_id, c.slug, c.name, t.author_id, u.name, COALESCE(u.avatar_path,''),
+	t.title, t.is_pinned, t.is_locked,
 	t.created_at, t.last_post_at, t.view_count, t.post_count,
 	COALESCE((SELECT lu.name FROM posts lp JOIN users lu ON lu.id = lp.author_id
 	          WHERE lp.thread_id = t.id ORDER BY lp.id DESC LIMIT 1), u.name)`
 
-const threadFrom = ` FROM threads t JOIN users u ON u.id = t.author_id `
+const threadFrom = ` FROM threads t
+	JOIN users u ON u.id = t.author_id
+	JOIN categories c ON c.id = t.category_id `
 
 func scanThread(row interface{ Scan(...any) error }) (*Thread, error) {
 	t := &Thread{}
 	var pinned, locked int64
-	err := row.Scan(&t.ID, &t.CategoryID, &t.AuthorID, &t.AuthorName, &t.AuthorAvatar,
+	err := row.Scan(&t.ID, &t.CategoryID, &t.CategorySlug, &t.CategoryName,
+		&t.AuthorID, &t.AuthorName, &t.AuthorAvatar,
 		&t.Title, &pinned, &locked, &t.CreatedAt, &t.LastPostAt, &t.ViewCount, &t.PostCount, &t.LastPostBy)
 	if err != nil {
 		return nil, err
@@ -398,6 +404,96 @@ func (s *Store) CountThreads(catID int64) (int64, error) {
 	var n int64
 	err := s.DB.QueryRow(`SELECT COUNT(*) FROM threads WHERE category_id = ?`, catID).Scan(&n)
 	return n, err
+}
+
+// ListFeedThreads 首页帖子流:可选分类 + 排序(最新/热帖)。
+func (s *Store) ListFeedThreads(catSlug string, hot bool, limit, offset int) ([]Thread, error) {
+	q := `SELECT ` + threadCols + threadFrom
+	var args []any
+	if catSlug != "" {
+		q += ` WHERE c.slug = ?`
+		args = append(args, catSlug)
+	}
+	if hot {
+		q += ` ORDER BY t.is_pinned DESC, t.post_count DESC, t.last_post_at DESC`
+	} else {
+		q += ` ORDER BY t.is_pinned DESC, t.last_post_at DESC`
+	}
+	q += ` LIMIT ? OFFSET ?`
+	args = append(args, limit, offset)
+	rows, err := s.DB.Query(q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Thread
+	for rows.Next() {
+		t, err := scanThread(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *t)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) CountFeedThreads(catSlug string) (int64, error) {
+	q := `SELECT COUNT(*) FROM threads t JOIN categories c ON c.id = t.category_id`
+	var args []any
+	if catSlug != "" {
+		q += ` WHERE c.slug = ?`
+		args = append(args, catSlug)
+	}
+	var n int64
+	err := s.DB.QueryRow(q, args...).Scan(&n)
+	return n, err
+}
+
+// escapeLike 转义 LIKE 通配符,让用户输入按字面匹配。
+func escapeLike(s string) string {
+	r := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
+	return r.Replace(s)
+}
+
+// SearchThreads 按标题/正文模糊搜索主题(LIKE,中文任意长度可用;
+// 等数据量上来再换 FTS5 trigram 索引)。
+func (s *Store) SearchThreads(q string, limit, offset int) ([]Thread, error) {
+	pat := "%" + escapeLike(q) + "%"
+	rows, err := s.DB.Query(`SELECT `+threadCols+threadFrom+
+		` WHERE t.title LIKE ? ESCAPE '\'
+		   OR EXISTS (SELECT 1 FROM posts p WHERE p.thread_id = t.id AND p.content_md LIKE ? ESCAPE '\')
+		  ORDER BY t.is_pinned DESC, t.last_post_at DESC LIMIT ? OFFSET ?`,
+		pat, pat, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Thread
+	for rows.Next() {
+		t, err := scanThread(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *t)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) CountSearchThreads(q string) (int64, error) {
+	pat := "%" + escapeLike(q) + "%"
+	var n int64
+	err := s.DB.QueryRow(`
+		SELECT COUNT(*) FROM threads t
+		WHERE t.title LIKE ? ESCAPE '\'
+		   OR EXISTS (SELECT 1 FROM posts p WHERE p.thread_id = t.id AND p.content_md LIKE ? ESCAPE '\')`,
+		pat, pat).Scan(&n)
+	return n, err
+}
+
+// DeleteCategory 删除空版块;非空时调用方需拒绝(删除会级联清空主题)。
+func (s *Store) DeleteCategory(id int64) error {
+	_, err := s.DB.Exec(`DELETE FROM categories WHERE id = ?`, id)
+	return err
 }
 
 func (s *Store) GetThread(id int64) (*Thread, error) {
