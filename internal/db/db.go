@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	_ "modernc.org/sqlite"
 )
@@ -461,15 +462,31 @@ func escapeLike(s string) string {
 	return r.Replace(s)
 }
 
-// SearchThreads 按标题/正文模糊搜索主题(LIKE,中文任意长度可用;
-// 等数据量上来再换 FTS5 trigram 索引)。
+// ftsPhrase 把用户输入包成 FTS5 短语查询(引号成对转义),按字面连续子串匹配。
+func ftsPhrase(q string) string {
+	return `"` + strings.ReplaceAll(q, `"`, `""`) + `"`
+}
+
+// SearchThreads 全文搜索主题:标题或任一回复正文命中都返回主题行。
+// ≥3 字符走 FTS5 trigram(无空格中文也可做子串匹配);短查询回退 LIKE,
+// FTS 语法无法解析的输入同样兜底 LIKE,保证查询不因输入而 500。
 func (s *Store) SearchThreads(q string, limit, offset int) ([]Thread, error) {
-	pat := "%" + escapeLike(q) + "%"
-	rows, err := s.DB.Query(`SELECT `+threadCols+threadFrom+
-		` WHERE t.title LIKE ? ESCAPE '\'
-		   OR EXISTS (SELECT 1 FROM posts p WHERE p.thread_id = t.id AND p.content_md LIKE ? ESCAPE '\')
-		  ORDER BY t.is_pinned DESC, t.last_post_at DESC LIMIT ? OFFSET ?`,
-		pat, pat, limit, offset)
+	var rows *sql.Rows
+	var err error
+	if utf8.RuneCountInString(q) >= 3 {
+		rows, err = s.DB.Query(`SELECT `+threadCols+threadFrom+`
+			WHERE t.id IN (SELECT DISTINCT f.thread_id FROM thread_docs f WHERE f.text MATCH ?)
+			ORDER BY t.is_pinned DESC, t.last_post_at DESC LIMIT ? OFFSET ?`,
+			ftsPhrase(q), limit, offset)
+	}
+	if rows == nil { // 短查询或 FTS 出错 → LIKE
+		pat := "%" + escapeLike(q) + "%"
+		rows, err = s.DB.Query(`SELECT `+threadCols+threadFrom+`
+			WHERE t.title LIKE ? ESCAPE '\'
+			   OR EXISTS (SELECT 1 FROM posts p WHERE p.thread_id = t.id AND p.content_md LIKE ? ESCAPE '\')
+			ORDER BY t.is_pinned DESC, t.last_post_at DESC LIMIT ? OFFSET ?`,
+			pat, pat, limit, offset)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -486,13 +503,23 @@ func (s *Store) SearchThreads(q string, limit, offset int) ([]Thread, error) {
 }
 
 func (s *Store) CountSearchThreads(q string) (int64, error) {
-	pat := "%" + escapeLike(q) + "%"
 	var n int64
-	err := s.DB.QueryRow(`
-		SELECT COUNT(*) FROM threads t
-		WHERE t.title LIKE ? ESCAPE '\'
-		   OR EXISTS (SELECT 1 FROM posts p WHERE p.thread_id = t.id AND p.content_md LIKE ? ESCAPE '\')`,
-		pat, pat).Scan(&n)
+	var err error
+	useFTS := utf8.RuneCountInString(q) >= 3
+	if useFTS {
+		err = s.DB.QueryRow(`
+			SELECT COUNT(DISTINCT t.id) FROM threads t
+			JOIN thread_docs f ON f.thread_id = t.id
+			WHERE f.text MATCH ?`, ftsPhrase(q)).Scan(&n)
+	}
+	if err != nil || !useFTS {
+		pat := "%" + escapeLike(q) + "%"
+		err = s.DB.QueryRow(`
+			SELECT COUNT(*) FROM threads t
+			WHERE t.title LIKE ? ESCAPE '\'
+			   OR EXISTS (SELECT 1 FROM posts p WHERE p.thread_id = t.id AND p.content_md LIKE ? ESCAPE '\')`,
+			pat, pat).Scan(&n)
+	}
 	return n, err
 }
 

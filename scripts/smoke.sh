@@ -288,6 +288,10 @@ S2=$(curl -s --get --data-urlencode "q=新内容" "$BASE/search")
 contains "回复命中主题" "$S2" "第一帖(改)"
 S3=$(curl -s --get --data-urlencode "q=完全不存在的词xyz" "$BASE/search")
 contains "无结果提示" "$S3" "没有找到"
+S4=$(curl -s --get --data-urlencode "q=第一帖(改)" "$BASE/search")
+contains "FTS 命中编辑后标题" "$S4" "第一帖(改)"
+S5=$(curl -s --get --data-urlencode "q=第一" "$BASE/search")
+contains "短查询回退 LIKE" "$S5" "第一帖(改)"
 code=$(curl -s -o /dev/null -w '%{http_code}' --get --data-urlencode "q=大家好" "$BASE/search")
 check "带参搜索 200" "200" "$code"
 rm -f "$AV"
