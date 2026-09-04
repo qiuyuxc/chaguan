@@ -1,9 +1,13 @@
 {{define "content"}}
-<div class="side-card compose-card">
-  <div class="side-title">编辑资料</div>
-  {{if .Error}}<p class="form-error">{{.Error}}</p>{{end}}
-  <form method="post" action="/u/{{.Profile.ID}}/edit" enctype="multipart/form-data" class="form-grid">
-    {{csrfField .CSRF}}
+<div class="page-head">
+  <div>
+    <h1>编辑资料</h1>
+    <p class="page-sub">头像、账号名称与称号标签都在这里改</p>
+  </div>
+</div>
+{{if .Error}}<p class="form-error">{{.Error}}</p>{{end}}
+<form method="post" action="/u/{{.Profile.ID}}/edit" enctype="multipart/form-data" class="form-grid compose-form">
+  {{csrfField .CSRF}}
 
     <div class="avatar-panel" data-avatar-panel>
       <button type="button" class="avatar av-64 avatar-pick c1" data-avatar-pick aria-label="更换头像" title="更换头像">
@@ -27,12 +31,16 @@
       <input type="hidden" name="avatar_url" value="{{.AvatarNew}}" data-avatar-url>
     </div>
 
-    <label>账号名称
-      <input class="input" name="name" value="{{.Name}}" maxlength="24" required autocomplete="off">
+    <div class="compose-field">
+      <label class="flabel" for="profile-name">账号名称</label>
+      <input class="input" name="name" id="profile-name" value="{{.Name}}" maxlength="24" required autocomplete="off">
       <span class="form-note">2–24 个字符,不能包含空格、@ 或斜杠;名称会同步到你的所有发帖</span>
-    </label>
+    </div>
 
-    <label>简介<textarea class="input textarea" name="bio" maxlength="200" rows="4" placeholder="写点介绍,让大家认识你(可选)">{{.Bio}}</textarea></label>
+    <div class="compose-field">
+      <label class="flabel" for="profile-bio">简介</label>
+      <textarea class="input textarea" name="bio" id="profile-bio" maxlength="200" rows="4" placeholder="写点介绍,让大家认识你(可选)">{{.Bio}}</textarea>
+    </div>
 
     <div class="badge-editor">
       <span class="badge-editor-title">称号标签</span>

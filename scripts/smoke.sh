@@ -58,6 +58,15 @@ contains "主题页含正文" "$THREAD_HTML" "大家好"
 contains "主题页含 op-card" "$THREAD_HTML" "op-card"
 contains "主题页含版块徽章" "$THREAD_HTML" "bcat"
 
+echo "== 直接发帖(下拉选版块)=="
+csrf "$BASE/new"
+REDIR2=$(curl -s -o /dev/null -w '%{redirect_url}' -b "$JAR" \
+  -d "_csrf=$CSRF&category=tech&title=第二帖&content=走版块下拉发帖" "$BASE/new")
+contains "下拉发帖跳转主题页" "$REDIR2" "/t/"
+THREAD2=$(curl -s -b "$JAR" "$REDIR2")
+contains "下拉发帖主题含标题" "$THREAD2" "第二帖"
+contains "下拉发帖主题含正文" "$THREAD2" "走版块下拉发帖"
+
 echo "== 首页帖子流 =="
 FEED=$(curl -s -b "$JAR" "$BASE/")
 contains "帖子流含最新主题" "$FEED" "第一帖"
@@ -69,8 +78,12 @@ contains "热帖页可访问" "$HOT" "热帖"
 CATF=$(curl -s -b "$JAR" "$BASE/?cat=tech")
 contains "分类筛选生效" "$CATF" "第一帖"
 NPP=$(curl -s -b "$JAR" "$BASE/new")
-contains "发帖选版块页" "$NPP" "技术分享"
-contains "选版块直达编辑" "$NPP" "/c/tech/new"
+contains "发帖页含版块下拉" "$NPP" 'name="category"'
+contains "发帖页列出版块" "$NPP" "技术分享"
+contains "发帖页用新式编辑器" "$NPP" 'class="composer"'
+PP=$(curl -s -b "$JAR" "$BASE/c/tech/new")
+contains "直达发帖预选版块" "$PP" 'value="tech" selected'
+contains "直达发帖含新式编辑器" "$PP" 'data-compose="upload"'
 code=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/admin/categories")
 check "未登录管理页被拒(跳登录)" "303" "$code"
 code=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/new")
@@ -195,7 +208,7 @@ contains "头像已展示" "$P" "$AVURL"
 THREAD_HTML=$(curl -s -b "$JAR" "$THREAD_URL")
 contains "帖子头像已替换" "$THREAD_HTML" "$AVURL"
 UP=$(curl -s -b "$JAR" "$BASE/c/tech/new")
-contains "发帖编辑器带上传入口" "$UP" "data-upload"
+contains "发帖编辑器内置上传入口" "$UP" 'data-compose="upload"'
 TR=$(curl -s -b "$JAR" "$THREAD_URL")
 contains "回复表单带内置上传入口" "$TR" 'data-compose="upload"'
 IMG=$(curl -s -b "$JAR" -H "X-CSRF-Token: $CSRF" \

@@ -390,7 +390,8 @@ body.drawer-open { overflow: hidden; }
 .cat-name { color: var(--ink); font-size: 15px; font-weight: 700; }
 .cat-desc { color: var(--ink-3); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cat-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; color: var(--ink-4); font-size: 11px; white-space: nowrap; }
-.page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin: 4px 0 16px; }
+.page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin: 0 0 16px; }
+.page-head h1 { margin: 0; font-size: 18px; font-weight: 700; color: var(--ink); line-height: 1.4; }
 .page-sub { margin: 4px 0 0; color: var(--ink-3); font-size: 13px; }
 .main { padding-top: 16px; padding-bottom: 56px; min-height: 60vh; }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-card); box-shadow: var(--shadow-card); }
@@ -547,10 +548,15 @@ body.drawer-open { overflow: hidden; }
 .reply-body :is(p, pre, blockquote, table):not(:last-child) { margin-bottom: 10px; }
 .op-body blockquote, .post-body blockquote, .reply-body blockquote {
   margin: 10px 0;
-  padding: 2px 0 2px 12px;
-  border-left: 3px solid var(--line-strong);
-  color: var(--ink-3);
+  padding: 8px 12px;
+  border-left: 3px solid #999999;
+  background: #f0f0f0;
+  border-radius: 0 6px 6px 0;
+  color: #4a4a4a;
 }
+.op-body blockquote p, .post-body blockquote p, .reply-body blockquote p { margin: 0 0 6px; }
+.op-body blockquote p:last-child, .post-body blockquote p:last-child, .reply-body blockquote p:last-child { margin-bottom: 0; }
+.op-body blockquote blockquote, .post-body blockquote blockquote, .reply-body blockquote blockquote { background: #e8e8e8; }
 .op-body code, .post-body code, .reply-body code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.9em;
@@ -864,3 +870,44 @@ body.drawer-open { overflow: hidden; }
 
 /* ---------- 修正:排序条在首页头行内不额外留边距 ---------- */
 .feed-head .feed-tabs { margin: 0; }
+
+/* ---------- 扁平编辑器页(发新帖/编辑/搜索共用版式) ---------- */
+.compose-form { margin-top: 2px; }
+.compose-field { display: grid; gap: 5px; }
+.compose-field .flabel { font-size: 12px; color: var(--ink-3); }
+.compose-field .form-note { margin: 1px 0 0; }
+.compose-field .input { background: var(--card); }
+.compose-form .form-actions { margin-top: 2px; }
+.compose-form .composer { width: 100%; }
+.flabel { font-size: 12px; color: var(--ink-3); }
+
+/* ---------- 二级小节标题(版块管理「新建版块」等) ---------- */
+.sec-head {
+  margin: 18px 0 8px; font-size: 13px; font-weight: 600; color: var(--ink);
+  display: flex; align-items: center; gap: 8px;
+}
+.sec-head::before { content: ""; width: 3px; height: 13px; border-radius: 2px; background: var(--accent); }
+
+/* ---------- 主题页回复入口:默认收起,右下角浮动回复键 ---------- */
+.reply-form-card { display: none; }
+.reply-form-card.open { display: block; }
+.reply-fab {
+  position: fixed; right: 14px; bottom: 14px; z-index: 35;
+  width: 46px; height: 46px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--accent); color: #fff; border: 0; border-radius: 50%;
+  cursor: pointer; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  transition: background 120ms ease, transform 120ms ease;
+}
+.reply-fab .ic { width: 18px; height: 18px; }
+.reply-fab:hover { background: var(--accent-dk); transform: translateY(-1px); }
+.reply-fab:active { transform: scale(0.96); }
+@media (min-width: 1280px) {
+  .reply-fab { right: max(14px, calc((100vw - 1180px) / 2 + 14px)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reply-form-card { transition: none; }
+}
+
+/* 回复框展开时滚动定位避开吸顶顶栏 */
+.reply-form-card.open { scroll-margin-top: 72px; }

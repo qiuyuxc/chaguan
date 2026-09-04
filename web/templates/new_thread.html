@@ -1,45 +1,37 @@
 {{define "content"}}
-{{if .Category}}
-<div class="side-card compose-card">
-  <div class="side-title">发新帖 · {{.Category.Name}}</div>
-  {{if .Error}}<p class="form-error">{{.Error}}</p>{{end}}
-  <form method="post" action="/c/{{.Category.Slug}}/new" class="form-grid">
-    {{csrfField .CSRF}}
-    <label>标题<input class="input" name="title" value="{{.Title}}" maxlength="120" required autofocus placeholder="一句话说清主题"></label>
-    <label>正文<textarea class="input textarea" name="content" id="post-content" maxlength="10000" required rows="9" placeholder="支持多段落">{{.Content}}</textarea></label>
-    <div class="upload-row">
-      <button type="button" class="btn btn-outline btn-sm" data-upload="#post-content">插入图片</button>
-      <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" hidden>
-      <span class="upload-status" aria-live="polite"></span>
-    </div>
-    <div class="form-actions">
-      <button class="btn btn-primary" type="submit">发布</button>
-      <a class="btn btn-white" href="/c/{{.Category.Slug}}">取消</a>
-    </div>
-  </form>
-</div>
-{{else}}
 <div class="page-head">
   <div>
     <h1>发新帖</h1>
-    <p class="page-sub">先选择要发往的版块</p>
+    <p class="page-sub">选好版块,直接写正文;支持 @ 用户、插图、表情与常用图标</p>
   </div>
 </div>
-{{if .Categories}}
-<div class="thread-card">
-  {{range .Categories}}
-  <a class="tr" href="/c/{{.Slug}}/new">
-    <span class="avatar av-40 {{avColor .ID}}" aria-hidden="true">{{initial .Name}}</span>
-    <div class="tr-main">
-      <div class="tr-top"><span class="author">{{.Name}}</span><span>{{.ThreadCount}} 主题</span></div>
-      {{if .Description}}<div class="tr-meta"><span class="m">{{.Description}}</span></div>{{end}}
-    </div>
-    <svg class="ic ic-sm cat-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
-  </a>
-  {{end}}
-</div>
-{{else}}
+{{if .Error}}<p class="form-error">{{.Error}}</p>{{end}}
+{{if not .Categories}}
 <p class="empty">还没有版块,请先联系管理员创建</p>
-{{end}}
+{{else}}
+<form method="post" action="/new" class="form-grid compose-form">
+  {{csrfField .CSRF}}
+  <div class="compose-field">
+    <label class="flabel" for="thread-title">标题</label>
+    <input class="input" name="title" id="thread-title" value="{{.FormTitle}}" maxlength="120" required autofocus placeholder="一句话说清主题">
+  </div>
+  <div class="compose-field">
+    <label class="flabel" for="thread-category">版块</label>
+    <select class="input" name="category" id="thread-category" required>
+      {{if not .Category}}<option value="" disabled selected>选择版块</option>{{end}}
+      {{range .Categories}}
+      <option value="{{.Slug}}"{{if $.Category}}{{if eq $.Category.Slug .Slug}} selected{{end}}{{end}}>{{.Name}}</option>
+      {{end}}
+    </select>
+  </div>
+  <div class="compose-field">
+    <span class="flabel">正文</span>
+    {{template "composer" (dict "ID" "post-content" "Name" "content" "Rows" 10 "Placeholder" "支持 Markdown,多段落" "Content" .Content)}}
+  </div>
+  <div class="form-actions">
+    <button class="btn btn-primary" type="submit">发布</button>
+    <a class="btn btn-white" href="{{if .Category}}/c/{{.Category.Slug}}{{else}}/{{end}}">取消</a>
+  </div>
+</form>
 {{end}}
 {{end}}

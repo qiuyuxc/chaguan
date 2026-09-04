@@ -63,6 +63,15 @@ var funcs = template.FuncMap{
 	"postView": func(p db.Post, viewer *db.User) PostView {
 		return PostView{Post: p, Viewer: viewer}
 	},
+	"dict": func(kv ...any) map[string]any {
+		m := make(map[string]any, len(kv)/2)
+		for i := 0; i+1 < len(kv); i += 2 {
+			if k, ok := kv[i].(string); ok {
+				m[k] = kv[i+1]
+			}
+		}
+		return m
+	},
 	"pageURL": func(baseURL string, hasQ bool, page int) string {
 		if page <= 1 {
 			return baseURL
@@ -177,6 +186,7 @@ func NewRenderer() (*Renderer, error) {
 	for _, name := range pageNames {
 		t, err := template.New("layout").Funcs(funcs).ParseFS(tmplFS,
 			"templates/layout.html",
+			"templates/partials/composer.html",
 			"templates/partials/post.html",
 			"templates/partials/pagination.html",
 			"templates/partials/thread_row.html",

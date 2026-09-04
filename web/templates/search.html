@@ -6,12 +6,13 @@
   </div>
 </div>
 
-<div class="card form-card">
-  <form method="get" action="/search" class="form-grid">
-    <label>关键词<input class="input" name="q" value="{{.Query}}" maxlength="100" required autofocus placeholder="如：SQLite、备份"></label>
-    <div class="form-actions"><button class="btn btn-primary" type="submit">搜索</button></div>
-  </form>
-</div>
+<form method="get" action="/search" class="form-grid compose-form">
+  <div class="compose-field">
+    <label class="flabel" for="q">关键词</label>
+    <input class="input" name="q" id="q" value="{{.Query}}" maxlength="100" required autofocus placeholder="如：SQLite、备份">
+  </div>
+  <div class="form-actions"><button class="btn btn-primary" type="submit">搜索</button></div>
+</form>
 
 {{if not .HasQuery}}
 <p class="empty">输入关键词,搜索主题标题与回复正文</p>

@@ -33,18 +33,25 @@
 <p class="empty">还没有版块</p>
 {{end}}
 
-<div class="card form-card" style="margin-top:16px">
-  <div class="side-title">新建版块</div>
-  {{if .Error}}<p class="form-error">{{.Error}}</p>{{end}}
-  <form method="post" action="/admin/categories" class="form-grid">
-    {{csrfField .CSRF}}
-    <label>名称<input class="input" name="name" maxlength="30" required placeholder="如：技术分享"></label>
-    <label>slug<input class="input" name="slug" maxlength="30" required pattern="[a-z0-9-]+" placeholder="如：tech"></label>
-    <label>描述<input class="input" name="description" maxlength="100" placeholder="可选"></label>
-    <div class="form-actions">
-      <button class="btn btn-primary" type="submit">创建版块</button>
-      <a class="btn btn-secondary" href="/">返回首页</a>
-    </div>
-  </form>
-</div>
+<div class="sec-head">新建版块</div>
+{{if .Error}}<p class="form-error">{{.Error}}</p>{{end}}
+<form method="post" action="/admin/categories" class="form-grid compose-form">
+  {{csrfField .CSRF}}
+  <div class="compose-field">
+    <label class="flabel" for="cat-name">名称</label>
+    <input class="input" name="name" id="cat-name" maxlength="30" required placeholder="如：技术分享">
+  </div>
+  <div class="compose-field">
+    <label class="flabel" for="cat-slug">slug</label>
+    <input class="input" name="slug" id="cat-slug" maxlength="30" required pattern="[a-z0-9-]+" placeholder="如：tech">
+  </div>
+  <div class="compose-field">
+    <label class="flabel" for="cat-desc">描述</label>
+    <input class="input" name="description" id="cat-desc" maxlength="100" placeholder="可选">
+  </div>
+  <div class="form-actions">
+    <button class="btn btn-primary" type="submit">创建版块</button>
+    <a class="btn btn-secondary" href="/">返回首页</a>
+  </div>
+</form>
 {{end}}

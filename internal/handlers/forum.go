@@ -276,40 +276,75 @@ func (s *Server) category(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// ---------- 新主题 ----------
+// ---------- 新主题:直接发帖(标题 + 版块下拉 + 正文),不再先走版块选择页 ----------
 
 type newThreadData struct {
 	web.Base
-	Category *db.Category
-	Error    string
-	Title    string
-	Content  string
+	Categories []db.Category
+	Category   *db.Category // 预选版块(可选;下拉框会选中它)
+	Error      string
+	FormTitle  string // 发帖草稿标题(避免遮蔽 Base.Title 页面标题)
+	Content    string
 }
 
+// loadNewThreadData 组装发帖表单:全量版块 + 预选 slug(可为空)。
+func (s *Server) loadNewThreadData(r *http.Request, selSlug string) (newThreadData, error) {
+	d := newThreadData{Base: s.base(r, "发新帖")}
+	cats, err := s.store.ListCategories()
+	if err != nil {
+		return d, err
+	}
+	d.Categories = cats
+	if selSlug != "" {
+		for i := range cats {
+			if cats[i].Slug == selSlug {
+				d.Category = &cats[i]
+				break
+			}
+		}
+	}
+	return d, nil
+}
+
+// newThreadForm GET /new:发帖表单(版块下拉直接选)。
 func (s *Server) newThreadForm(w http.ResponseWriter, r *http.Request) {
 	if s.currentUser(w, r) == nil {
 		return
 	}
-	cat, err := s.store.GetCategoryBySlug(r.PathValue("slug"))
+	d, err := s.loadNewThreadData(r, "")
 	if err != nil {
 		s.serverError(w, err)
 		return
 	}
-	if cat == nil {
+	s.rend.Render(w, 200, "new_thread", d)
+}
+
+// newThreadFormIn GET /c/{slug}/new:直达发帖并预选版块(版块页「发新帖」入口)。
+func (s *Server) newThreadFormIn(w http.ResponseWriter, r *http.Request) {
+	if s.currentUser(w, r) == nil {
+		return
+	}
+	slug := strings.TrimSpace(r.PathValue("slug"))
+	d, err := s.loadNewThreadData(r, slug)
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	if slug != "" && d.Category == nil {
 		http.NotFound(w, r)
 		return
 	}
-	s.rend.Render(w, 200, "new_thread", newThreadData{
-		Base: s.base(r, "发新帖 · "+cat.Name), Category: cat,
-	})
+	s.rend.Render(w, 200, "new_thread", d)
 }
 
+// newThread POST /c/{slug}/new:旧直达路径(向后兼容,不发 category 字段)。
 func (s *Server) newThread(w http.ResponseWriter, r *http.Request) {
 	user := s.currentUser(w, r)
 	if user == nil {
 		return
 	}
-	cat, err := s.store.GetCategoryBySlug(r.PathValue("slug"))
+	slug := strings.TrimSpace(r.PathValue("slug"))
+	cat, err := s.store.GetCategoryBySlug(slug)
 	if err != nil {
 		s.serverError(w, err)
 		return
@@ -318,15 +353,48 @@ func (s *Server) newThread(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	s.createThread(w, r, user, cat, slug)
+}
 
+// newThreadPost POST /new:发帖表单提交(取 category 下拉选中的版块)。
+func (s *Server) newThreadPost(w http.ResponseWriter, r *http.Request) {
+	user := s.currentUser(w, r)
+	if user == nil {
+		return
+	}
+	slug := strings.TrimSpace(r.FormValue("category"))
+	cat, err := s.store.GetCategoryBySlug(slug)
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	if cat == nil {
+		d, derr := s.loadNewThreadData(r, slug)
+		if derr != nil {
+			s.serverError(w, derr)
+			return
+		}
+		d.FormTitle = strings.TrimSpace(r.FormValue("title"))
+		d.Content = strings.TrimSpace(r.FormValue("content"))
+		d.Error = "请选择要发往的版块"
+		s.rend.Render(w, 200, "new_thread", d)
+		return
+	}
+	s.createThread(w, r, user, cat, slug)
+}
+
+// createThread 校验并落库主题(两种提交路径共用);失败回填表单。
+func (s *Server) createThread(w http.ResponseWriter, r *http.Request, user *db.User, cat *db.Category, selSlug string) {
 	title := strings.TrimSpace(r.FormValue("title"))
 	content := strings.TrimSpace(r.FormValue("content"))
-
 	fail := func(msg string) {
-		s.rend.Render(w, 200, "new_thread", newThreadData{
-			Base: s.base(r, "发新帖 · "+cat.Name), Category: cat,
-			Error: msg, Title: title, Content: content,
-		})
+		d, err := s.loadNewThreadData(r, selSlug)
+		if err != nil {
+			s.serverError(w, err)
+			return
+		}
+		d.Error, d.FormTitle, d.Content = msg, title, content
+		s.rend.Render(w, 200, "new_thread", d)
 	}
 	switch {
 	case utf8.RuneCountInString(title) < 1 || utf8.RuneCountInString(title) > maxTitleLen:
@@ -336,7 +404,6 @@ func (s *Server) newThread(w http.ResponseWriter, r *http.Request) {
 		fail("正文 1–10000 字")
 		return
 	}
-
 	id, err := s.store.CreateThread(cat.ID, user.ID, title, content, markdown.Render(content))
 	if err != nil {
 		s.serverError(w, err)
@@ -359,28 +426,6 @@ type threadData struct {
 	Page, Pages int
 	BaseURL     string
 	HasQ        bool
-}
-
-// newThreadPicker GET /new:发帖前先选版块(顶栏「发帖」入口)。
-type newPickerData struct {
-	web.Base
-	Categories []db.Category
-	Category   *db.Category // 占位:与发帖表单共享模板分支(恒为 nil)
-}
-
-func (s *Server) newThreadPicker(w http.ResponseWriter, r *http.Request) {
-	if s.currentUser(w, r) == nil {
-		return
-	}
-	cats, err := s.store.ListCategories()
-	if err != nil {
-		s.serverError(w, err)
-		return
-	}
-	s.rend.Render(w, 200, "new_thread", newPickerData{
-		Base:       s.base(r, "发新帖"),
-		Categories: cats,
-	})
 }
 
 func (s *Server) thread(w http.ResponseWriter, r *http.Request) {
@@ -582,11 +627,11 @@ func lockedForbidden(user *db.User, t *db.Thread) bool {
 
 type editThreadData struct {
 	web.Base
-	Category *db.Category
-	Thread   *db.Thread
-	Title    string
-	Content  string
-	Error    string
+	Category  *db.Category
+	Thread    *db.Thread
+	FormTitle string // 主题标题草稿(避免遮蔽 Base.Title 页面标题)
+	Content   string
+	Error     string
 }
 
 func (s *Server) loadEditableThread(w http.ResponseWriter, r *http.Request) (*db.Thread, *db.User) {
@@ -639,11 +684,11 @@ func (s *Server) editThreadForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.rend.Render(w, 200, "edit_thread", editThreadData{
-		Base:     s.base(r, "编辑主题"),
-		Category: cat,
-		Thread:   t,
-		Title:    t.Title,
-		Content:  first.ContentMD,
+		Base:      s.base(r, "编辑主题"),
+		Category:  cat,
+		Thread:    t,
+		FormTitle: t.Title,
+		Content:   first.ContentMD,
 	})
 }
 
@@ -679,12 +724,12 @@ func (s *Server) editThread(w http.ResponseWriter, r *http.Request) {
 	content := strings.TrimSpace(r.FormValue("content"))
 	fail := func(msg string) {
 		s.rend.Render(w, 200, "edit_thread", editThreadData{
-			Base:     s.base(r, "编辑主题"),
-			Category: cat,
-			Thread:   t,
-			Title:    title,
-			Content:  content,
-			Error:    msg,
+			Base:      s.base(r, "编辑主题"),
+			Category:  cat,
+			Thread:    t,
+			FormTitle: title,
+			Content:   content,
+			Error:     msg,
 		})
 	}
 	switch {

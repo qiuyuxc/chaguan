@@ -1,19 +1,20 @@
 {{define "content"}}
-<div class="side-card compose-card">
-  <div class="side-title">编辑回复</div>
-  {{if .Error}}<p class="form-error">{{.Error}}</p>{{end}}
-  <form method="post" action="/p/{{.PostID}}/edit" class="form-grid">
-    {{csrfField .CSRF}}
-    <label>内容<textarea class="input textarea" name="content" maxlength="10000" required rows="8">{{.Content}}</textarea></label>
-    <div class="upload-row">
-      <button type="button" class="btn btn-outline btn-sm" data-upload="textarea[name=content]">插入图片</button>
-      <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" hidden>
-      <span class="upload-status" aria-live="polite"></span>
-    </div>
-    <div class="form-actions">
-      <button class="btn btn-primary" type="submit">保存修改</button>
-      <a class="btn btn-white" href="/t/{{.Thread.ID}}">取消</a>
-    </div>
-  </form>
+<div class="page-head">
+  <div>
+    <h1>编辑回复</h1>
+    <p class="page-sub">直接改写这条回复的正文</p>
+  </div>
 </div>
+{{if .Error}}<p class="form-error">{{.Error}}</p>{{end}}
+<form method="post" action="/p/{{.PostID}}/edit" class="form-grid compose-form">
+  {{csrfField .CSRF}}
+  <div class="compose-field">
+    <span class="flabel">回复正文</span>
+    {{template "composer" (dict "ID" "post-content" "Name" "content" "Rows" 8 "Placeholder" "写下这条回复…" "Content" .Content)}}
+  </div>
+  <div class="form-actions">
+    <button class="btn btn-primary" type="submit">保存修改</button>
+    <a class="btn btn-white" href="/t/{{.Thread.ID}}">取消</a>
+  </div>
+</form>
 {{end}}

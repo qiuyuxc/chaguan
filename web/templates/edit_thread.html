@@ -1,20 +1,24 @@
 {{define "content"}}
-<div class="side-card compose-card">
-  <div class="side-title">编辑主题</div>
-  {{if .Error}}<p class="form-error">{{.Error}}</p>{{end}}
-  <form method="post" action="/t/{{.Thread.ID}}/edit" class="form-grid">
-    {{csrfField .CSRF}}
-    <label>标题<input class="input" name="title" value="{{.Title}}" maxlength="120" required autofocus></label>
-    <label>正文<textarea class="input textarea" name="content" id="post-content" maxlength="10000" required rows="12">{{.Content}}</textarea></label>
-    <div class="upload-row">
-      <button type="button" class="btn btn-outline btn-sm" data-upload="#post-content">插入图片</button>
-      <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" hidden>
-      <span class="upload-status" aria-live="polite"></span>
-    </div>
-    <div class="form-actions">
-      <button class="btn btn-primary" type="submit">保存修改</button>
-      <a class="btn btn-white" href="/t/{{.Thread.ID}}">取消</a>
-    </div>
-  </form>
+<div class="page-head">
+  <div>
+    <h1>编辑主题</h1>
+    <p class="page-sub">改完标题或正文点保存;帖子其余内容保持不变</p>
+  </div>
 </div>
+{{if .Error}}<p class="form-error">{{.Error}}</p>{{end}}
+<form method="post" action="/t/{{.Thread.ID}}/edit" class="form-grid compose-form">
+  {{csrfField .CSRF}}
+  <div class="compose-field">
+    <label class="flabel" for="thread-title">标题</label>
+    <input class="input" name="title" id="thread-title" value="{{.FormTitle}}" maxlength="120" required autofocus>
+  </div>
+  <div class="compose-field">
+    <span class="flabel">正文</span>
+    {{template "composer" (dict "ID" "post-content" "Name" "content" "Rows" 12 "Placeholder" "支持 Markdown,多段落" "Content" .Content)}}
+  </div>
+  <div class="form-actions">
+    <button class="btn btn-primary" type="submit">保存修改</button>
+    <a class="btn btn-white" href="/t/{{.Thread.ID}}">取消</a>
+  </div>
+</form>
 {{end}}
