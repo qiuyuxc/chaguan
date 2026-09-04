@@ -26,6 +26,16 @@ func (s *Server) base(r *http.Request, title string) web.Base {
 	if n, err := s.store.CountAllThreads(); err == nil {
 		b.TotalThreads = n
 	}
+	if u := i.User; u != nil {
+		if threads, err := s.store.CountUserThreads(u.ID); err == nil {
+			if replies, err := s.store.CountUserReplies(u.ID); err == nil {
+				if stats, err := s.store.SocialStats(u.ID); err == nil {
+					b.Exp = socialExp(threads, replies, stats.Liked)
+					b.Level, _, _ = levelOf(b.Exp)
+				}
+			}
+		}
+	}
 	return b
 }
 

@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{.Title}} · BBS</title>
 <link rel="stylesheet" href="/static/style.css">
+<script>(function(){try{if(localStorage.getItem("bbs-theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="/static/htmx.min.js" defer></script>
 <script src="/static/app.js" defer></script>
 </head>
@@ -86,35 +87,56 @@
   </div>
 </div>
 {{if .User}}
-<div class="side-card">
-  <div class="side-title">快捷</div>
-  <nav class="side-links">
-    <a class="side-link" href="/u/{{.User.ID}}">
-      <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-      个人主页
+<div class="side-card side-user" data-side-user>
+  <div class="su-top">
+    <a class="su-id" href="/u/{{.User.ID}}">
+      {{if .User.AvatarPath}}<span class="avatar su-av"><img src="{{.User.AvatarPath}}" alt="{{.User.Name}}"></span>
+      {{else}}<span class="avatar su-av {{avColor .User.ID}}" aria-hidden="true">{{initial .User.Name}}</span>{{end}}
+      <span class="su-info">
+        <span class="su-name-row"><span class="su-name">{{.User.Name}}</span>{{roleBadge .User.Role .User.BadgeText}}</span>
+        <span class="su-lv"><span class="lv-badge">LV{{.Level}}</span><span class="su-exp">经验 {{.Exp}}</span></span>
+      </span>
     </a>
-    <a class="side-link" href="/notifications">
-      <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
-      我的通知
-    </a>
-    <a class="side-link" href="/new">
-      <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"/></svg>
-      发新帖
-    </a>
-    {{if .User.IsMod}}
-    <a class="side-link" href="/admin/categories">
-      <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
-      版块管理
-    </a>
-    {{end}}
-    <form method="post" action="/logout" class="side-qform">
+    <button type="button" class="su-toggle" data-su-toggle aria-expanded="true" aria-label="收起/展开常用功能" title="收起/展开">
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+  </div>
+  <div class="su-body" data-su-body>
+    <div class="su-sec">
+      <div class="su-sec-title">常用</div>
+      <nav class="su-links">
+        <a class="side-link" href="/u/{{.User.ID}}?tab=posts">
+          <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+          我的帖子
+        </a>
+        <span class="side-link su-off" title="我的收藏即将上线">
+          <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          我的收藏
+        </span>
+      </nav>
+    </div>
+    <div class="su-sec">
+      <div class="su-sec-title">功能与设置</div>
+      <nav class="su-links">
+        <button type="button" class="side-link side-link-btn su-theme" data-theme-toggle aria-pressed="false">
+          <svg class="ic ic-sm th-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+          <svg class="ic ic-sm th-sun" viewBox="0 0 24 24" aria-hidden="true" hidden><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+          <span class="th-label">夜间模式</span>
+        </button>
+        <span class="side-link su-off" title="设置页即将上线">
+          <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+          设置
+        </span>
+      </nav>
+    </div>
+    <form method="post" action="/logout" class="su-out">
       {{csrfField .CSRF}}
-      <button class="side-link side-link-btn" type="submit">
+      <button class="btn btn-ghost su-out-btn" type="submit">
         <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
         退出登录
       </button>
     </form>
-  </nav>
+  </div>
 </div>
 {{end}}
 {{end}}

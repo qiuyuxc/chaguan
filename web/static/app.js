@@ -561,3 +561,52 @@
     }
   });
 })();
+
+// 侧栏账户区:折叠/展开 常用与功能面板,状态记本地(默认展开)
+(function () {
+  function bind(card) {
+    var toggle = card.querySelector("[data-su-toggle]");
+    var body = card.querySelector("[data-su-body]");
+    if (!toggle || !body) return;
+    function setOpen(open) {
+      card.classList.toggle("closed", !open);
+      toggle.setAttribute("aria-expanded", open ? "true" : "false");
+      body.hidden = !open;
+    }
+    toggle.addEventListener("click", function () {
+      setOpen(card.classList.contains("closed"));
+      try { localStorage.setItem("bbs-side-user", card.classList.contains("closed") ? "0" : "1"); } catch (e) {}
+    });
+    var saved = null;
+    try { saved = localStorage.getItem("bbs-side-user"); } catch (e) {}
+    setOpen(saved !== "0");
+  }
+  document.querySelectorAll("[data-side-user]").forEach(bind);
+})();
+
+// 夜间模式:切换 <html data-theme>,持久化到本地
+(function () {
+  var btns = document.querySelectorAll("[data-theme-toggle]");
+  if (!btns.length) return;
+  var root = document.documentElement;
+  function syncAll(dark) {
+    btns.forEach(function (b) {
+      b.setAttribute("aria-pressed", dark ? "true" : "false");
+      var moon = b.querySelector(".th-moon");
+      var sun = b.querySelector(".th-sun");
+      var lb = b.querySelector(".th-label");
+      if (moon) moon.hidden = dark;
+      if (sun) sun.hidden = !dark;
+      if (lb) lb.textContent = dark ? "日间模式" : "夜间模式";
+    });
+  }
+  btns.forEach(function (b) {
+    b.addEventListener("click", function () {
+      var dark = root.getAttribute("data-theme") === "dark";
+      root.setAttribute("data-theme", dark ? "light" : "dark");
+      syncAll(!dark);
+      try { localStorage.setItem("bbs-theme", dark ? "light" : "dark"); } catch (e) {}
+    });
+  });
+  syncAll(root.getAttribute("data-theme") === "dark");
+})();

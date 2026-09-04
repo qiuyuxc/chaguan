@@ -39,6 +39,8 @@ type Base struct {
 	Categories   []db.Category // 抽屉/侧栏导航
 	Members      int64         // 社区统计
 	TotalThreads int64         // 社区统计(主题总数;避免与各页 Threads 列表字段重名)
+	Exp          int64         // 登录用户等级经验(侧栏简略显示;未登录为 0)
+	Level        int           // 登录用户 LV0..LV6
 }
 
 // PostView 是帖子 partial 的数据:帖子 + 当前查看者(决定是否显示删除按钮)。
