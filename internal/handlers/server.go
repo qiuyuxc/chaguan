@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"bbs/internal/auth"
 	"bbs/internal/db"
@@ -30,7 +31,28 @@ type Server struct {
 	hub     *hub // 实时推送(SSE)连接池
 }
 
-func Routes(store *db.Store, rend *web.Renderer, uploadsDir string) http.Handler {
+// Options 是几个运行期旋钮。零值走生产默认值;测试脚本传很小的值,
+// 免得为了验证「24 小时后退回」真等一天。
+type Options struct {
+	RedpackTTL time.Duration // 红包未领取多久自动退回(默认 24h)
+	SweepEvery time.Duration // 后台巡检间隔(默认 10 分钟)
+}
+
+func (o Options) redpackTTL() time.Duration {
+	if o.RedpackTTL > 0 {
+		return o.RedpackTTL
+	}
+	return 24 * time.Hour
+}
+
+func (o Options) sweepEvery() time.Duration {
+	if o.SweepEvery > 0 {
+		return o.SweepEvery
+	}
+	return 10 * time.Minute
+}
+
+func Routes(store *db.Store, rend *web.Renderer, uploadsDir string, opts Options) http.Handler {
 	s := &Server{store: store, rend: rend, uploads: uploadsDir, hub: newHub()}
 	mux := http.NewServeMux()
 
@@ -143,6 +165,7 @@ func Routes(store *db.Store, rend *web.Renderer, uploadsDir string) http.Handler
 	mux.HandleFunc("POST /admin/points/{id}/adjust", s.adminAdjustPoints)
 	mux.HandleFunc("GET /admin/shop", s.adminShop)
 	mux.HandleFunc("POST /admin/shop", s.adminNewShopItem)
+	mux.HandleFunc("POST /admin/shop/{id}/edit", s.adminEditShopItem)
 	mux.HandleFunc("POST /admin/shop/{id}/toggle", s.adminToggleShopItem)
 	mux.HandleFunc("POST /admin/shop/{id}/delete", s.adminDeleteShopItem)
 	mux.HandleFunc("POST /admin/badges", s.adminNewBadge)
@@ -160,7 +183,37 @@ func Routes(store *db.Store, rend *web.Renderer, uploadsDir string) http.Handler
 		w.Write([]byte("ok"))
 	})
 
+	s.startSweeper(opts)
 	return s.recoverMW(s.loadUserMW(s.csrfMW(mux)))
+}
+
+// startSweeper 起一个后台巡检:目前只做「红包超时退回」。
+// 进程内 goroutine 而不是外部 cron —— 这是个单二进制应用,没有别的调度器可用;
+// 生命周期跟进程一致,所以不带 ctx 也不会泄漏。启动时先扫一次,补上停机期间过期的。
+func (s *Server) startSweeper(opts Options) {
+	ttl, every := opts.redpackTTL(), opts.sweepEvery()
+	go func() {
+		s.sweepOnce(ttl)
+		for range time.Tick(every) {
+			s.sweepOnce(ttl)
+		}
+	}()
+}
+
+func (s *Server) sweepOnce(ttl time.Duration) {
+	gone, err := s.store.ExpireRedpacks(time.Now().Add(-ttl).Unix())
+	if err != nil {
+		log.Printf("红包超时退回失败: %v", err)
+		return
+	}
+	for _, rp := range gone {
+		// 两边的会话页都要能立刻看到状态变成「已超时退回」
+		s.hub.publish(rp.SenderID, "dm")
+		s.hub.publish(rp.PeerID, "dm")
+	}
+	if len(gone) > 0 {
+		log.Printf("红包超时退回 %d 笔", len(gone))
+	}
 }
 
 // ---------- 中间件 ----------

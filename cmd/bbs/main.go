@@ -28,6 +28,17 @@ func envOr(key, def string) string {
 	return def
 }
 
+// envDur 读一个时长环境变量(如 "2s"、"24h")。生产用默认值就行,
+// 存在的意义主要是让测试脚本把「等 24 小时」压成「等 2 秒」。
+func envDur(key string, def time.Duration) time.Duration {
+	if v := os.Getenv(key); v != "" {
+		if d, err := time.ParseDuration(v); err == nil && d > 0 {
+			return d
+		}
+	}
+	return def
+}
+
 // healthcheck 供容器探活用:请求本机 /healthz,正常返回 0。
 // distroless 镜像里没有 curl/wget,所以让二进制自己充当探针。
 func healthcheck(port string) int {
@@ -77,8 +88,11 @@ func main() {
 	}
 
 	srv := &http.Server{
-		Addr:              ":" + port,
-		Handler:           handlers.Routes(store, rend, uploadsDir),
+		Addr: ":" + port,
+		Handler: handlers.Routes(store, rend, uploadsDir, handlers.Options{
+			RedpackTTL: envDur("BBS_RP_TTL", 24*time.Hour),
+			SweepEvery: envDur("BBS_SWEEP", 10*time.Minute),
+		}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 

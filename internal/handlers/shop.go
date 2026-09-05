@@ -230,17 +230,9 @@ func (s *Server) adminDeleteBadge(w http.ResponseWriter, r *http.Request) {
 	s.adminShopPage(w, r, "", "勋章已删除")
 }
 
-// adminNewShopItem POST /admin/shop:新建商品(勋章 / 签到加成)。
-func (s *Server) adminNewShopItem(w http.ResponseWriter, r *http.Request) {
-	if s.requireAdmin(w, r) == nil {
-		return
-	}
-	kind := strings.TrimSpace(r.FormValue("kind"))
-	switch kind {
-	case "badge", "checkin", "custom":
-	default:
-		kind = "badge"
-	}
+// parseShopItemForm 从表单读商品字段并校验,第二个返回值非空即错误提示。
+// kind 由调用方给:新建时从表单读,编辑时沿用商品原有类型(类型不可改)。
+func parseShopItemForm(r *http.Request, kind string) (db.ShopItem, string) {
 	name := strings.TrimSpace(r.FormValue("name"))
 	note := strings.TrimSpace(r.FormValue("note"))
 	price, _ := strconv.ParseInt(strings.TrimSpace(r.FormValue("price")), 10, 64)
@@ -251,51 +243,95 @@ func (s *Server) adminNewShopItem(w http.ResponseWriter, r *http.Request) {
 	if v := strings.TrimSpace(r.FormValue("stock")); v != "" {
 		n, err := strconv.ParseInt(v, 10, 64)
 		if err != nil || n < 0 || n > 1000000 {
-			s.adminShopPage(w, r, "库存留空表示不限量,填数字需在 0–1000000 之间", "")
-			return
+			return db.ShopItem{}, "库存留空表示不限量,填数字需在 0–1000000 之间"
 		}
 		stock = n
 	}
 	switch {
 	case utf8.RuneCountInString(name) < 1 || utf8.RuneCountInString(name) > 30:
-		s.adminShopPage(w, r, "商品名 1–30 字", "")
-		return
+		return db.ShopItem{}, "商品名 1–30 字"
 	case utf8.RuneCountInString(note) > 80:
-		s.adminShopPage(w, r, "说明最多 80 字", "")
-		return
+		return db.ShopItem{}, "说明最多 80 字"
 	case price < 1 || price > 1000000:
-		s.adminShopPage(w, r, "价格需在 1–1000000 积分之间", "")
-		return
+		return db.ShopItem{}, "价格需在 1–1000000 积分之间"
 	}
 	it := db.ShopItem{Kind: kind, Name: name, Note: note, Price: price, Stock: stock}
 	switch kind {
 	case "badge":
 		if badgeID <= 0 {
-			s.adminShopPage(w, r, "请选择这件商品对应的勋章", "")
-			return
+			return db.ShopItem{}, "请选择这件商品对应的勋章"
 		}
 		it.BadgeID = sql.NullInt64{Int64: badgeID, Valid: true}
 	case "checkin":
 		if bonus < 1 || bonus > 100 {
-			s.adminShopPage(w, r, "签到加成需在 1–100 积分/天之间", "")
-			return
+			return db.ShopItem{}, "签到加成需在 1–100 积分/天之间"
 		}
 		if days < 0 || days > 3650 {
-			s.adminShopPage(w, r, "有效天数需在 0–3650 之间(0=不限期)", "")
-			return
+			return db.ShopItem{}, "有效天数需在 0–3650 之间(0=不限期)"
 		}
 		it.Bonus, it.Days = bonus, days
 	case "custom":
 		if utf8.RuneCountInString(note) < 1 {
-			s.adminShopPage(w, r, "自定义商品请在说明里写清兑换后怎么发放", "")
-			return
+			return db.ShopItem{}, "自定义商品请在说明里写清兑换后怎么发放"
 		}
+	}
+	return it, ""
+}
+
+// adminNewShopItem POST /admin/shop:新建商品(勋章 / 签到加成 / 自定义)。
+func (s *Server) adminNewShopItem(w http.ResponseWriter, r *http.Request) {
+	if s.requireAdmin(w, r) == nil {
+		return
+	}
+	kind := strings.TrimSpace(r.FormValue("kind"))
+	switch kind {
+	case "badge", "checkin", "custom":
+	default:
+		kind = "badge"
+	}
+	it, msg := parseShopItemForm(r, kind)
+	if msg != "" {
+		s.adminShopPage(w, r, msg, "")
+		return
 	}
 	if _, err := s.store.CreateShopItem(it); err != nil {
 		s.serverError(w, err)
 		return
 	}
-	s.adminShopPage(w, r, "", "商品「"+name+"」已上架")
+	s.adminShopPage(w, r, "", "商品「"+it.Name+"」已上架")
+}
+
+// adminEditShopItem POST /admin/shop/{id}/edit:改已有商品。
+// 类型不可改,其余字段(名称/说明/价格/库存/加成/天数/对应勋章)都能改。
+func (s *Server) adminEditShopItem(w http.ResponseWriter, r *http.Request) {
+	if s.requireAdmin(w, r) == nil {
+		return
+	}
+	id, ok := pathID(r, "id")
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	cur, err := s.store.GetShopItem(id)
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	if cur == nil {
+		http.NotFound(w, r)
+		return
+	}
+	it, msg := parseShopItemForm(r, cur.Kind)
+	if msg != "" {
+		s.adminShopPage(w, r, msg, "")
+		return
+	}
+	it.ID = id
+	if err := s.store.UpdateShopItem(it); err != nil {
+		s.serverError(w, err)
+		return
+	}
+	s.adminShopPage(w, r, "", "商品「"+it.Name+"」已更新")
 }
 
 // adminToggleShopItem POST /admin/shop/{id}/toggle:上架/下架。

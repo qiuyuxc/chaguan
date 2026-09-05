@@ -58,6 +58,12 @@
         </div>
       </div>
       <div class="row-acts row-acts-tight">
+        <button class="btn btn-white btn-sm" type="button" data-shop-edit
+                data-id="{{.ID}}" data-kind="{{.Kind}}" data-name="{{.Name}}"
+                data-note="{{.Note}}" data-price="{{.Price}}"
+                data-badge="{{if .BadgeID.Valid}}{{.BadgeID.Int64}}{{end}}"
+                data-bonus="{{.Bonus}}" data-days="{{.Days}}"
+                data-stock="{{if ge .Stock 0}}{{.Stock}}{{end}}">编辑</button>
         <form method="post" action="/admin/shop/{{.ID}}/toggle">
           {{csrfField $.CSRF}}
           <button class="btn btn-white btn-sm" type="submit">{{if .Active}}下架{{else}}上架{{end}}</button>
@@ -74,17 +80,19 @@
   <p class="muted">还没有商品</p>
   {{end}}
 
-  <form method="post" action="/admin/shop" class="shop-new">
+  <form method="post" action="/admin/shop" class="shop-new" data-shop-form>
     {{csrfField .CSRF}}
     <div class="shop-new-head">
-      <b>添加商品</b>
+      <b data-shop-title>添加商品</b>
       <div class="pick-chips" data-shop-kind>
         <input type="hidden" name="kind" value="badge">
         <button type="button" class="pick-chip on" data-kind="badge">勋章</button>
         <button type="button" class="pick-chip" data-kind="checkin">签到加成</button>
         <button type="button" class="pick-chip" data-kind="custom">自定义</button>
       </div>
+      <button type="button" class="btn btn-ghost btn-sm" data-shop-cancel hidden>取消编辑</button>
     </div>
+    <p class="um-tip" data-shop-editing hidden>正在编辑已有商品,类型不可改。历史兑换记录存的是下单时的名称与价格,改这里不影响账目。</p>
     <p class="um-tip" data-kind-tip="badge">兑换后进用户的勋章库,用户自己选择佩戴。</p>
     <p class="um-tip" data-kind-tip="checkin" hidden>兑换后每天签到多给积分,可设有效期,到期自动失效。</p>
     <p class="um-tip" data-kind-tip="custom" hidden>兑换只扣积分并留一条记录,具体怎么发放写在说明里,你在下面的「兑换记录」里按单处理。</p>
@@ -140,7 +148,7 @@
       </label>
     </div>
     <div class="um-act">
-      <button class="btn btn-primary btn-sm" type="submit">上架商品</button>
+      <button class="btn btn-primary btn-sm" type="submit" data-shop-submit>上架商品</button>
     </div>
   </form>
 </section>

@@ -22,7 +22,7 @@ jobs:
       - name: Build
         run: go build -trimpath -o bbs ./cmd/bbs
 
-      - name: Smoke（curl 端到端,~440 条断言）
+      - name: Smoke（curl 端到端,~470 条断言）
         run: |
           mkdir -p /tmp/bbs
           PORT=8090 BBS_DB=/tmp/bbs/t.db BBS_UPLOADS=/tmp/bbs ./bbs &
@@ -37,3 +37,6 @@ jobs:
 
       - name: Accountflow（两步验证全链路）
         run: PORT=8182 bash scripts/accountflow.sh
+
+      - name: Rpexpire（红包超时自动退回,TTL 压到 2 秒）
+        run: PORT=8183 bash scripts/rpexpire.sh

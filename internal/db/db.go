@@ -2374,12 +2374,16 @@ type DMMessage struct {
 	ReadAt    sql.NullInt64
 	Kind      string // text | redpack
 	Amount    int64
-	RPStatus  string // open | claimed | refunded
+	RPStatus  string // open | claimed | refunded(发送者撤回) | expired(超时自动退回)
 	RPAt      sql.NullInt64
 }
 
 // IsRedpack 该条是不是红包。
 func (m DMMessage) IsRedpack() bool { return m.Kind == "redpack" }
+
+// RPRevoked 是不是被发送者主动撤回的。这种气泡要降级成不显示金额的占位 ——
+// 撤回时最该藏的就是金额(尤其是发错人)。超时退回不算,那种照旧显示金额。
+func (m DMMessage) RPRevoked() bool { return m.Kind == "redpack" && m.RPStatus == "refunded" }
 
 // RPOpen 红包是否还没被领走/退回。
 func (m DMMessage) RPOpen() bool { return m.Kind == "redpack" && m.RPStatus == "open" }
@@ -2515,8 +2519,11 @@ func (s *Store) ClaimRedpack(msgID, threadID, claimerID int64, note string) (int
 }
 
 // RefundRedpack 撤回未领取的红包,积分退还发送者。
-func (s *Store) RefundRedpack(msgID, threadID, senderID int64, note string) (bool, error) {
-	done := false
+// 若这条红包是会话里唯一的消息,连消息带会话一起删掉 —— 发错人的场合不该在陌生人
+// 的私信列表里留一个撤回痕迹。会话里已有往来时只改状态,气泡降级成不显示金额的占位。
+// 返回 (是否撤回成功, 会话是否已被删掉)。
+func (s *Store) RefundRedpack(msgID, threadID, senderID int64, note string) (bool, bool, error) {
+	done, gone := false, false
 	err := s.withTx(func(tx *sql.Tx) error {
 		var amount int64
 		var status string
@@ -2532,14 +2539,31 @@ func (s *Store) RefundRedpack(msgID, threadID, senderID int64, note string) (boo
 		if status != "open" {
 			return nil
 		}
-		res, err := tx.Exec(
-			`UPDATE dm_messages SET rp_status = 'refunded', rp_at = ? WHERE id = ? AND rp_status = 'open'`,
-			time.Now().Unix(), msgID)
+		var others int64
+		if err := tx.QueryRow(`SELECT COUNT(*) FROM dm_messages WHERE thread_id = ? AND id <> ?`,
+			threadID, msgID).Scan(&others); err != nil {
+			return err
+		}
+		// 并发保护同原来:靠 rp_status = 'open' 的影响行数判断,领取和撤回抢不到一起
+		var res sql.Result
+		if others == 0 {
+			res, err = tx.Exec(`DELETE FROM dm_messages WHERE id = ? AND rp_status = 'open'`, msgID)
+		} else {
+			res, err = tx.Exec(
+				`UPDATE dm_messages SET rp_status = 'refunded', rp_at = ? WHERE id = ? AND rp_status = 'open'`,
+				time.Now().Unix(), msgID)
+		}
 		if err != nil {
 			return err
 		}
 		if n, _ := res.RowsAffected(); n == 0 {
 			return nil
+		}
+		if others == 0 {
+			if _, err := tx.Exec(`DELETE FROM dm_threads WHERE id = ?`, threadID); err != nil {
+				return err
+			}
+			gone = true
 		}
 		if err := addPointsTx(tx, senderID, amount, PointRedpackBack, note, 0, 0); err != nil {
 			return err
@@ -2547,7 +2571,80 @@ func (s *Store) RefundRedpack(msgID, threadID, senderID int64, note string) (boo
 		done = true
 		return nil
 	})
-	return done, err
+	return done, gone, err
+}
+
+// ExpiredRedpack 一笔超时退回的红包,调用方拿它去推实时刷新。
+type ExpiredRedpack struct {
+	ThreadID int64
+	SenderID int64
+	PeerID   int64
+}
+
+// ExpireRedpacks 把 createdBefore 之前还没人领的红包退回发送者,状态记 expired。
+// 跟手动撤回不一样:超时是被动的、对方早看过金额了,所以不删消息也不删会话,
+// 只把气泡改成「已超时退回」。一次最多 500 笔,剩下的下一轮再扫。
+func (s *Store) ExpireRedpacks(createdBefore int64) ([]ExpiredRedpack, error) {
+	type cand struct {
+		msgID, threadID, senderID, amount, peerID int64
+		peerName                                  string
+	}
+	rows, err := s.DB.Query(`
+		SELECT m.id, m.thread_id, m.sender_id, m.amount,
+		       CASE WHEN t.user_a = m.sender_id THEN t.user_b ELSE t.user_a END AS peer_id,
+		       COALESCE(p.name, '')
+		FROM dm_messages m
+		JOIN dm_threads t ON t.id = m.thread_id
+		LEFT JOIN users p ON p.id = CASE WHEN t.user_a = m.sender_id THEN t.user_b ELSE t.user_a END
+		WHERE m.kind = 'redpack' AND m.rp_status = 'open' AND m.created_at < ?
+		ORDER BY m.id LIMIT 500`, createdBefore)
+	if err != nil {
+		return nil, err
+	}
+	var cands []cand
+	for rows.Next() {
+		var c cand
+		if err := rows.Scan(&c.msgID, &c.threadID, &c.senderID, &c.amount,
+			&c.peerID, &c.peerName); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		cands = append(cands, c)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	var out []ExpiredRedpack
+	for _, c := range cands {
+		ok := false
+		if err := s.withTx(func(tx *sql.Tx) error {
+			res, err := tx.Exec(`UPDATE dm_messages SET rp_status = 'expired', rp_at = ?
+				WHERE id = ? AND rp_status = 'open'`, time.Now().Unix(), c.msgID)
+			if err != nil {
+				return err
+			}
+			if n, _ := res.RowsAffected(); n == 0 {
+				return nil // 刚好被领走或手动撤回了
+			}
+			note := "红包超时退回"
+			if c.peerName != "" {
+				note = "发给 " + c.peerName + " 的红包超时退回"
+			}
+			if err := addPointsTx(tx, c.senderID, c.amount, PointRedpackBack, note, 0, 0); err != nil {
+				return err
+			}
+			ok = true
+			return nil
+		}); err != nil {
+			return out, err
+		}
+		if ok {
+			out = append(out, ExpiredRedpack{
+				ThreadID: c.threadID, SenderID: c.senderID, PeerID: c.peerID})
+		}
+	}
+	return out, nil
 }
 
 const dmConvSelect = `
@@ -2555,8 +2652,10 @@ const dmConvSelect = `
 	       CASE WHEN t.user_a = ? THEN t.user_b ELSE t.user_a END AS peer_id,
 	       p.name, COALESCE(p.avatar_path,''), p.role, p.verify_kind, p.verify_title,
 	       t.last_at,
-	       COALESCE((SELECT CASE WHEN m.kind = 'redpack'
-	                          THEN '[红包 ' || m.amount || ' 积分]' ELSE m.body END
+	       COALESCE((SELECT CASE
+	                          WHEN m.kind <> 'redpack' THEN m.body
+	                          WHEN m.rp_status = 'refunded' THEN '撤回了一条消息'
+	                          ELSE '[红包 ' || m.amount || ' 积分]' END
 	                  FROM dm_messages m WHERE m.thread_id = t.id
 	                  ORDER BY m.id DESC LIMIT 1), ''),
 	       COALESCE((SELECT m.sender_id = ? FROM dm_messages m WHERE m.thread_id = t.id
@@ -3122,6 +3221,21 @@ func (s *Store) CreateShopItem(it ShopItem) (int64, error) {
 	return res.LastInsertId()
 }
 
+// UpdateShopItem 改商品的可编辑字段。kind 故意不可改 —— 勋章商品换成签到加成
+// 会让已有兑换记录对不上,要换类型就删了重建。历史订单存的是下单时的名称与价格
+// 快照(shop_orders),所以改这里不会篡改账目。
+func (s *Store) UpdateShopItem(it ShopItem) error {
+	var badgeArg any
+	if it.BadgeID.Valid {
+		badgeArg = it.BadgeID.Int64
+	}
+	_, err := s.DB.Exec(`UPDATE shop_items
+		SET name = ?, note = ?, price = ?, badge_id = ?, bonus = ?, days = ?, stock = ?
+		WHERE id = ?`,
+		it.Name, it.Note, it.Price, badgeArg, it.Bonus, it.Days, it.Stock, it.ID)
+	return err
+}
+
 // SetShopItemActive 上架/下架。
 func (s *Store) SetShopItemActive(id int64, active bool) error {
 	_, err := s.DB.Exec(`UPDATE shop_items SET active = ? WHERE id = ?`, active, id)
@@ -3180,23 +3294,34 @@ func (s *Store) RedeemShopItem(userID int64, it ShopItem) error {
 				}
 			}
 		case "checkin":
-			// 加成累加;有期限的按天顺延(已过期则从现在算起)
+			// 加成额度不累加:一是买 N 次就每天多拿 N 倍,积分会通胀;二是
+			// checkin_bonus / bonus_until 各只有一列,装不下两份并存的加成
+			// (先买 +2/30 天再买 +5/7 天会变成 +7 一直生效到 37 天后)。
+			// 规则:生效中的取较高档,已过期的直接替换;有期限的按天顺延。
+			now := time.Now().Unix()
+			var curBonus int64
+			var curUntil sql.NullInt64
+			if err := tx.QueryRow(`SELECT checkin_bonus, bonus_until FROM users WHERE id = ?`,
+				userID).Scan(&curBonus, &curUntil); err != nil {
+				return err
+			}
+			// bonus_until 为 NULL 表示不限期,所以只有「有到期时间且已过」才算失效
+			active := curBonus > 0 && !(curUntil.Valid && curUntil.Int64 <= now)
+			bonus := it.Bonus
+			if active && curBonus > bonus {
+				bonus = curBonus
+			}
 			var until any
 			if it.Days > 0 {
-				now := time.Now().Unix()
-				var cur sql.NullInt64
-				if err := tx.QueryRow(`SELECT bonus_until FROM users WHERE id = ?`, userID).Scan(&cur); err != nil {
-					return err
-				}
 				base := now
-				if cur.Valid && cur.Int64 > now {
-					base = cur.Int64
+				if active && curUntil.Valid && curUntil.Int64 > now {
+					base = curUntil.Int64
 				}
 				until = base + it.Days*86400
 			}
 			if _, err := tx.Exec(
-				`UPDATE users SET checkin_bonus = checkin_bonus + ?, bonus_until = ? WHERE id = ?`,
-				it.Bonus, until, userID); err != nil {
+				`UPDATE users SET checkin_bonus = ?, bonus_until = ? WHERE id = ?`,
+				bonus, until, userID); err != nil {
 				return err
 			}
 		}

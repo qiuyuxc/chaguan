@@ -1066,6 +1066,71 @@
   sync();
 })();
 
+// 后台商城:点「编辑」把已有商品灌进下面那个表单,改成编辑模式。
+// 不给每行渲染一份表单 —— 那套表单带类型芯片和勋章选择器,商品一多页面就爆了。
+(function () {
+  var form = document.querySelector("[data-shop-form]");
+  if (!form) return;
+  var kindBox = form.querySelector("[data-shop-kind]");
+  var title = form.querySelector("[data-shop-title]");
+  var submit = form.querySelector("[data-shop-submit]");
+  var cancel = form.querySelector("[data-shop-cancel]");
+  var tip = form.querySelector("[data-shop-editing]");
+  var newAction = form.getAttribute("action");
+
+  function field(name) { return form.querySelector('[name="' + name + '"]'); }
+  function setKind(kind) {
+    // 借道芯片自己的 click:它会同步 hidden input、按类型显隐字段和提示
+    var chip = kindBox && kindBox.querySelector('.pick-chip[data-kind="' + kind + '"]');
+    if (chip) chip.click();
+  }
+  function lockKind(on) {
+    if (!kindBox) return;
+    kindBox.querySelectorAll(".pick-chip").forEach(function (c) { c.disabled = on; });
+  }
+  function setBadge(id) {
+    var opt = id && form.querySelector('.picker-opt[data-val="' + id + '"]');
+    if (opt) { opt.click(); return; }
+    var hidden = field("badge_id");
+    if (hidden) hidden.value = "";
+    var lb = form.querySelector("[data-picker-label]");
+    if (lb) lb.textContent = "选择勋章…";
+    form.querySelectorAll(".picker-opt.on").forEach(function (o) { o.classList.remove("on"); });
+  }
+  function toNew() {
+    form.reset();
+    form.setAttribute("action", newAction);
+    if (title) title.textContent = "添加商品";
+    if (submit) submit.textContent = "上架商品";
+    if (cancel) cancel.hidden = true;
+    if (tip) tip.hidden = true;
+    lockKind(false);
+    setKind("badge");
+    setBadge("");
+  }
+
+  document.querySelectorAll("[data-shop-edit]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var d = btn.dataset;
+      setKind(d.kind || "badge");
+      lockKind(true);
+      [["name", d.name], ["note", d.note], ["price", d.price],
+       ["stock", d.stock], ["bonus", d.bonus], ["days", d.days]].forEach(function (p) {
+        var el = field(p[0]);
+        if (el) el.value = p[1] || "";
+      });
+      setBadge(d.badge);
+      form.setAttribute("action", "/admin/shop/" + d.id + "/edit");
+      if (title) title.textContent = "编辑商品";
+      if (submit) submit.textContent = "保存修改";
+      if (cancel) cancel.hidden = false;
+      if (tip) tip.hidden = false;
+      try { form.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (e) {}
+    });
+  });
+  if (cancel) cancel.addEventListener("click", toNew);
+})();
+
 // 发帖:帖子类型(普通/抽奖)与观看等级门槛的芯片选择
 (function () {
   var kindBox = document.querySelector("[data-kind-pick]");

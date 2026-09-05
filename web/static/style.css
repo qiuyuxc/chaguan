@@ -1194,8 +1194,13 @@ body.drawer-open { overflow: hidden; }
 .dm-peer-name { font-size: 15px; font-weight: 700; color: var(--ink); }
 .dm-msgs {
   display: flex; flex-direction: column; gap: 10px;
-  padding: 14px 0; max-height: 58vh; overflow-y: auto;
+  padding: 14px 0; height: 58vh; overflow-y: auto;
 }
+/* 高度写死(不是 max-height):否则消息少时这块塌成内容高度,输入框跟着往上跑,
+   位置随消息条数一直变。消息少时让内容贴底,合聊天习惯 —— 但不能用
+   justify-content: flex-end,它和 overflow-y: auto 一起会导致溢出后滚不回顶部,
+   只有给首个子元素 margin-top: auto 才安全 */
+.dm-msgs > :first-child { margin-top: auto; }
 .dm-row { display: flex; align-items: flex-end; gap: 8px; max-width: 100%; }
 .dm-row.mine { justify-content: flex-end; }
 .dm-av { flex: none; }
@@ -1211,7 +1216,7 @@ body.drawer-open { overflow: hidden; }
 .dm-time { display: block; margin-top: 3px; font-size: 10px; color: var(--ink-4); }
 .dm-row.mine .dm-time { color: rgba(255, 255, 255, 0.7); }
 html[data-theme="dark"] .dm-row.mine .dm-time { color: rgba(0, 0, 0, 0.55); }
-.dm-empty { margin: 18px 0; }
+.dm-empty { margin: auto; } /* 空会话居中,不跟着 :first-child 规则贴到底部 */
 .dm-form {
   position: relative; display: flex; align-items: flex-end; gap: 8px;
   padding-top: 10px; border-top: 1px solid var(--line);
@@ -1601,7 +1606,9 @@ html[data-theme="dark"] .avatar.c5, html[data-theme="dark"] .avatar.c6 { color: 
   border: 1px solid var(--line); background: var(--card); color: var(--ink-2);
   cursor: pointer; font-family: var(--font);
 }
-.pick-chip:hover { border-color: var(--line-strong); color: var(--ink); }
+.pick-chip:hover:not(:disabled) { border-color: var(--line-strong); color: var(--ink); }
+/* 编辑已有商品时类型锁死(kind 不可改),置灰并去掉 hover 反馈 */
+.pick-chip:disabled { opacity: .5; cursor: default; }
 .pick-chip.on {
   background: var(--accent); border-color: var(--accent);
   color: var(--on-accent); font-weight: 600;
@@ -2001,6 +2008,9 @@ html[data-theme="dark"] .avatar.c5, html[data-theme="dark"] .avatar.c6 { color: 
 .vr-row .tr-top { gap: 8px 10px; flex-wrap: wrap; }
 
 /* ---------- 私信:编辑器 + 红包 ---------- */
+/* 撤回后的占位气泡:虚线边 + 灰字,一眼看出不是真消息(金额已经不渲染了) */
+.dm-revoked { border-style: dashed; background: transparent; }
+.dm-revoked .dm-text { color: var(--ink-4); }
 .dm-compose { padding-top: 10px; border-top: 1px solid var(--line); }
 .dm-form { display: block; margin: 0; }
 .rp-panel {
@@ -2010,7 +2020,7 @@ html[data-theme="dark"] .avatar.c5, html[data-theme="dark"] .avatar.c6 { color: 
 }
 .rp-panel-t { font-size: 11px; color: var(--ink-3); }
 .rp-form { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0; }
-.rp-input { width: 92px; }
+.rp-input { width: 116px; }
 .rp-bubble { display: grid; gap: 5px; min-width: 168px; background: var(--fav) !important; border-color: var(--fav) !important; color: #1a1300 !important; }
 .rp-bubble.done { background: var(--bg) !important; border-color: var(--line-strong) !important; color: var(--ink-3) !important; }
 .rp-top { display: flex; align-items: center; gap: 6px; }

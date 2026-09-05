@@ -239,12 +239,20 @@ func (s *Server) dmRefund(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "参数错误", http.StatusBadRequest)
 		return
 	}
-	if _, err := s.store.RefundRedpack(msgID, conv.ID, user.ID,
-		"撤回发给 "+conv.PeerName+" 的红包"); err != nil {
+	_, gone, err := s.store.RefundRedpack(msgID, conv.ID, user.ID,
+		"撤回发给 "+conv.PeerName+" 的红包")
+	if err != nil {
 		s.serverError(w, err)
 		return
 	}
 	s.hub.publish(conv.PeerID, "dm")
+	if gone {
+		// 这条红包是会话里唯一的消息,撤回时连会话一起删了(发错人不留痕),
+		// 当前页面已经无内容可渲染 —— 让 htmx 整页跳回私信列表
+		w.Header().Set("HX-Redirect", "/messages")
+		w.WriteHeader(http.StatusOK)
+		return
+	}
 	s.renderDMList(w, conv, user)
 }
 

@@ -927,6 +927,28 @@ contains "积分页显示增值加成" "$P" "增值加成"
 CSRFG=$(curl -s -b "$JARG" -c "$JARG" "$BASE/points" | grep -o 'name="_csrf" value="[^"]*"' | head -1 | sed 's/.*value="//;s/"//')
 curl -s -o /dev/null -b "$JARG" -d "_csrf=$CSRFG" "$BASE/checkin"
 contains "签到带加成记录" "$(curl -s -b "$JARG" "$BASE/points")" "每日签到"
+# 加成额度不叠加:买两次同一档只续期。累加会滚成通胀,而且 checkin_bonus /
+# bonus_until 各只有一列,装不下两份并存的加成(短期档会把长期档的到期日顶后)
+contains "加成额度显示 +3" "$(curl -s -b "$JARG" "$BASE/points")" "增值加成 <b>+3</b>"
+csrf "$BASE/admin/points"
+curl -s -o /dev/null -b "$JAR" -d "_csrf=$CSRF&delta=1000&note=加成叠加测试" "$BASE/admin/points/$GUID/adjust"
+CSRFG=$(curl -s -b "$JARG" -c "$JARG" "$BASE/shop" | grep -o 'name="_csrf" value="[^"]*"' | head -1 | sed 's/.*value="//;s/"//' || true)
+curl -s -o /dev/null -b "$JARG" -d "_csrf=$CSRFG" "$BASE/shop/$BONUSID/redeem"
+P2=$(curl -s -b "$JARG" "$BASE/points")
+contains "再买一次同档不翻倍" "$P2" "增值加成 <b>+3</b>"
+lacks "加成没有累加成 +6" "$P2" "增值加成 <b>+6</b>"
+# 买更高档要升档,回头买低档不该降级
+csrf "$BASE/admin/shop"
+curl -s -o /dev/null -b "$JAR" -d "_csrf=$CSRF" --data-urlencode "kind=checkin" \
+  --data-urlencode "name=签到加成高档" --data-urlencode "price=10" \
+  --data-urlencode "bonus=7" --data-urlencode "days=10" "$BASE/admin/shop"
+HIID=$(curl -s -b "$JARG" "$BASE/shop" | grep -A12 "签到加成高档" | grep -oE '/shop/[0-9]+/redeem' | head -1 | grep -oE '[0-9]+' || true)
+CSRFG=$(curl -s -b "$JARG" -c "$JARG" "$BASE/shop" | grep -o 'name="_csrf" value="[^"]*"' | head -1 | sed 's/.*value="//;s/"//' || true)
+curl -s -o /dev/null -b "$JARG" -d "_csrf=$CSRFG" "$BASE/shop/$HIID/redeem"
+contains "买更高档升到 +7" "$(curl -s -b "$JARG" "$BASE/points")" "增值加成 <b>+7</b>"
+CSRFG=$(curl -s -b "$JARG" -c "$JARG" "$BASE/shop" | grep -o 'name="_csrf" value="[^"]*"' | head -1 | sed 's/.*value="//;s/"//' || true)
+curl -s -o /dev/null -b "$JARG" -d "_csrf=$CSRFG" "$BASE/shop/$BONUSID/redeem"
+contains "回头买低档不降级" "$(curl -s -b "$JARG" "$BASE/points")" "增值加成 <b>+7</b>"
 # 下架与删除
 IID=$(curl -s -b "$JAR" "$BASE/admin/shop" | grep -oE '/admin/shop/[0-9]+/toggle' | head -1 | grep -oE '[0-9]+' || true)
 csrf "$BASE/admin/shop"
@@ -992,6 +1014,25 @@ CSRFG=$(curl -s -b "$JARG" -c "$JARG" "$BASE/shop" | grep -o 'name="_csrf" value
 R=$(curl -s -b "$JARG" -d "_csrf=$CSRFG" "$BASE/shop/$CID/redeem")
 contains "兑换自定义商品" "$R" "管理员会按说明为你发放"
 contains "后台兑换记录出现该单" "$(curl -s -b "$JAR" "$BASE/admin/shop")" "定制头像框"
+# 商品在线编辑:类型不可改,历史订单存的是下单快照,改商品不该动账
+contains "后台有编辑入口" "$(curl -s -b "$JAR" "$BASE/admin/shop")" "data-shop-edit"
+csrf "$BASE/admin/shop"
+A=$(curl -s -b "$JAR" -d "_csrf=$CSRF" --data-urlencode "name=定制头像框 Pro" \
+  --data-urlencode "price=250" --data-urlencode "stock=7" \
+  --data-urlencode "note=兑换后联系管理员安排" "$BASE/admin/shop/$CID/edit")
+contains "编辑商品成功" "$A" "已更新"
+contains "新名称生效" "$A" "定制头像框 Pro"
+contains "新库存生效" "$A" "剩余 7"
+contains "历史订单仍是原价快照" "$A" "\-200"
+contains "前台看到新价格" "$(curl -s -b "$JARG" "$BASE/shop")" "250 积分"
+csrf "$BASE/admin/shop"
+A=$(curl -s -b "$JAR" -d "_csrf=$CSRF" --data-urlencode "name=" --data-urlencode "price=250" \
+  --data-urlencode "note=兑换后联系管理员安排" "$BASE/admin/shop/$CID/edit")
+contains "编辑时空商品名被拒" "$A" "商品名 1–30 字"
+CSRFG=$(curl -s -b "$JARG" -c "$JARG" "$BASE/shop" | grep -o 'name="_csrf" value="[^"]*"' | head -1 | sed 's/.*value="//;s/"//' || true)
+code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JARG" -d "_csrf=$CSRFG" \
+  --data-urlencode "name=偷改" --data-urlencode "price=1" "$BASE/admin/shop/$CID/edit")
+check "非管理员不能编辑商品" "403" "$code"
 
 echo "== 本轮修订:面板不再常驻 / 内置下拉 / 按钮右置 =="
 contains "hidden 属性全局生效" "$(curl -s "$BASE/static/style.css")" '\[hidden\] { display: none !important; }'
@@ -1055,6 +1096,8 @@ contains "私信用通用编辑器" "$D" 'class="composer"'
 contains "编辑器带插图入口" "$D" 'data-compose="upload"'
 contains "编辑器带红包按钮" "$D" "data-rp-toggle"
 contains "红包面板默认收起" "$D" "data-rp-panel hidden"
+lacks "红包面板不再有预设金额" "$D" 'class="tip-amt"'
+contains "红包金额必填" "$D" 'aria-label="红包积分" required'
 # 给 bob 充点积分再发红包
 csrf "$BASE/admin/points"
 curl -s -o /dev/null -b "$JAR" -d "_csrf=$CSRF&delta=300&note=红包测试充值" "$BASE/admin/points/2/adjust"
@@ -1092,18 +1135,42 @@ contains "确认面板改用 requestSubmit" "$(curl -s "$BASE/static/app.js")" "
 code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR2" -H "X-CSRF-Token: $CSRF" -d "msg=$MSG2" "$BASE/messages/$DMID")
 check "会话页本身不接受 POST(旧原生提交的落点)" "405" "$code"
 B3=$(curl -s -b "$JAR2" "$BASE/points" | grep -oE '<b class="pt-num">[0-9]+' | sed 's/.*>//')
+contains "撤回前会话列表带金额" "$(curl -s -b "$JAR" "$BASE/messages")" "红包 20 积分"
 RF=$(curl -s -b "$JAR2" -H "X-CSRF-Token: $CSRF" -d "msg=$MSG2" "$BASE/messages/$DMID/refund")
-contains "撤回后显示已退回" "$RF" "已退回发送者"
+# 会话里已有往来:留一条中性占位(别让对方「收到提醒却找不到东西」),但金额必须消失
+contains "撤回后只留占位" "$RF" "你撤回了一个红包"
+lacks "撤回后不再显示金额" "$RF" "20 积分"
+lacks "撤回后不再出现旧文案" "$RF" "已退回发送者"
 B4=$(curl -s -b "$JAR2" "$BASE/points" | grep -oE '<b class="pt-num">[0-9]+' | sed 's/.*>//')
 check "撤回后积分退回" "$((B3+20))" "$B4"
 contains "流水记退回" "$(curl -s -b "$JAR2" "$BASE/points")" "红包退回"
+DL=$(curl -s -b "$JAR" "$BASE/messages")
+contains "会话列表把撤回显示成中性文字" "$DL" "撤回了一条消息"
+lacks "会话列表也不泄漏撤回金额" "$DL" "红包 20 积分"
 # 负路径
 code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR2" -H "X-CSRF-Token: $CSRF" -d "amount=99999" "$BASE/messages/$DMID/redpack")
 check "红包超上限被拒" "400" "$code"
 CSRFG=$(curl -s -b "$JARG" -c "$JARG" "$BASE/messages" | grep -o 'name="_csrf" value="[^"]*"' | head -1 | sed 's/.*value="//;s/"//' || true)
 code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JARG" -H "X-CSRF-Token: $CSRFG" -d "amount=10" "$BASE/messages/$DMID/redpack")
 check "非会话参与者发红包 404" "404" "$code"
-contains "会话列表把红包显示成文字" "$(curl -s -b "$JAR" "$BASE/messages")" "红包"
+
+# 发错人场景:会话里只有这一个红包 → 撤回时连会话一起删掉,不给陌生人留痕
+CSRF2=$(curl -s -b "$JAR2" -c "$JAR2" "$BASE/u/$GUID" | grep -o 'name="_csrf" value="[^"]*"' | head -1 | sed 's/.*value="//;s/"//' || true)
+NEWID=$(curl -s -o /dev/null -w '%{redirect_url}' -b "$JAR2" -d "_csrf=$CSRF2&to=$GUID" "$BASE/messages/start" | grep -oE '[0-9]+$')
+check "开出一条空会话" "1" "$([ -n "$NEWID" ] && echo 1 || echo 0)"
+CSRF2=$(curl -s -b "$JAR2" -c "$JAR2" "$BASE/messages/$NEWID" | grep -o 'name="_csrf" value="[^"]*"' | head -1 | sed 's/.*value="//;s/"//' || true)
+SOLO=$(curl -s -b "$JAR2" -H "X-CSRF-Token: $CSRF2" -d "amount=15" "$BASE/messages/$NEWID/redpack")
+contains "孤立会话里发出红包" "$SOLO" "等待对方领取"
+SOLOMSG=$(echo "$SOLO" | grep -oE 'name="msg" value="[0-9]+"' | tail -1 | grep -oE '[0-9]+' || true)
+contains "对方列表里能看到" "$(curl -s -b "$JARG" "$BASE/messages")" "红包 15 积分"
+B5=$(curl -s -b "$JAR2" "$BASE/points" | grep -oE '<b class="pt-num">[0-9]+' | sed 's/.*>//')
+HDR=$(curl -s -s -D - -o /dev/null -b "$JAR2" -H "X-CSRF-Token: $CSRF2" -d "msg=$SOLOMSG" "$BASE/messages/$NEWID/refund" | tr 'A-Z' 'a-z')
+contains "孤立会话撤回后让前端跳回列表" "$HDR" "hx-redirect: /messages"
+B6=$(curl -s -b "$JAR2" "$BASE/points" | grep -oE '<b class="pt-num">[0-9]+' | sed 's/.*>//')
+check "孤立会话撤回也退积分" "$((B5+15))" "$B6"
+code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR2" "$BASE/messages/$NEWID")
+check "会话已被删掉" "404" "$code"
+lacks "对方列表里一点痕迹都不留" "$(curl -s -b "$JARG" "$BASE/messages")" "15 积分"
 
 echo "== 账号页:账户名 / 邮箱登录 / 改显示名收费 =="
 code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JARG" "$BASE/account")

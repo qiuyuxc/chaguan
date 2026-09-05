@@ -17,8 +17,11 @@ go run ./cmd/bbs          # http://localhost:8080,数据库在 ./data/bbs.db
 | `BBS_DB` | `data/bbs.db` | SQLite 文件路径 |
 | `BBS_UPLOADS` | `uploads` | 上传文件目录 |
 | `TZ` | 系统时区 | 影响签到的「一天」与后台今日统计 |
+| `BBS_RP_TTL` | `24h` | 私信红包没人领多久自动退回发送者 |
+| `BBS_SWEEP` | `10m` | 后台巡检间隔(目前只做红包超时退回) |
 
 SMTP、人机验证、站点品牌这些都在管理后台页面里配置,不需要环境变量。
+后两个旋钮生产用默认值就行,存在主要是让测试脚本把「等 24 小时」压成「等 2 秒」。
 
 ## 功能
 
@@ -71,12 +74,14 @@ scripts/            端到端测试脚本
 ```bash
 go build -o bbs ./cmd/bbs
 PORT=8090 BBS_DB=/tmp/t.db BBS_UPLOADS=/tmp ./bbs &   # 起一个空库实例
-BASE=http://localhost:8090 bash scripts/smoke.sh      # 441 条 curl 断言
+BASE=http://localhost:8090 bash scripts/smoke.sh      # 467 条 curl 断言
 bash scripts/mailflow.sh                              # 邮件链路 16 条(python3 起假 SMTP)
 bash scripts/accountflow.sh                           # 两步验证 18 条(python3 算 TOTP)
+bash scripts/rpexpire.sh                              # 红包超时退回 16 条(自己起实例)
 ```
 
-`smoke.sh` 只依赖 curl,另两套额外需要 python3(不用装任何第三方库)。CI 会跑全部三套。
+`smoke.sh` 与 `rpexpire.sh` 只依赖 curl,另两套额外需要 python3(不用装任何第三方库)。
+`rpexpire.sh` 自己起实例并把 `BBS_RP_TTL` 压到 2 秒,所以不用真等一天。CI 会跑全部四套。
 
 ## 部署
 
@@ -114,3 +119,7 @@ CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-s -w" -o bbs
 | `ci.yml` | push / PR | `go vet`、编译、跑三套端到端测试 |
 | `build.yml` | 默认分支 / `v*` 标签 | buildx 多架构构建并推 `ghcr.io/<owner>/bbs`(`latest`、语义化版本、短哈希) |
 | `release.yml` | `v*` 标签 | 交叉编译 amd64/arm64 二进制,连 `checksums.txt` 挂到 Release |
+
+## 许可
+
+[MIT](LICENSE)
