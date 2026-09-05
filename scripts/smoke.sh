@@ -1225,6 +1225,18 @@ contains "私信用通用编辑器" "$D" 'class="composer"'
 contains "编辑器带插图入口" "$D" 'data-compose="upload"'
 contains "编辑器带红包按钮" "$D" "data-rp-toggle"
 contains "红包面板默认收起" "$D" "data-rp-panel hidden"
+# 私信用的是论坛那个 composer(带插图),所以正文也得按 Markdown 渲染 ——
+# 否则插进去的图片只会原样显示成 ![](/uploads/12)
+CSRFD=$(curl -s -b "$JAR2" -c "$JAR2" "$BASE/messages/$DMID" | grep -o 'name="_csrf" value="[^"]*"' | head -1 | sed 's/.*value="//;s/"//' || true)
+IMGMSG=$(curl -s -b "$JAR2" -H "X-CSRF-Token: $CSRFD" \
+  --data-urlencode "body=看这张图 ![](/uploads/1)" "$BASE/messages/$DMID/send")
+contains "私信里的图片被渲染成 img" "$IMGMSG" '<img src="/uploads/1"'
+lacks "私信不再原样吐出 Markdown" "$IMGMSG" '!\[\](/uploads/1)'
+NLMSG=$(curl -s -b "$JAR2" -H "X-CSRF-Token: $CSRFD" \
+  --data-urlencode "body=第一行
+第二行" "$BASE/messages/$DMID/send")
+contains "单个换行直接断行(聊天口径)" "$NLMSG" "第一行<br>"
+contains "上传回源要求校验缓存" "$(curl -s -D - -o /dev/null "$BASE/uploads/1" | tr 'A-Z' 'a-z')" "cache-control: no-cache"
 lacks "红包面板不再有预设金额" "$D" 'class="tip-amt"'
 contains "红包金额必填" "$D" 'aria-label="红包积分" required'
 # 给 bob 充点积分再发红包

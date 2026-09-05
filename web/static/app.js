@@ -1222,6 +1222,10 @@
       closeTips(pop);
       pop.hidden = !willOpen;
       btn.setAttribute("aria-expanded", willOpen ? "true" : "false");
+      if (willOpen) {
+        // 同私信红包面板:向下展开的东西在手机上可能落在屏幕外,滚过来才看得见
+        try { pop.scrollIntoView({ behavior: "smooth", block: "nearest" }); } catch (err) {}
+      }
       return;
     }
     if (e.target.closest && e.target.closest("[data-tip-close]")) {
@@ -1413,6 +1417,12 @@
     panel.hidden = !open;
     btn.classList.toggle("on", open);
     btn.setAttribute("aria-expanded", open ? "true" : "false");
+    if (!open) return;
+    // 面板是向下展开的,在手机上正好被折在屏幕外 —— 只切 hidden 的话页面看不出
+    // 任何变化,用户以为按钮没反应。滚过去 + 聚焦金额框(顺带弹出数字键盘)
+    try { panel.scrollIntoView({ behavior: "smooth", block: "nearest" }); } catch (e) {}
+    var amt = panel.querySelector("input[type=number]");
+    if (amt) { try { amt.focus(); } catch (e) {} }
   });
   document.body.addEventListener("htmx:afterRequest", function (e) {
     // 红包发出后收起面板并清空自定义金额

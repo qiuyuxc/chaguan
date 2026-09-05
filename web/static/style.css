@@ -1212,7 +1212,15 @@ body.drawer-open { overflow: hidden; }
   background: var(--accent); border-color: var(--accent); color: var(--on-accent);
   border-radius: 10px 10px 3px 10px;
 }
-.dm-text { margin: 0; font-size: 13px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+/* 私信正文走 Markdown(和论坛同一个编辑器,得能显示插进来的图),所以不能再用
+   white-space: pre-wrap —— 硬换行已经由渲染器变成 <br> 了,叠上 pre-wrap 会多出空行 */
+.dm-text { margin: 0; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.dm-text p { margin: 0 0 6px; }
+.dm-text p:last-child { margin-bottom: 0; }
+.dm-text img { max-width: 100%; height: auto; border-radius: var(--r-ctl); display: block; }
+.dm-text pre { margin: 4px 0; padding: 6px 8px; overflow-x: auto; background: var(--bg); border-radius: var(--r-ctl); }
+.dm-text code { font-size: 12px; }
+.dm-text a { color: var(--accent-dk); }
 .dm-time { display: block; margin-top: 3px; font-size: 10px; color: var(--ink-4); }
 .dm-row.mine .dm-time { color: rgba(255, 255, 255, 0.7); }
 html[data-theme="dark"] .dm-row.mine .dm-time { color: rgba(0, 0, 0, 0.55); }

@@ -9,6 +9,7 @@ import (
 	"unicode/utf8"
 
 	"bbs/internal/db"
+	"bbs/internal/markdown"
 	"bbs/web"
 )
 
@@ -127,7 +128,12 @@ func (s *Server) dmViews(conv *db.DMConversation, viewer *db.User) ([]web.DMView
 	}
 	out := make([]web.DMView, 0, len(msgs))
 	for _, m := range msgs {
-		out = append(out, web.DMView{Msg: m, Mine: m.SenderID == viewer.ID, Peer: conv})
+		v := web.DMView{Msg: m, Mine: m.SenderID == viewer.ID, Peer: conv}
+		if !m.IsRedpack() {
+			// 红包气泡有自己的结构,body 只是给列表预览用的说明文字,不渲染
+			v.BodyHTML = markdown.RenderDM(m.Body)
+		}
+		out = append(out, v)
 	}
 	return out, nil
 }

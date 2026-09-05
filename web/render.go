@@ -60,10 +60,13 @@ type PostView struct {
 }
 
 // DMView 是私信气泡的数据:消息 + 是否我发的 + 对方信息(渲染头像用)。
+// BodyHTML 是正文渲染后的 HTML —— 私信编辑器和论坛用的是同一个 composer(带插图),
+// 所以正文也得按 Markdown 渲染,否则插进去的图片只会显示成 ![](/uploads/12)。
 type DMView struct {
-	Msg  db.DMMessage
-	Mine bool
-	Peer *db.DMConversation
+	Msg      db.DMMessage
+	Mine     bool
+	Peer     *db.DMConversation
+	BodyHTML string
 }
 
 var funcs = template.FuncMap{

@@ -22,7 +22,7 @@ jobs:
       - name: Build
         run: go build -trimpath -o bbs ./cmd/bbs
 
-      - name: Smoke（curl 端到端,~510 条断言）
+      - name: Smoke（curl 端到端,~515 条断言）
         run: |
           mkdir -p /tmp/bbs
           PORT=8090 BBS_DB=/tmp/bbs/t.db BBS_UPLOADS=/tmp/bbs ./bbs &

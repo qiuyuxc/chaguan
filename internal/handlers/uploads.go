@@ -69,7 +69,12 @@ func (s *Server) serveUpload(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 	w.Header().Set("Content-Type", u.Mime)
-	w.Header().Set("Cache-Control", "public, max-age=86400")
+	// 必须每次回源校验,不能按 max-age 长缓存:/uploads/{id} 的 id 是自增主键,
+	// 换库或重建数据库后同一个 id 会指向完全不同的图片,浏览器拿着旧缓存不放,
+	// 表现就是「上传了新头像,页面上还是原来那张」。ETag 让没变的图只回 304。
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("ETag", `"`+strconv.FormatInt(u.ID, 10)+"-"+
+		strconv.FormatInt(u.CreatedAt, 10)+"-"+strconv.FormatInt(u.Size, 10)+`"`)
 	http.ServeContent(w, r, filepath.Base(u.Path), time.Unix(u.CreatedAt, 0), file)
 }
 

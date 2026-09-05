@@ -47,7 +47,7 @@
   </div>
   {{else}}
   <div class="dm-bubble">
-    <p class="dm-text">{{.Msg.Body}}</p>
+    <div class="dm-text">{{safeHTML .BodyHTML}}</div>
     <span class="dm-time">{{relTime .Msg.CreatedAt}}{{if and .Mine .Msg.ReadAt.Valid}} · 已读{{end}}</span>
   </div>
   {{end}}
