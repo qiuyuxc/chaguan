@@ -9,8 +9,8 @@
   </a>
   {{end}}
   {{if .Msg.RPRevoked}}
-  {{/* 主动撤回:只留一条中性占位,不显示金额。留一行是为了别让对方
-       「明明收到提醒却什么都找不到」;藏金额是因为发错人时那才是最尴尬的信息 */}}
+  {{/* 主动撤回:留一条中性占位但不显示金额 —— 占位是为了别让对方
+       「收到提醒却找不到东西」,藏金额是因为发错人时那才是最尴尬的信息 */}}
   <div class="dm-bubble dm-revoked">
     <p class="dm-text">{{if .Mine}}你撤回了一个红包{{else}}对方撤回了一条消息{{end}}</p>
     <span class="dm-time">{{relTime .Msg.CreatedAt}}</span>

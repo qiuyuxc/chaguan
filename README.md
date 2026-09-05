@@ -16,12 +16,15 @@ go run ./cmd/bbs          # http://localhost:8080,数据库在 ./data/bbs.db
 | `PORT` | `8080` | 监听端口 |
 | `BBS_DB` | `data/bbs.db` | SQLite 文件路径 |
 | `BBS_UPLOADS` | `uploads` | 上传文件目录 |
-| `TZ` | 系统时区 | 影响签到的「一天」与后台今日统计。启动日志会打印实际生效的时区 —— Android/Termux 上 Go 认不出系统 zoneinfo,所以程序显式按 `TZ` 装载(内嵌 tzdata),别只靠系统默认 |
-| `BBS_RP_TTL` | `24h` | 私信红包没人领多久自动退回发送者 |
-| `BBS_SWEEP` | `1m` | 后台巡检间隔(红包超时退回 + 抽奖定点开奖)。**定点开奖的精度就是这个值** —— 设定时刻最多晚一个周期才生效 |
+| `TZ` | 系统时区 | 影响签到的「一天」、后台今日统计、定点开奖 |
+| `BBS_RP_TTL` | `24h` | 私信红包没人领多久自动退回 |
+| `BBS_SWEEP` | `1m` | 后台巡检间隔;**定点开奖的精度就是这个值** |
 
-SMTP、人机验证、站点品牌这些都在管理后台页面里配置,不需要环境变量。
-后两个旋钮生产用默认值就行,存在主要是让测试脚本把「等 24 小时」压成「等 2 秒」。
+SMTP、人机验证、站点品牌这些在管理后台页面里配置,不走环境变量。
+`BBS_RP_TTL` 与 `BBS_SWEEP` 生产用默认值就行,存在主要是让测试脚本把「等 24 小时」压成「等 2 秒」。
+
+启动日志会打印实际生效的时区,建议核一眼:Android/Termux 上 Go 认不出系统 zoneinfo,
+`TZ` 会被静默忽略,所以程序显式按它装载(tzdata 已内嵌)。
 
 ## 功能
 
@@ -38,10 +41,6 @@ SMTP、人机验证、站点品牌这些都在管理后台页面里配置,不需
 **积分**:每日签到(+5 积分 +5 经验)、打赏、付费帖(观看等级门槛 / 支付积分解锁)、
 积分商城(勋章 / 签到加成 / 自定义商品)、积分流水可对账。支持两位小数 —— 打赏和私信
 红包可以填 3.24,签到、改名费这类系统固定值仍是整数。
-
-> 实现上积分**一律以「分」为单位存整数**(1 积分 = 100 分,见 `internal/db/points_unit.go`)。
-> 绝不用浮点:float 算钱会累积误差,随机拆奖池再求和就对不上账。新增积分字段时记住存的是
-> 「分」;展示走模板助手 `pts`,读用户输入走 `db.ParsePoints`,写常量用 `db.Pts(n)`。
 
 **抽奖帖**:回复即参与,可设参与投入积分、参与人数上限(先来后到)、定点自动开奖。
 分两类 —— **实物奖**平台只随机抽人、出中奖名单,奖品楼主自己发;**积分奖**由楼主发帖时
@@ -64,19 +63,44 @@ CSRF 双提交校验;人机验证作用于注册/找回/重发验证邮件。
 
 ## 结构
 
-```
-cmd/bbs/            入口(含 -healthcheck 探针)
-internal/db/        SQLite 打开/迁移/全部 SQL(migrations/ 内嵌)
-internal/auth/      bcrypt、会话 token、TOTP、请求上下文认证信息
-internal/mail/      SMTP 发信(587 STARTTLS / 465 SSL / 明文)
-internal/markdown/  正文渲染(goldmark;原始 HTML 与危险链接被过滤)
-internal/handlers/  路由、中间件、全部 handler(含 SSE 推送 hub)
-web/                模板 + 静态资源(全部 go:embed,含 htmx.min.js)
-preview/            早期移动端 UI 静态稿,仅作设计参考,不参与构建
-scripts/            端到端测试脚本
+```text
+cmd/bbs/main.go        入口:环境变量、时区、迁移、优雅退出、-healthcheck 探针
+
+internal/db/           数据层,不用 ORM
+  db.go                连接与全部 SQL(WAL + 单写连接)
+  points_unit.go       积分单位换算
+  migrations/*.sql     迁移,只加列/加表
+
+internal/handlers/     路由、中间件与全部 handler
+  server.go            路由表、CSRF/会话/panic 中间件、后台巡检
+  auth.go account.go   登录注册、账号页(改密/邮箱/2FA)
+  forum.go gate.go     版块主题回复、阅读门槛与抽奖
+  react.go points.go   点赞收藏打赏、积分与签到
+  dm.go events.go      私信、SSE 推送 hub
+  shop.go notify.go    商城兑换、站内通知
+  admin.go mod.go      后台各页、版主与内容管理
+  uploads.go verify.go 图片上传回访、认证申请
+  captcha.go mailer.go settings.go   人机验证、发信封装、通知偏好
+
+internal/auth/         bcrypt、会话 token、TOTP、请求上下文认证信息
+internal/mail/         SMTP 发信(587 STARTTLS / 465 SSL / 明文)
+internal/markdown/     正文渲染(goldmark;原始 HTML 与危险链接被过滤)
+
+web/                   模板与静态资源,全部 go:embed
+  render.go            模板集 + 模板助手(pts / relTime / 徽章 …)
+  templates/           一页一个文件,partials/ 是复用片段
+  static/              style.css、app.js、htmx.min.js、图标
+
+scripts/               端到端测试,见下一节
+preview/               早期移动端静态稿,只作设计参考,不参与构建
 ```
 
-数据库不用 ORM,SQL 全在 `internal/db`;迁移只做加列/加表,旧二进制挂新库也能启动。
+两条贯穿全局的约定:
+
+- **积分一律以「分」为单位存整数**(1 积分 = 100 分,`internal/db/points_unit.go`)。绝不用浮点 ——
+  float 算钱会累积误差,随机拆奖池再求和就对不上账。新增积分字段时记住存的是「分」:
+  展示走模板助手 `pts`,读用户输入走 `db.ParsePoints`,写常量用 `db.Pts(n)`。
+- **迁移只做加列/加表**,不改不删,所以旧二进制挂新库也能启动。
 
 ## 测试
 
@@ -126,7 +150,7 @@ CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-s -w" -o bbs
 
 | 工作流 | 触发 | 做什么 |
 |---|---|---|
-| `ci.yml` | push / PR | `go vet`、编译、跑三套端到端测试 |
+| `ci.yml` | push / PR | `go vet`、编译、跑四套端到端测试 |
 | `build.yml` | 默认分支 / `v*` 标签 | buildx 多架构构建并推 `ghcr.io/<owner>/bbs`(`latest`、语义化版本、短哈希) |
 | `release.yml` | `v*` 标签 | 交叉编译 amd64/arm64 二进制,连 `checksums.txt` 挂到 Release |
 

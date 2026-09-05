@@ -57,10 +57,9 @@ func healthcheck(port string) int {
 }
 
 // applyTZ 显式按 TZ 装载时区并覆盖 time.Local。
-// 为什么不直接靠 Go 自己读 TZ:Android / Termux 上 time.Local 的初始化认不出系统的
-// zoneinfo 布局,TZ=Asia/Shanghai 会被静默忽略、time.Local 留在 UTC —— 表现是签到的
-// 「一天」在早上八点翻页、页面时间差 8 小时。而显式 LoadLocation 走内嵌的 time/tzdata
-// 是好的,所以这里主动加载再赋值。在起任何 goroutine 之前做,不存在并发问题。
+// Android / Termux 上 Go 自己的 time.Local 初始化认不出系统 zoneinfo,TZ 会被静默
+// 忽略、留在 UTC —— 签到的「一天」在早上八点翻页,页面时间整体差 8 小时。
+// 显式 LoadLocation 走内嵌 tzdata 是好的。在起任何 goroutine 之前做,没有并发问题。
 func applyTZ() {
 	name := os.Getenv("TZ")
 	if name == "" {

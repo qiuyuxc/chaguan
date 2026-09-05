@@ -1196,10 +1196,9 @@ body.drawer-open { overflow: hidden; }
   display: flex; flex-direction: column; gap: 10px;
   padding: 14px 0; height: 58vh; overflow-y: auto;
 }
-/* 高度写死(不是 max-height):否则消息少时这块塌成内容高度,输入框跟着往上跑,
-   位置随消息条数一直变。消息少时让内容贴底,合聊天习惯 —— 但不能用
-   justify-content: flex-end,它和 overflow-y: auto 一起会导致溢出后滚不回顶部,
-   只有给首个子元素 margin-top: auto 才安全 */
+/* 高度写死(不是 max-height):否则消息少时这块塌成内容高度,输入框跟着上下漂。
+   消息少时贴底用 margin-top: auto —— justify-content: flex-end 和 overflow-y
+   一起会导致溢出后滚不回顶部。 */
 .dm-msgs > :first-child { margin-top: auto; }
 .dm-row { display: flex; align-items: flex-end; gap: 8px; max-width: 100%; }
 .dm-row.mine { justify-content: flex-end; }
@@ -1212,8 +1211,8 @@ body.drawer-open { overflow: hidden; }
   background: var(--accent); border-color: var(--accent); color: var(--on-accent);
   border-radius: 10px 10px 3px 10px;
 }
-/* 私信正文走 Markdown(和论坛同一个编辑器,得能显示插进来的图),所以不能再用
-   white-space: pre-wrap —— 硬换行已经由渲染器变成 <br> 了,叠上 pre-wrap 会多出空行 */
+/* 私信正文走 Markdown(和论坛同一个编辑器,得能显示插进来的图),
+   所以不能用 pre-wrap —— 硬换行已经被渲染成 <br>,叠上去会多出空行 */
 .dm-text { margin: 0; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
 .dm-text p { margin: 0 0 6px; }
 .dm-text p:last-child { margin-bottom: 0; }
@@ -2023,10 +2022,8 @@ html[data-theme="dark"] .avatar.c5, html[data-theme="dark"] .avatar.c6 { color: 
 .dm-revoked .dm-text { color: var(--ink-4); }
 .dm-compose { position: relative; padding-top: 10px; border-top: 1px solid var(--line); }
 .dm-form { display: block; margin: 0; }
-/* 红包面板浮在输入框「上方」,不占文档流。原来它是向下展开的普通块:
-   输入框本来就在页面最底下,展开只会把页面撑高,下面又什么都没有 —— 滚过去
-   就是一片大留白。改成绝对定位盖在消息区底部(聊天软件的通用做法),
-   高度不变、位置固定、一打开就在眼前,不需要滚动。 */
+/* 浮在输入框上方、不占文档流:输入框本来就在页面最底下,向下展开只会把页面
+   撑高、下面一片留白。盖在消息区底部是聊天软件的通用做法。 */
 .rp-panel {
   position: absolute; left: 0; right: 0; bottom: 100%; z-index: 12;
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;

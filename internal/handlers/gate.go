@@ -225,7 +225,7 @@ func (s *Server) runDraw(threadID, authorID int64, lot *db.Lottery, actorID int6
 
 // splitPool 把奖池随机拆成 n 份,每份至少 1、总和严格等于 pool。
 // 用「随机切点法」:在 1..pool-1 里取 n-1 个互不相同的切点,排序后取相邻差值。
-// 比「先随机再取整」稳 —— 后者会拆出 0,也会因为取整把总额丢掉一两分。
+// 比「先随机再取整」稳 —— 后者会拆出 0,也会因取整丢掉一两分。
 // pool 为 0(实物奖)时返回全 0,表示只抽人不发积分。
 func splitPool(pool int64, n int) []int64 {
 	out := make([]int64, n)

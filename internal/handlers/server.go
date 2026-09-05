@@ -48,8 +48,7 @@ func (o Options) redpackTTL() time.Duration {
 	return 24 * time.Hour
 }
 
-// sweepEvery 决定「定点开奖」的实际精度:设定时刻最多晚一个巡检周期才生效。
-// 所以别调太大 —— 一分钟一次两条带索引的查询,本地 SQLite 上开销可以忽略。
+// sweepEvery 也决定「定点开奖」的精度:设定时刻最多晚一个周期才生效。
 func (o Options) sweepEvery() time.Duration {
 	if o.SweepEvery > 0 {
 		return o.SweepEvery
@@ -192,9 +191,9 @@ func Routes(store *db.Store, rend *web.Renderer, uploadsDir string, opts Options
 	return s.recoverMW(s.loadUserMW(s.csrfMW(mux)))
 }
 
-// startSweeper 起一个后台巡检:红包超时退回 + 抽奖定点开奖。
-// 进程内 goroutine 而不是外部 cron —— 这是个单二进制应用,没有别的调度器可用;
-// 生命周期跟进程一致,所以不带 ctx 也不会泄漏。启动时先扫一次,补上停机期间到点的。
+// startSweeper 后台巡检:红包超时退回 + 抽奖定点开奖。
+// 单二进制应用没有别的调度器,生命周期跟进程一致所以不带 ctx;
+// 启动时先扫一次,补上停机期间到点的。
 func (s *Server) startSweeper(opts Options) {
 	ttl, every := opts.redpackTTL(), opts.sweepEvery()
 	go func() {

@@ -1839,8 +1839,8 @@ func (s *Store) JoinedLottery(threadID, userID int64) (bool, error) {
 }
 
 // JoinLottery 参与抽奖(回复时自动调用):写参与记录,stake>0 时扣积分进奖池。
-// 已参与、已开奖、或参与人数已满都返回 false —— 这三种情况回复照发,只是不进
-// 参与名单(把人的回复整条拦掉太狠了)。积分不足返回 ErrNotEnoughPoints。
+// 已参与、已开奖、名额已满都返回 false —— 这三种情况回复照发,只是不进名单
+// (把整条回复拦掉太狠)。积分不足返回 ErrNotEnoughPoints。
 func (s *Store) JoinLottery(threadID, userID, stake int64, note string) (bool, error) {
 	joined := false
 	err := s.withTx(func(tx *sql.Tx) error {
@@ -2509,8 +2509,8 @@ func (s *Store) DeletePost(postID int64) error {
 }
 
 // DeleteThread 删除整个主题(posts / 抽奖 / 参与记录靠外键级联)。
-// 主题上还挂着没开奖的抽奖时,先把钱退干净再删 —— 楼主预扣的奖池退给楼主,
-// 参与者投入的 stake 逐笔退回本人,否则这些积分会跟着帖子一起蒸发。
+// 主题上还挂着没开奖的抽奖时先把钱退干净:奖池退楼主、投入逐笔退参与者,
+// 否则这些积分会跟着帖子一起蒸发。
 func (s *Store) DeleteThread(threadID int64) error {
 	return s.withTx(func(tx *sql.Tx) error {
 		if err := refundLotteryTx(tx, threadID, "抽奖帖已删除"); err != nil {
@@ -2743,8 +2743,8 @@ func (s *Store) ClaimRedpack(msgID, threadID, claimerID int64, note string) (int
 }
 
 // RefundRedpack 撤回未领取的红包,积分退还发送者。
-// 若这条红包是会话里唯一的消息,连消息带会话一起删掉 —— 发错人的场合不该在陌生人
-// 的私信列表里留一个撤回痕迹。会话里已有往来时只改状态,气泡降级成不显示金额的占位。
+// 若这条红包是会话里唯一的消息,连消息带会话一起删 —— 发错人的场合不该在陌生人
+// 的私信列表里留痕。已有往来时只改状态,气泡降级成不显示金额的占位。
 // 返回 (是否撤回成功, 会话是否已被删掉)。
 func (s *Store) RefundRedpack(msgID, threadID, senderID int64, note string) (bool, bool, error) {
 	done, gone := false, false
@@ -2806,8 +2806,8 @@ type ExpiredRedpack struct {
 }
 
 // ExpireRedpacks 把 createdBefore 之前还没人领的红包退回发送者,状态记 expired。
-// 跟手动撤回不一样:超时是被动的、对方早看过金额了,所以不删消息也不删会话,
-// 只把气泡改成「已超时退回」。一次最多 500 笔,剩下的下一轮再扫。
+// 跟手动撤回不同:超时是被动的、对方早看过金额了,所以不删消息也不删会话。
+// 一次最多 500 笔,剩下的下一轮再扫。
 func (s *Store) ExpireRedpacks(createdBefore int64) ([]ExpiredRedpack, error) {
 	type cand struct {
 		msgID, threadID, senderID, amount, peerID int64
@@ -3524,9 +3524,8 @@ func (s *Store) RedeemShopItem(userID int64, it ShopItem) error {
 				}
 			}
 		case "checkin":
-			// 加成额度不累加:一是买 N 次就每天多拿 N 倍,积分会通胀;二是
-			// checkin_bonus / bonus_until 各只有一列,装不下两份并存的加成
-			// (先买 +2/30 天再买 +5/7 天会变成 +7 一直生效到 37 天后)。
+			// 加成额度不累加:买 N 次就每天多拿 N 倍会通胀,而且 checkin_bonus /
+			// bonus_until 各只有一列,装不下两份并存的加成。
 			// 规则:生效中的取较高档,已过期的直接替换;有期限的按天顺延。
 			now := time.Now().Unix()
 			var curBonus int64

@@ -1132,8 +1132,8 @@
 })();
 
 // 时区:datetime-local 不带时区,发帖时把浏览器的 UTC 偏移一起带上(东八区 = 480),
-// 服务端才能把「18:00」换成正确的时刻。反过来,展示未来时间的地方按本机时区改写,
-// 免得服务器跑在 UTC 时卡片上显示的钟点跟用户填的对不上。
+// 服务端才能换成正确的时刻;展示未来时间的地方按本机时区改写,免得服务器跑在
+// 别的时区时显示的钟点跟用户填的对不上。
 (function () {
   document.querySelectorAll("[data-tz-offset]").forEach(function (el) {
     el.value = String(-new Date().getTimezoneOffset());
@@ -1370,9 +1370,8 @@
     document.addEventListener("keydown", function (e) {
       if (e.key === "Escape" && !modal.hidden) hide();
     });
-    // 必选项:没选就拦住提交。以前只给 box 闪 700ms 红边就完事,但必选项通常在
-    // 表单顶部、提交按钮在底部 —— 手机上那点反馈发生在屏幕外,用户看到的是
-    // 「点了没反应也不报错」。所以现在滚回去、留住提示、把焦点也移过来。
+    // 必选项:没选就拦住提交。提示要留得住并滚回可视区 —— 必选项通常在表单顶部、
+    // 提交按钮在底部,只闪一下红边的话反馈发生在屏幕外,看起来像「点了没反应」。
     var form = box.closest("form");
     if (form && box.getAttribute("data-optional") === null) {
       var need = null;
@@ -1413,8 +1412,8 @@
     panel.hidden = !open;
     btn.classList.toggle("on", open);
     btn.setAttribute("aria-expanded", open ? "true" : "false");
-    // 面板是浮在输入框上方的(见 style.css 里 .rp-panel),不占文档流也不会
-    // 把页面撑高,所以不用滚动,只把焦点送进金额框(手机上顺带弹数字键盘)
+    // 面板浮在输入框上方(见 style.css),不占文档流也不用滚动,
+    // 只把焦点送进金额框(手机上顺带弹数字键盘)
     if (!open) return;
     var amt = panel.querySelector("input[type=number]");
     if (amt) { try { amt.focus(); } catch (e) {} }
