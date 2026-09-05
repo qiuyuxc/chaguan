@@ -1,4 +1,4 @@
-// bbs — Go + SQLite 单二进制论坛。
+// chaguan — Go + SQLite 单二进制论坛。
 package main
 
 import (
@@ -16,9 +16,9 @@ import (
 	// 没有 /usr/share/zoneinfo 也能正确解析 TZ=Asia/Shanghai
 	_ "time/tzdata"
 
-	"bbs/internal/db"
-	"bbs/internal/handlers"
-	"bbs/web"
+	"chaguan/internal/db"
+	"chaguan/internal/handlers"
+	"chaguan/web"
 )
 
 func envOr(key, def string) string {
@@ -80,8 +80,8 @@ func main() {
 		os.Exit(healthcheck(port))
 	}
 	applyTZ()
-	dbPath := envOr("BBS_DB", "data/bbs.db")
-	uploadsDir := envOr("BBS_UPLOADS", "uploads")
+	dbPath := envOr("CHAGUAN_DB", "data/chaguan.db")
+	uploadsDir := envOr("CHAGUAN_UPLOADS", "uploads")
 
 	if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
 		log.Fatalf("创建数据目录失败: %v", err)
@@ -106,14 +106,14 @@ func main() {
 	srv := &http.Server{
 		Addr: ":" + port,
 		Handler: handlers.Routes(store, rend, uploadsDir, handlers.Options{
-			RedpackTTL: envDur("BBS_RP_TTL", 24*time.Hour),
-			SweepEvery: envDur("BBS_SWEEP", time.Minute),
+			RedpackTTL: envDur("CHAGUAN_RP_TTL", 24*time.Hour),
+			SweepEvery: envDur("CHAGUAN_SWEEP", time.Minute),
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
 	go func() {
-		log.Printf("bbs 已启动: http://localhost:%s (db: %s, 时区: %s)", port, dbPath, time.Local)
+		log.Printf("chaguan 已启动: http://localhost:%s (db: %s, 时区: %s)", port, dbPath, time.Local)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("监听失败: %v", err)
 		}

@@ -4,8 +4,8 @@
 .smoke
 data
 uploads
-bbs
-bbs-linux
+chaguan
+chaguan-linux
 *.db
 *.db-wal
 *.db-shm

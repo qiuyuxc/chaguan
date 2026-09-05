@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"bbs/internal/db"
+	"chaguan/internal/db"
 )
 
 const turnstileVerifyURL = "https://challenges.cloudflare.com/turnstile/v0/siteverify"

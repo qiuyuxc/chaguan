@@ -9,9 +9,9 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"bbs/internal/auth"
-	"bbs/internal/db"
-	"bbs/web"
+	"chaguan/internal/auth"
+	"chaguan/internal/db"
+	"chaguan/web"
 )
 
 const adminUsersPerPage = 15

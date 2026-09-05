@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"bbs/internal/auth"
-	"bbs/internal/db"
-	"bbs/internal/mail"
+	"chaguan/internal/auth"
+	"chaguan/internal/db"
+	"chaguan/internal/mail"
 )
 
 const (

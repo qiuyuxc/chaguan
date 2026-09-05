@@ -10,7 +10,7 @@ set -eu
 
 PORT="${PORT:-8183}"
 BASE="http://localhost:$PORT"
-BIN="${BIN:-./bbs}"
+BIN="${BIN:-./chaguan}"
 PASS=0; FAIL=0
 ok()   { PASS=$((PASS+1)); echo "  ✓ $1"; }
 bad()  { FAIL=$((FAIL+1)); echo "  ✗ $1"; }
@@ -22,11 +22,11 @@ WORK=$(mktemp -d); JA=$(mktemp); JB=$(mktemp)
 cleanup() { kill ${SP:-0} 2>/dev/null || true; rm -rf "$WORK" "$JA" "$JB" 2>/dev/null || true; }
 trap cleanup EXIT
 
-[ -x "$BIN" ] || { echo "先编译: go build -o bbs ./cmd/bbs"; exit 1; }
+[ -x "$BIN" ] || { echo "先编译: go build -o chaguan ./cmd/chaguan"; exit 1; }
 # TZ 钉死成 UTC:datetime-local 不带时区,服务端按 time.Local 解析,脚本里的 date 用
 # 系统时区。两边不一致时「下一个整分」会算错,定点开奖那段永远等不到。
 export TZ=UTC
-PORT=$PORT BBS_DB=$WORK/t.db BBS_UPLOADS=$WORK BBS_RP_TTL=2s BBS_SWEEP=1s \
+PORT=$PORT CHAGUAN_DB=$WORK/t.db CHAGUAN_UPLOADS=$WORK CHAGUAN_RP_TTL=2s CHAGUAN_SWEEP=1s \
   "$BIN" >"$WORK/log" 2>&1 & SP=$!
 for _ in $(seq 1 30); do [ "$(curl -s -m 2 $BASE/healthz)" = "ok" ] && break; sleep 0.5; done
 

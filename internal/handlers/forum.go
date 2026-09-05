@@ -8,10 +8,10 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"bbs/internal/auth"
-	"bbs/internal/db"
-	"bbs/internal/markdown"
-	"bbs/web"
+	"chaguan/internal/auth"
+	"chaguan/internal/db"
+	"chaguan/internal/markdown"
+	"chaguan/web"
 )
 
 // base 从请求上下文构造页面公共头,顺带加载抽屉/侧栏数据(导航与社区统计)。

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# bbs 冒烟测试:注册→建版块→发帖→回复→删除 + CSRF/权限负路径
+# chaguan 冒烟测试:注册→建版块→发帖→回复→删除 + CSRF/权限负路径
 # 用法: BASE=http://localhost:8090 ./scripts/smoke.sh
 # 注意:这里刻意不开 pipefail —— 脚本里大量 `echo 大段内容 | grep -q` 与
 # `grep | head` 的写法,前者会让 grep 命中即退出、把 echo 打成 SIGPIPE,
@@ -33,7 +33,7 @@ echo "== 基础 =="
 check "healthz" "ok" "$(curl -s "$BASE/healthz")"
 HOME_HTML=$(curl -s -c "$JAR" "$BASE/")
 contains "首页含种子版块「综合」" "$HOME_HTML" "综合"
-contains "页面含内置确认面板" "$HOME_HTML" 'id="bbs-modal"'
+contains "页面含内置确认面板" "$HOME_HTML" 'id="chaguan-modal"'
 
 echo "== 注册(首用户应为 admin)=="
 csrf "$BASE/register"
@@ -423,7 +423,7 @@ curl -s -o /dev/null -b "$JAR" -d "_csrf=$CSRF" \
   --data-urlencode "name=测试论坛" --data-urlencode "announcement=" "$BASE/admin/site"
 H=$(curl -s -b "$JAR" "$BASE/")
 if echo "$H" | grep -q 'class="announce"'; then bad "公告清空后仍显示"; else ok "公告清空后关闭横幅"; fi
-if echo "$H" | grep -q "Powered by bbs"; then ok "页脚留空回退默认" ; else bad "页脚未回退默认(应为 Powered by bbs)"; fi
+if echo "$H" | grep -q "Powered by chaguan"; then ok "页脚留空回退默认" ; else bad "页脚未回退默认(应为 Powered by chaguan)"; fi
 csrf "$BASE/admin/site"
 code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" \
   -F "_csrf=$CSRF" -F "icon=@$AV;type=image/gif" "$BASE/admin/site/icon")
@@ -559,7 +559,7 @@ check "普通用户邮件设置被拒" "403" "$code"
 csrf "$BASE/admin/mail"
 code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" -d "_csrf=$CSRF" \
   --data-urlencode "host=smtp.example.com" --data-urlencode "port=70000" \
-  --data-urlencode "from=bbs@example.com" --data-urlencode "secure=starttls" "$BASE/admin/mail")
+  --data-urlencode "from=chaguan@example.com" --data-urlencode "secure=starttls" "$BASE/admin/mail")
 check "端口越界被拒(回填表单)" "200" "$code"
 csrf "$BASE/admin/mail"
 code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" -d "_csrf=$CSRF" \
@@ -570,8 +570,8 @@ contains "拒绝原因提示" "$(curl -s -b "$JAR" "$BASE/admin/mail")" "邮件�
 csrf "$BASE/admin/mail"
 code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" -d "_csrf=$CSRF" \
   --data-urlencode "host=smtp.example.com" --data-urlencode "port=465" \
-  --data-urlencode "user=bbs@example.com" --data-urlencode "pass=secret123" \
-  --data-urlencode "from=bbs@example.com" --data-urlencode "secure=ssl" "$BASE/admin/mail")
+  --data-urlencode "user=chaguan@example.com" --data-urlencode "pass=secret123" \
+  --data-urlencode "from=chaguan@example.com" --data-urlencode "secure=ssl" "$BASE/admin/mail")
 check "保存邮件设置" "303" "$code"
 M=$(curl -s -b "$JAR" "$BASE/admin/mail")
 contains "服务器已回显" "$M" "smtp.example.com"

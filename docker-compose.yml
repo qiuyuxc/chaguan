@@ -1,19 +1,19 @@
 services:
-  bbs:
+  chaguan:
     # 默认用 CI 构建好的镜像(amd64 / arm64 都有)。仓库私有时先 docker login ghcr.io。
-    image: ghcr.io/qiuyuxc/bbs:${BBS_TAG:-latest}
+    image: ghcr.io/qiuyuxc/chaguan:${CHAGUAN_TAG:-latest}
     # 想从源码本地构建就注掉上面的 image,换成:
     # build:
     #   context: .
     #   args:
     #     GOPROXY: ${GOPROXY:-https://proxy.golang.org,direct}
-    container_name: bbs
+    container_name: chaguan
     restart: unless-stopped
     ports:
-      - "${BBS_PORT:-8080}:8080"
+      - "${CHAGUAN_PORT:-8080}:8080"
     environment:
       - TZ=${TZ:-Asia/Shanghai}
       # SMTP、人机验证这些都在后台页面里配,不用写环境变量
     volumes:
-      # SQLite 与上传文件都在 /data(见 Dockerfile 里的 BBS_DB / BBS_UPLOADS)
+      # SQLite 与上传文件都在 /data(见 Dockerfile 里的 CHAGUAN_DB / CHAGUAN_UPLOADS)
       - ./data:/data

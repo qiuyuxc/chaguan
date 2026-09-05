@@ -6,9 +6,9 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"bbs/internal/auth"
-	"bbs/internal/db"
-	"bbs/web"
+	"chaguan/internal/auth"
+	"chaguan/internal/db"
+	"chaguan/web"
 )
 
 func (s *Server) setSession(w http.ResponseWriter, r *http.Request, userID int64) error {
@@ -70,7 +70,7 @@ type twoFAData struct {
 	Error string
 }
 
-const twoFACookie = "bbs_2fa"
+const twoFACookie = "chaguan_2fa"
 
 // begin2FA 密码已过但开了两步验证:发一枚 10 分钟的一次性令牌进 cookie,
 // 会话要等验证码对上才建立。

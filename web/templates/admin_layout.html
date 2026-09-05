@@ -6,7 +6,7 @@
 <title>{{.Title}} · {{.Site.Name}} 后台</title>
 <link rel="icon" href="{{if .Site.IconPath}}{{.Site.IconPath}}{{else}}/static/favicon.svg{{end}}">
 <link rel="stylesheet" href="/static/style.css">
-<script>(function(){try{if(localStorage.getItem("bbs-theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
+<script>(function(){try{if(localStorage.getItem("chaguan-theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="/static/htmx.min.js" defer></script>
 <script src="/static/app.js" defer></script>
 </head>
@@ -98,13 +98,13 @@
   </main>
 </div>
 
-<div class="modal" id="bbs-modal" hidden>
+<div class="modal" id="chaguan-modal" hidden>
   <div class="modal-scrim" data-modal-cancel></div>
-  <div class="modal-card" role="alertdialog" aria-modal="true" aria-labelledby="bbs-modal-text">
-    <p class="modal-text" id="bbs-modal-text"></p>
+  <div class="modal-card" role="alertdialog" aria-modal="true" aria-labelledby="chaguan-modal-text">
+    <p class="modal-text" id="chaguan-modal-text"></p>
     <div class="modal-actions">
       <button type="button" class="btn btn-white" data-modal-cancel>取消</button>
-      <button type="button" class="btn btn-primary" id="bbs-modal-ok">确认</button>
+      <button type="button" class="btn btn-primary" id="chaguan-modal-ok">确认</button>
     </div>
   </div>
 </div>

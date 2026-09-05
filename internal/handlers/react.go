@@ -3,8 +3,8 @@ package handlers
 import (
 	"net/http"
 
-	"bbs/internal/db"
-	"bbs/web"
+	"chaguan/internal/db"
+	"chaguan/web"
 )
 
 // reactsData 帖子页「点赞 / 收藏 / 打赏」反应条(整页渲染与 htmx 局部刷新共用)。

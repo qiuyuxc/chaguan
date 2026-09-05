@@ -8,7 +8,7 @@ import (
 	"slices"
 	"strconv"
 
-	"bbs/internal/db"
+	"chaguan/internal/db"
 )
 
 const lotteryEntryLimit = 200 // 名单展示上限

@@ -1,4 +1,4 @@
-# bbs
+# chaguan
 
 Go + SQLite 单二进制论坛。服务端渲染(`html/template`)+ htmx 局部刷新,
 模板与静态资源全部 `go:embed` 进二进制 —— 部署就是一个文件加一个数据目录,没有 Node 工具链。
@@ -6,7 +6,7 @@ Go + SQLite 单二进制论坛。服务端渲染(`html/template`)+ htmx 局部�
 ## 快速开始
 
 ```bash
-go run ./cmd/bbs          # http://localhost:8080,数据库在 ./data/bbs.db
+go run ./cmd/chaguan          # http://localhost:8080,数据库在 ./data/chaguan.db
 ```
 
 首个注册的用户自动成为管理员。
@@ -14,14 +14,14 @@ go run ./cmd/bbs          # http://localhost:8080,数据库在 ./data/bbs.db
 | 环境变量 | 默认值 | 说明 |
 |---|---|---|
 | `PORT` | `8080` | 监听端口 |
-| `BBS_DB` | `data/bbs.db` | SQLite 文件路径 |
-| `BBS_UPLOADS` | `uploads` | 上传文件目录 |
+| `CHAGUAN_DB` | `data/chaguan.db` | SQLite 文件路径 |
+| `CHAGUAN_UPLOADS` | `uploads` | 上传文件目录 |
 | `TZ` | 系统时区 | 影响签到的「一天」、后台今日统计、定点开奖;启动日志会打印实际生效值 |
-| `BBS_RP_TTL` | `24h` | 私信红包没人领多久自动退回 |
-| `BBS_SWEEP` | `1m` | 后台巡检间隔;**定点开奖的精度就是这个值** |
+| `CHAGUAN_RP_TTL` | `24h` | 私信红包没人领多久自动退回 |
+| `CHAGUAN_SWEEP` | `1m` | 后台巡检间隔;**定点开奖的精度就是这个值** |
 
 SMTP、人机验证、站点品牌这些在管理后台页面里配置,不走环境变量。
-`BBS_RP_TTL` 与 `BBS_SWEEP` 生产用默认值就行,存在主要是让测试脚本把「等 24 小时」压成「等 2 秒」。
+`CHAGUAN_RP_TTL` 与 `CHAGUAN_SWEEP` 生产用默认值就行,存在主要是让测试脚本把「等 24 小时」压成「等 2 秒」。
 
 ## 功能
 
@@ -61,7 +61,7 @@ CSRF 双提交校验;人机验证作用于注册/找回/重发验证邮件。
 ## 结构
 
 ```text
-cmd/bbs/main.go        入口:环境变量、时区、迁移、优雅退出、-healthcheck 探针
+cmd/chaguan/main.go        入口:环境变量、时区、迁移、优雅退出、-healthcheck 探针
 
 internal/db/           数据层,不用 ORM
   db.go                连接与全部 SQL(WAL + 单写连接)
@@ -101,8 +101,8 @@ scripts/               端到端测试,见下一节
 ## 测试
 
 ```bash
-go build -o bbs ./cmd/bbs
-PORT=8090 BBS_DB=/tmp/t.db BBS_UPLOADS=/tmp ./bbs &   # 起一个空库实例
+go build -o chaguan ./cmd/chaguan
+PORT=8090 CHAGUAN_DB=/tmp/t.db CHAGUAN_UPLOADS=/tmp ./chaguan &   # 起一个空库实例
 BASE=http://localhost:8090 bash scripts/smoke.sh      # 516 条 curl 断言
 bash scripts/mailflow.sh                              # 邮件链路 16 条(python3 起假 SMTP)
 bash scripts/accountflow.sh                           # 两步验证 18 条(python3 算 TOTP)
@@ -110,7 +110,7 @@ bash scripts/sweeper.sh                               # 巡检 24 条(红包超�
 ```
 
 `smoke.sh` 与 `sweeper.sh` 只依赖 curl,另两套额外需要 python3(不用装任何第三方库)。
-`sweeper.sh` 自己起实例并把 `BBS_RP_TTL` 压到 2 秒;定点开奖那段压不了(`datetime-local`
+`sweeper.sh` 自己起实例并把 `CHAGUAN_RP_TTL` 压到 2 秒;定点开奖那段压不了(`datetime-local`
 只精确到分钟),会等到下一个整分,所以这套要跑一分钟左右。CI 会跑全部四套。
 
 ## 部署
@@ -121,7 +121,7 @@ bash scripts/sweeper.sh                               # 巡检 24 条(红包超�
 
 ```bash
 docker compose up -d                    # 用 latest
-BBS_TAG=v0.1.0 docker compose up -d     # 钉某个版本
+CHAGUAN_TAG=v0.1.0 docker compose up -d     # 钉某个版本
 ```
 
 仓库私有时先 `docker login ghcr.io`(用 GitHub 用户名 + 有 `read:packages` 的 token)。
@@ -135,29 +135,29 @@ docker compose up -d --build
 ### 只用 docker run
 
 ```bash
-docker run -d --name bbs -p 8080:8080 \
+docker run -d --name chaguan -p 8080:8080 \
   -e TZ=Asia/Shanghai -v "$PWD/data:/data" \
-  ghcr.io/qiuyuxc/bbs:latest
+  ghcr.io/qiuyuxc/chaguan:latest
 ```
 
 镜像基于 distroless(无 shell、非 root),提供 `amd64` 与 `arm64`。
 数据(SQLite + 上传文件)全在 `/data`,挂出去即可持久化,换镜像不影响数据。
-时区数据已编进二进制,`TZ` 直接生效。容器探活用二进制自带的 `bbs -healthcheck`。
+时区数据已编进二进制,`TZ` 直接生效。容器探活用二进制自带的 `chaguan -healthcheck`。
 
 ### 不用 Docker
 
 ```bash
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-s -w" -o bbs ./cmd/bbs
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-s -w" -o chaguan ./cmd/chaguan
 ```
 
-或直接下 Release 里的 `bbs_<版本>_linux_<架构>.tar.gz`。
+或直接下 Release 里的 `chaguan_<版本>_linux_<架构>.tar.gz`。
 
 ## CI(GitHub Actions)
 
 | 工作流 | 触发 | 做什么 |
 |---|---|---|
 | `ci.yml` | push / PR | `go vet`、编译、跑四套端到端测试 |
-| `build.yml` | 默认分支 / `v*` 标签 | buildx 多架构构建并推 `ghcr.io/<owner>/bbs`(`latest`、语义化版本、短哈希) |
+| `build.yml` | 默认分支 / `v*` 标签 | buildx 多架构构建并推 `ghcr.io/<owner>/chaguan`(`latest`、语义化版本、短哈希) |
 | `release.yml` | `v*` 标签 | 交叉编译 amd64/arm64 二进制,连 `checksums.txt` 挂到 Release |
 
 ## 许可

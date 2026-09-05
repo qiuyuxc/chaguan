@@ -1,4 +1,4 @@
-// bbs 前端交互(不依赖任何构建工具)
+// chaguan 前端交互(不依赖任何构建工具)
 // 未读角标(通知 + 私信):一律走 SSE 实时推送,收到信号再拉数字;
 // 长连接不可用(老浏览器 / 被反代掐断)时退回 30s 轮询,角标不会因此停摆。
 // 收到 dm 信号时额外派发 dm-refresh,打开着的会话页由 htmx 拉最新消息。
@@ -32,7 +32,7 @@
   }
 
   refresh();
-  window.__bbsNotifRefresh = refresh;
+  window.__chaguanNotifRefresh = refresh;
 
   if (typeof EventSource === "undefined") {
     poll(30);
@@ -166,7 +166,7 @@
       headers: { "Accept": "application/json", "X-CSRF-Token": token() }
     })
       .then(function () {
-        if (window.__bbsNotifRefresh) window.__bbsNotifRefresh();
+        if (window.__chaguanNotifRefresh) window.__chaguanNotifRefresh();
         window.location.href = href;
       })
       .catch(function () { window.location.href = href; });
@@ -664,7 +664,7 @@
       var dark = root.getAttribute("data-theme") === "dark";
       root.setAttribute("data-theme", dark ? "light" : "dark");
       syncAll(!dark);
-      try { localStorage.setItem("bbs-theme", dark ? "light" : "dark"); } catch (e) {}
+      try { localStorage.setItem("chaguan-theme", dark ? "light" : "dark"); } catch (e) {}
     });
   });
   syncAll(root.getAttribute("data-theme") === "dark");
@@ -672,10 +672,10 @@
 
 // 内置确认面板(替代浏览器原生 confirm / hx-confirm)
 (function () {
-  var modal = document.getElementById("bbs-modal");
+  var modal = document.getElementById("chaguan-modal");
   if (!modal) return;
-  var textEl = document.getElementById("bbs-modal-text");
-  var okBtn = document.getElementById("bbs-modal-ok");
+  var textEl = document.getElementById("chaguan-modal-text");
+  var okBtn = document.getElementById("chaguan-modal-ok");
   var lastFocus = null;
   var pending = null;
 
@@ -705,7 +705,7 @@
     if (e.key === "Escape") close();
     if (e.key === "Enter" && e.target === okBtn) resolve();
   });
-  window.bbsConfirm = open;
+  window.chaguanConfirm = open;
 
   // 确认之后真正提交表单。
   // 必须走 requestSubmit 而不是 submit():
@@ -988,7 +988,7 @@
   });
   document.addEventListener("keydown", function (e) {
     if (e.key !== "Escape" || modal.hidden) return;
-    var c = document.getElementById("bbs-modal");
+    var c = document.getElementById("chaguan-modal");
     if (c && !c.hidden) return;
     closeModal();
   });

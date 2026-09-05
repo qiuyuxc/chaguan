@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strings"
 
-	"bbs/internal/db"
-	"bbs/web"
+	"chaguan/internal/db"
+	"chaguan/web"
 )
 
 type settingsData struct {

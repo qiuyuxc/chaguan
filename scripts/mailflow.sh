@@ -11,7 +11,7 @@ set -eu
 PORT="${PORT:-8181}"
 SMTP_PORT="${SMTP_PORT:-2531}"
 BASE="http://localhost:$PORT"
-BIN="${BIN:-./bbs}"
+BIN="${BIN:-./chaguan}"
 PASS=0; FAIL=0
 ok()   { PASS=$((PASS+1)); echo "  ✓ $1"; }
 bad()  { FAIL=$((FAIL+1)); echo "  ✗ $1"; }
@@ -22,9 +22,9 @@ MAILBOX=$(mktemp); WORK=$(mktemp -d)
 cleanup() { kill ${SP:-0} ${SMTP:-0} 2>/dev/null || true; rm -rf "$WORK" "$MAILBOX" "$JA" "$JB" "$JC" "$JD" 2>/dev/null || true; }
 trap cleanup EXIT
 
-[ -x "$BIN" ] || { echo "先编译: go build -o bbs ./cmd/bbs"; exit 1; }
+[ -x "$BIN" ] || { echo "先编译: go build -o chaguan ./cmd/chaguan"; exit 1; }
 python3 scripts/fakesmtp.py "$SMTP_PORT" "$MAILBOX" >/dev/null 2>&1 & SMTP=$!
-PORT=$PORT BBS_DB=$WORK/t.db BBS_UPLOADS=$WORK "$BIN" >"$WORK/log" 2>&1 & SP=$!
+PORT=$PORT CHAGUAN_DB=$WORK/t.db CHAGUAN_UPLOADS=$WORK "$BIN" >"$WORK/log" 2>&1 & SP=$!
 for _ in $(seq 1 30); do [ "$(curl -s -m 2 $BASE/healthz)" = "ok" ] && break; sleep 0.5; done
 
 tok() { curl -s -b "$1" -c "$1" "$2" | grep -o 'name="_csrf" value="[^"]*"' | head -1 | sed 's/.*value="//;s/"//'; }
@@ -36,7 +36,7 @@ curl -s -o /dev/null -b "$JA" -c "$JA" -d "_csrf=$T&name=admin&password=admin123
 T=$(tok "$JA" $BASE/admin/mail)
 code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JA" -d "_csrf=$T" \
   --data-urlencode "host=127.0.0.1" --data-urlencode "port=$SMTP_PORT" --data-urlencode "secure=none" \
-  --data-urlencode "from=bbs@example.com" --data-urlencode "email_register=1" $BASE/admin/mail)
+  --data-urlencode "from=chaguan@example.com" --data-urlencode "email_register=1" $BASE/admin/mail)
 check "保存 SMTP 并开启邮件注册" "303" "$code"
 has "注册页出现邮箱字段" "$(curl -s $BASE/register)" 'name="email"'
 

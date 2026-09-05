@@ -8,9 +8,9 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"bbs/internal/db"
-	"bbs/internal/markdown"
-	"bbs/web"
+	"chaguan/internal/db"
+	"chaguan/internal/markdown"
+	"chaguan/web"
 )
 
 const (

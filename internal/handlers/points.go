@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"bbs/internal/db"
-	"bbs/web"
+	"chaguan/internal/db"
+	"chaguan/web"
 )
 
 const (

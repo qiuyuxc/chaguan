@@ -9,8 +9,8 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"bbs/internal/auth"
-	"bbs/internal/db"
+	"chaguan/internal/auth"
+	"chaguan/internal/db"
 )
 
 // togglePin POST /t/{id}/pin:版主/管理员置顶或取消置顶。

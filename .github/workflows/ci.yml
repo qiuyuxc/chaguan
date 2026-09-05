@@ -20,12 +20,12 @@ jobs:
         run: go vet ./...
 
       - name: Build
-        run: go build -trimpath -o bbs ./cmd/bbs
+        run: go build -trimpath -o chaguan ./cmd/chaguan
 
       - name: Smoke（curl 端到端,~515 条断言）
         run: |
-          mkdir -p /tmp/bbs
-          PORT=8090 BBS_DB=/tmp/bbs/t.db BBS_UPLOADS=/tmp/bbs ./bbs &
+          mkdir -p /tmp/chaguan
+          PORT=8090 CHAGUAN_DB=/tmp/chaguan/t.db CHAGUAN_UPLOADS=/tmp/chaguan ./chaguan &
           for _ in $(seq 1 40); do
             [ "$(curl -s -m 2 http://localhost:8090/healthz)" = "ok" ] && break
             sleep 0.5

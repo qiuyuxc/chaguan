@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"bbs/internal/auth"
+	"chaguan/internal/auth"
 )
 
 // sseKeepalive 心跳间隔:穿过反代/移动网络时防止连接被静默回收。

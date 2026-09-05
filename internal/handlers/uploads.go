@@ -1,4 +1,4 @@
-// 图片上传与回访。文件落在 BBS_UPLOADS 目录,uploads 表记录元数据,
+// 图片上传与回访。文件落在 CHAGUAN_UPLOADS 目录,uploads 表记录元数据,
 // 对外只暴露 /uploads/{id} 稳定 URL(内部文件名随机,不直接暴露路径)。
 package handlers
 
@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"bbs/internal/auth"
+	"chaguan/internal/auth"
 )
 
 const maxImageBytes = 5 << 20 // 单张 ≤5MB

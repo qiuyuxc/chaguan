@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"bbs/internal/db"
+	"chaguan/internal/db"
 )
 
 //go:embed templates/*.html templates/partials/*.html

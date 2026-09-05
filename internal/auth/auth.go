@@ -10,12 +10,12 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	"bbs/internal/db"
+	"chaguan/internal/db"
 )
 
 const (
-	CookieName    = "bbs_session" // 会话 cookie
-	CSRFCookie    = "bbs_csrf"    // 匿名用户的 CSRF 双提交 cookie
+	CookieName    = "chaguan_session" // 会话 cookie
+	CSRFCookie    = "chaguan_csrf"    // 匿名用户的 CSRF 双提交 cookie
 	SessionTTL    = 30 * 24 * time.Hour
 	SessionMaxAge = 30 * 24 * 3600
 )

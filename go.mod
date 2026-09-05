@@ -1,4 +1,4 @@
-module bbs
+module chaguan
 
 go 1.27.0
 

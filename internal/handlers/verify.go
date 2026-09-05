@@ -8,8 +8,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"bbs/internal/db"
-	"bbs/web"
+	"chaguan/internal/db"
+	"chaguan/web"
 )
 
 const (

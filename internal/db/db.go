@@ -26,7 +26,7 @@ type Store struct {
 	DB *sql.DB
 }
 
-// Open 打开数据库并应用 pragmas。dsn 形如 "file:/data/bbs.db"。
+// Open 打开数据库并应用 pragmas。dsn 形如 "file:/data/chaguan.db"。
 func Open(dsn string) (*Store, error) {
 	// 每个新连接都会应用这些 pragma(单连接池下只有一条)
 	dsn += "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)"
@@ -3683,7 +3683,7 @@ type Site struct {
 
 const (
 	SiteDefaultName   = "BBS"
-	SiteDefaultFooter = "Powered by bbs"
+	SiteDefaultFooter = "Powered by chaguan"
 )
 
 // site_settings 里的键名(只在本包内使用,handlers 走强类型方法)。
