@@ -37,4 +37,6 @@ jobs:
           files: |
             bbs_*.tar.gz
             checksums.txt
+          # 没有手写说明时至少自动带上 commit 变更列表,别挂个空的 Release
+          generate_release_notes: true
           prerelease: ${{ contains(github.ref_name, '-') }}
