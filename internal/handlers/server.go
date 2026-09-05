@@ -36,7 +36,7 @@ type Server struct {
 // 免得为了验证「24 小时后退回」真等一天。
 type Options struct {
 	RedpackTTL time.Duration // 红包未领取多久自动退回(默认 24h)
-	SweepEvery time.Duration // 后台巡检间隔(默认 10 分钟)
+	SweepEvery time.Duration // 后台巡检间隔(默认 1 分钟)
 }
 
 func (o Options) redpackTTL() time.Duration {
@@ -46,11 +46,13 @@ func (o Options) redpackTTL() time.Duration {
 	return 24 * time.Hour
 }
 
+// sweepEvery 决定「定点开奖」的实际精度:设定时刻最多晚一个巡检周期才生效。
+// 所以别调太大 —— 一分钟一次两条带索引的查询,本地 SQLite 上开销可以忽略。
 func (o Options) sweepEvery() time.Duration {
 	if o.SweepEvery > 0 {
 		return o.SweepEvery
 	}
-	return 10 * time.Minute
+	return time.Minute
 }
 
 func Routes(store *db.Store, rend *web.Renderer, uploadsDir string, opts Options) http.Handler {

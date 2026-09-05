@@ -110,7 +110,7 @@ func main() {
 		Addr: ":" + port,
 		Handler: handlers.Routes(store, rend, uploadsDir, handlers.Options{
 			RedpackTTL: envDur("BBS_RP_TTL", 24*time.Hour),
-			SweepEvery: envDur("BBS_SWEEP", 10*time.Minute),
+			SweepEvery: envDur("BBS_SWEEP", time.Minute),
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
