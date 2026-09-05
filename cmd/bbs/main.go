@@ -56,6 +56,24 @@ func healthcheck(port string) int {
 	return 0
 }
 
+// applyTZ 显式按 TZ 装载时区并覆盖 time.Local。
+// 为什么不直接靠 Go 自己读 TZ:Android / Termux 上 time.Local 的初始化认不出系统的
+// zoneinfo 布局,TZ=Asia/Shanghai 会被静默忽略、time.Local 留在 UTC —— 表现是签到的
+// 「一天」在早上八点翻页、页面时间差 8 小时。而显式 LoadLocation 走内嵌的 time/tzdata
+// 是好的,所以这里主动加载再赋值。在起任何 goroutine 之前做,不存在并发问题。
+func applyTZ() {
+	name := os.Getenv("TZ")
+	if name == "" {
+		return
+	}
+	loc, err := time.LoadLocation(name)
+	if err != nil {
+		log.Printf("时区 %q 加载失败,继续用 %s: %v", name, time.Local, err)
+		return
+	}
+	time.Local = loc
+}
+
 func main() {
 	probe := flag.Bool("healthcheck", false, "请求本机 /healthz 后退出(容器探活用)")
 	flag.Parse()
@@ -64,6 +82,7 @@ func main() {
 	if *probe {
 		os.Exit(healthcheck(port))
 	}
+	applyTZ()
 	dbPath := envOr("BBS_DB", "data/bbs.db")
 	uploadsDir := envOr("BBS_UPLOADS", "uploads")
 
@@ -97,7 +116,7 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("bbs 已启动: http://localhost:%s (db: %s)", port, dbPath)
+		log.Printf("bbs 已启动: http://localhost:%s (db: %s, 时区: %s)", port, dbPath, time.Local)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("监听失败: %v", err)
 		}

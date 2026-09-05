@@ -16,7 +16,7 @@ go run ./cmd/bbs          # http://localhost:8080,数据库在 ./data/bbs.db
 | `PORT` | `8080` | 监听端口 |
 | `BBS_DB` | `data/bbs.db` | SQLite 文件路径 |
 | `BBS_UPLOADS` | `uploads` | 上传文件目录 |
-| `TZ` | 系统时区 | 影响签到的「一天」、后台今日统计,以及抽奖「定点开奖」时间的解析 |
+| `TZ` | 系统时区 | 影响签到的「一天」与后台今日统计。启动日志会打印实际生效的时区 —— Android/Termux 上 Go 认不出系统 zoneinfo,所以程序显式按 `TZ` 装载(内嵌 tzdata),别只靠系统默认 |
 | `BBS_RP_TTL` | `24h` | 私信红包没人领多久自动退回发送者 |
 | `BBS_SWEEP` | `10m` | 后台巡检间隔(红包超时退回 + 抽奖定点开奖) |
 
