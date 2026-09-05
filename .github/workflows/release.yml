@@ -1,0 +1,40 @@
+name: Release binaries
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # 单二进制 + go:embed,压缩包里除了它什么都不用带
+      - name: Build (linux amd64 / arm64)
+        env:
+          CGO_ENABLED: "0"
+        run: |
+          for arch in amd64 arm64; do
+            DIR="bbs_${GITHUB_REF_NAME}_linux_${arch}"
+            mkdir -p "$DIR"
+            GOOS=linux GOARCH=$arch go build -trimpath -ldflags "-s -w" -o "$DIR/bbs" ./cmd/bbs
+            cp README.md "$DIR/"
+            tar czf "${DIR}.tar.gz" "$DIR"
+          done
+          sha256sum bbs_*.tar.gz > checksums.txt
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            bbs_*.tar.gz
+            checksums.txt
+          prerelease: ${{ contains(github.ref_name, '-') }}

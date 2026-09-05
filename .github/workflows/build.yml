@@ -1,0 +1,54 @@
+name: Build & Push
+
+on:
+  push:
+    branches: [main, master]
+    tags: ['v*']
+  workflow_dispatch:
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/bbs
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      # 纯 Go 交叉编译,arm64 也能一次出图(便宜的 ARM 小鸡直接用)
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            # 默认分支推送 -> latest
+            type=raw,value=latest,enable={{is_default_branch}}
+            # 打 v* 标签 -> v1.2.3 / 1.2.3 / 1.2 全套
+            type=ref,event=tag
+            type=semver,pattern={{version}}
+            type=semver,pattern={{majorminor}}
+            # 任意提交 -> 短哈希,方便回溯到具体代码
+            type=sha
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

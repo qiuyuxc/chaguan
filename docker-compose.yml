@@ -1,8 +1,17 @@
 services:
   bbs:
-    build: .
+    # 本地构建;想直接用 CI 产出的镜像就把 build 注掉、换成下面的 image
+    build:
+      context: .
+      args:
+        GOPROXY: ${GOPROXY:-https://proxy.golang.org,direct}
+    # image: ghcr.io/<你的 GitHub 用户名>/bbs:latest
+    container_name: bbs
+    restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "${BBS_PORT:-8080}:8080"
+    environment:
+      - TZ=${TZ:-Asia/Shanghai}
+      # SMTP、人机验证这些都在后台页面里配,不用写环境变量
     volumes:
       - ./data:/data
-    restart: unless-stopped

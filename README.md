@@ -1,51 +1,116 @@
 # bbs
 
-Go + SQLite 单二进制论坛。SSR(html/template)+ htmx 局部刷新,无 Node 工具链。
-移动端 UI 已定版于 `preview/`,产品样式与其保持同步(`web/static/style.css`)。
+Go + SQLite 单二进制论坛。服务端渲染(`html/template`)+ htmx 局部刷新,
+模板与静态资源全部 `go:embed` 进二进制 —— 部署就是一个文件加一个数据目录,没有 Node 工具链。
 
-## 开发
+## 快速开始
 
 ```bash
 go run ./cmd/bbs          # http://localhost:8080,数据库在 ./data/bbs.db
 ```
 
-首个注册用户自动成为管理员,可在首页创建版块。
+首个注册的用户自动成为管理员。
 
-环境变量:`PORT`(默认 8080)、`BBS_DB`(默认 data/bbs.db)、`BBS_UPLOADS`(默认 uploads)。
+| 环境变量 | 默认值 | 说明 |
+|---|---|---|
+| `PORT` | `8080` | 监听端口 |
+| `BBS_DB` | `data/bbs.db` | SQLite 文件路径 |
+| `BBS_UPLOADS` | `uploads` | 上传文件目录 |
+| `TZ` | 系统时区 | 影响签到的「一天」与后台今日统计 |
 
-## 部署(Docker)
+SMTP、人机验证、站点品牌这些都在管理后台页面里配置,不需要环境变量。
 
-```bash
-docker compose up -d --build
-```
+## 功能
 
-数据(SQLite + 上传文件)落在 `./data/` 卷,镜像回滚不影响数据。
+**社区**:注册/登录/登出、版块、主题与回复、Markdown 与图片上传、编辑(带「已编辑」标记)、
+分页、全文搜索(FTS5 trigram,短查询自动回退 LIKE)、点赞/收藏、@提及、引用回复、
+首页帖子流(最新/热帖 + 版块筛选)、个人主页与 LV0–LV6 等级、账号认证(官方/厂商/作者三色 V 标)。
 
-从 Termux 直接交叉编译部署产物(不用 Docker 也能跑):
+**实时**:一条 SSE 长连接(`/events`)推送通知与私信信号,前端收到信号再拉数据;
+长连接不可用时自动回退轮询。
 
-```bash
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bbs-linux ./cmd/bbs
-```
+**私信**:一对一实时会话,与论坛同一套编辑器(插图/@/表情/图标),支持发积分红包
+(发出即扣款、对方领取到账、未领取可撤回退款)。
+
+**积分**:每日签到(+5 积分 +5 经验)、打赏、付费帖(观看等级门槛 / 支付积分解锁)、
+抽奖帖(回复即参与,可设参与积分,楼主开奖均分奖池)、积分商城(勋章 / 签到加成 / 自定义商品)、
+积分流水可对账。
+
+**勋章**:由后台发放、活动授予或积分兑换获得,用户自己选择佩戴哪一枚(或跟随身份 / 不显示)。
+
+**账号**(`/account`):账户名(登录用)与显示名分离 —— 登录填账户名或已验证邮箱,
+显示名在「编辑资料」里改(每次扣 3 积分)。支持绑定/更换邮箱、修改密码、
+两步验证(TOTP,标准库自实现,开启后登录多一步验证码)。
+
+**管理后台**(`/admin`,独立布局):概览、用户管理(弹窗内改资料/头像/密码/勋章/等级/社交数据/认证/封禁/版主授权)、
+内容管理、版块管理(空版块直接删,非空版块可「连同主题删除」或「先迁移主题」)、
+认证管理(直接增删 + 申请审批)、积分管理、商城与勋章、站点设置(品牌/页脚/图标/公告)、
+邮件设置(SMTP + 邮件注册开关 + 测试发信)、安全设置(Cloudflare Turnstile)。
+
+**账号安全**:可选的邮箱注册验证与忘记密码找回(一次性令牌,重置后踢掉全部会话);
+CSRF 双提交校验;人机验证作用于注册/找回/重发验证邮件。
 
 ## 结构
 
 ```
-cmd/bbs/            入口
+cmd/bbs/            入口(含 -healthcheck 探针)
 internal/db/        SQLite 打开/迁移/全部 SQL(migrations/ 内嵌)
-internal/auth/      bcrypt、会话 token、请求上下文认证信息
-internal/handlers/  路由、中间件、全部 handler
-internal/markdown/  正文渲染(goldmark,CommonMark;原始 HTML/危险链接被过滤)
+internal/auth/      bcrypt、会话 token、TOTP、请求上下文认证信息
+internal/mail/      SMTP 发信(587 STARTTLS / 465 SSL / 明文)
+internal/markdown/  正文渲染(goldmark;原始 HTML 与危险链接被过滤)
+internal/handlers/  路由、中间件、全部 handler(含 SSE 推送 hub)
 web/                模板 + 静态资源(全部 go:embed,含 htmx.min.js)
-DESIGN.md           设计系统契约,AI 生成 UI 时照此执行
-scripts/smoke.sh    curl 冒烟测试
+preview/            早期移动端 UI 静态稿,仅作设计参考,不参与构建
+scripts/            端到端测试脚本
 ```
 
-## 阶段
+数据库不用 ORM,SQL 全在 `internal/db`;迁移只做加列/加表,旧二进制挂新库也能启动。
 
-- **已完成**:注册/登录/登出、版块/主题/回复/删除、分页、CSRF;
-  Markdown 渲染、主题/回复编辑(带“已编辑”标记)、图片上传与回访、
-  用户资料页/简介/头像、版主操作(置顶/锁定)、用户管理(版主任命/封禁/解封)、
-  站内通知(回复 + @提及,铃铛 30s 轮询角标)、首页帖子流(最新/热帖 + 分类筛选)、
-  版块管理后台、全文搜索(FTS5 trigram 索引,短查询自动回退 LIKE)、
-  通知已读管理(单条点击已读 + 全部已读)、抽屉导航/桌面端侧栏(按 preview 定版)
-- **剩余路线**:通知设置
+## 测试
+
+```bash
+go build -o bbs ./cmd/bbs
+PORT=8090 BBS_DB=/tmp/t.db BBS_UPLOADS=/tmp ./bbs &   # 起一个空库实例
+BASE=http://localhost:8090 bash scripts/smoke.sh      # 441 条 curl 断言
+bash scripts/mailflow.sh                              # 邮件链路 16 条(python3 起假 SMTP)
+bash scripts/accountflow.sh                           # 两步验证 18 条(python3 算 TOTP)
+```
+
+`smoke.sh` 只依赖 curl,另两套额外需要 python3(不用装任何第三方库)。CI 会跑全部三套。
+
+## 部署
+
+### Docker Compose(本地构建)
+
+```bash
+docker compose up -d --build
+# 国内网络:GOPROXY=https://goproxy.cn,direct docker compose up -d --build
+```
+
+### 用 CI 构建好的镜像
+
+```bash
+docker run -d --name bbs -p 8080:8080 \
+  -e TZ=Asia/Shanghai -v "$PWD/data:/data" \
+  ghcr.io/qiuyuxc/bbs:latest
+```
+
+镜像基于 distroless(无 shell、非 root),提供 `amd64` 与 `arm64`。
+数据(SQLite + 上传文件)全在 `/data`,挂出去即可持久化,换镜像不影响数据。
+时区数据已编进二进制,`TZ` 直接生效。容器探活用二进制自带的 `bbs -healthcheck`。
+
+### 不用 Docker
+
+```bash
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-s -w" -o bbs ./cmd/bbs
+```
+
+或直接下 Release 里的 `bbs_<版本>_linux_<架构>.tar.gz`。
+
+## CI(GitHub Actions)
+
+| 工作流 | 触发 | 做什么 |
+|---|---|---|
+| `ci.yml` | push / PR | `go vet`、编译、跑三套端到端测试 |
+| `build.yml` | 默认分支 / `v*` 标签 | buildx 多架构构建并推 `ghcr.io/<owner>/bbs`(`latest`、语义化版本、短哈希) |
+| `release.yml` | `v*` 标签 | 交叉编译 amd64/arm64 二进制,连 `checksums.txt` 挂到 Release |

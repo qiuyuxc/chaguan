@@ -1,0 +1,14 @@
+# 构建镜像时不需要送进去的东西
+.git
+.github
+.smoke
+data
+uploads
+bbs
+bbs-linux
+*.db
+*.db-wal
+*.db-shm
+preview
+scripts
+*.md

@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Build
+        run: go build -trimpath -o bbs ./cmd/bbs
+
+      - name: Smoke（curl 端到端,~440 条断言）
+        run: |
+          mkdir -p /tmp/bbs
+          PORT=8090 BBS_DB=/tmp/bbs/t.db BBS_UPLOADS=/tmp/bbs ./bbs &
+          for _ in $(seq 1 40); do
+            [ "$(curl -s -m 2 http://localhost:8090/healthz)" = "ok" ] && break
+            sleep 0.5
+          done
+          BASE=http://localhost:8090 bash scripts/smoke.sh
+
+      - name: Mailflow（假 SMTP 跑注册验证 / 找回密码）
+        run: PORT=8181 bash scripts/mailflow.sh
+
+      - name: Accountflow（两步验证全链路）
+        run: PORT=8182 bash scripts/accountflow.sh
