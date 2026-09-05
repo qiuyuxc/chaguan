@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # bbs 冒烟测试:注册→建版块→发帖→回复→删除 + CSRF/权限负路径
 # 用法: BASE=http://localhost:8090 ./scripts/smoke.sh
-set -euo pipefail
+# 注意:这里刻意不开 pipefail —— 脚本里大量 `echo 大段内容 | grep -q` 与
+# `grep | head` 的写法,前者会让 grep 命中即退出、把 echo 打成 SIGPIPE,
+# 后者同理;开 pipefail 会把这些正常情况判成失败(表现为断言假失败或脚本中断)。
+set -eu
 
 BASE="${BASE:-http://localhost:8090}"
 JAR="$(mktemp)"
@@ -14,7 +17,12 @@ check() { # check <描述> <期望> <实际>
   if [ "$2" = "$3" ]; then ok "$1"; else bad "$1 (期望 $2 实际 $3)"; fi
 }
 contains() { # contains <描述> <haystack> <needle>
-  if echo "$2" | grep -q "$3"; then ok "$1"; else bad "$1 (未找到: $3)"; fi
+  # 用 here-string 而不是管道:grep -q 命中即退出会把 echo 打成 SIGPIPE,
+  # 在 pipefail 下整条流水线被判失败,内容越大越容易踩到(CSS 已近 100KB)
+  if grep -q -- "$3" <<<"$2"; then ok "$1"; else bad "$1 (未找到: $3)"; fi
+}
+lacks() { # lacks <描述> <haystack> <needle> —— 断言「不该出现」
+  if grep -q -- "$3" <<<"$2"; then bad "$1 (不该出现: $3)"; else ok "$1"; fi
 }
 
 csrf() { # 从页面表单里取 _csrf(取不到就留空,由后续断言暴露问题)

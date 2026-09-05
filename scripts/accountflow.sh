@@ -2,7 +2,10 @@
 # 两步验证(TOTP)端到端:生成密钥 → 开启 → 登录要验证码 → 关闭。
 # 需要 python3 算 TOTP(和验证器同一套算法),不依赖任何第三方库。
 # 用法: bash scripts/accountflow.sh
-set -euo pipefail
+# 注意:这里刻意不开 pipefail —— 脚本里大量 `echo 大段内容 | grep -q` 与
+# `grep | head` 的写法,前者会让 grep 命中即退出、把 echo 打成 SIGPIPE,
+# 后者同理;开 pipefail 会把这些正常情况判成失败(表现为断言假失败或脚本中断)。
+set -eu
 
 PORT="${PORT:-8182}"
 BASE="http://localhost:$PORT"

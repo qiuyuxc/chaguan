@@ -3,7 +3,10 @@
 # 需要 python3(用 scripts/fakesmtp.py 起一个假 SMTP 收信),不依赖真实邮件服务商。
 # 用法: bash scripts/mailflow.sh            (自动挑端口起一个临时实例)
 #       BASE=... SMTP_PORT=... bash scripts/mailflow.sh   (指定端口)
-set -euo pipefail
+# 注意:这里刻意不开 pipefail —— 脚本里大量 `echo 大段内容 | grep -q` 与
+# `grep | head` 的写法,前者会让 grep 命中即退出、把 echo 打成 SIGPIPE,
+# 后者同理;开 pipefail 会把这些正常情况判成失败(表现为断言假失败或脚本中断)。
+set -eu
 
 PORT="${PORT:-8181}"
 SMTP_PORT="${SMTP_PORT:-2531}"
