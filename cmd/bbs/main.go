@@ -56,10 +56,8 @@ func healthcheck(port string) int {
 	return 0
 }
 
-// applyTZ 显式按 TZ 装载时区并覆盖 time.Local。
-// Android / Termux 上 Go 自己的 time.Local 初始化认不出系统 zoneinfo,TZ 会被静默
-// 忽略、留在 UTC —— 签到的「一天」在早上八点翻页,页面时间整体差 8 小时。
-// 显式 LoadLocation 走内嵌 tzdata 是好的。在起任何 goroutine 之前做,没有并发问题。
+// applyTZ 显式按 TZ 装载时区并覆盖 time.Local:有些系统的 zoneinfo 布局 Go 认不出来,
+// TZ 被静默忽略后 time.Local 留在 UTC,签到的「一天」就会在错误的时刻翻页。
 func applyTZ() {
 	name := os.Getenv("TZ")
 	if name == "" {

@@ -16,15 +16,12 @@ go run ./cmd/bbs          # http://localhost:8080,数据库在 ./data/bbs.db
 | `PORT` | `8080` | 监听端口 |
 | `BBS_DB` | `data/bbs.db` | SQLite 文件路径 |
 | `BBS_UPLOADS` | `uploads` | 上传文件目录 |
-| `TZ` | 系统时区 | 影响签到的「一天」、后台今日统计、定点开奖 |
+| `TZ` | 系统时区 | 影响签到的「一天」、后台今日统计、定点开奖;启动日志会打印实际生效值 |
 | `BBS_RP_TTL` | `24h` | 私信红包没人领多久自动退回 |
 | `BBS_SWEEP` | `1m` | 后台巡检间隔;**定点开奖的精度就是这个值** |
 
 SMTP、人机验证、站点品牌这些在管理后台页面里配置,不走环境变量。
 `BBS_RP_TTL` 与 `BBS_SWEEP` 生产用默认值就行,存在主要是让测试脚本把「等 24 小时」压成「等 2 秒」。
-
-启动日志会打印实际生效的时区,建议核一眼:Android/Termux 上 Go 认不出系统 zoneinfo,
-`TZ` 会被静默忽略,所以程序显式按它装载(tzdata 已内嵌)。
 
 ## 功能
 
@@ -92,7 +89,6 @@ web/                   模板与静态资源,全部 go:embed
   static/              style.css、app.js、htmx.min.js、图标
 
 scripts/               端到端测试,见下一节
-preview/               早期移动端静态稿,只作设计参考,不参与构建
 ```
 
 两条贯穿全局的约定:
@@ -119,14 +115,24 @@ bash scripts/sweeper.sh                               # 巡检 24 条(红包超�
 
 ## 部署
 
-### Docker Compose(本地构建)
+### Docker Compose(推荐)
+
+`docker-compose.yml` 默认拉 CI 构建好的镜像:
+
+```bash
+docker compose up -d                    # 用 latest
+BBS_TAG=v0.1.0 docker compose up -d     # 钉某个版本
+```
+
+仓库私有时先 `docker login ghcr.io`(用 GitHub 用户名 + 有 `read:packages` 的 token)。
+想从源码本地构建,把 compose 里的 `image` 注掉、换成注释里的 `build`,然后:
 
 ```bash
 docker compose up -d --build
 # 国内网络:GOPROXY=https://goproxy.cn,direct docker compose up -d --build
 ```
 
-### 用 CI 构建好的镜像
+### 只用 docker run
 
 ```bash
 docker run -d --name bbs -p 8080:8080 \

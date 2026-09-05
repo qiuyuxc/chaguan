@@ -1,11 +1,12 @@
 services:
   bbs:
-    # 本地构建;想直接用 CI 产出的镜像就把 build 注掉、换成下面的 image
-    build:
-      context: .
-      args:
-        GOPROXY: ${GOPROXY:-https://proxy.golang.org,direct}
-    # image: ghcr.io/<你的 GitHub 用户名>/bbs:latest
+    # 默认用 CI 构建好的镜像(amd64 / arm64 都有)。仓库私有时先 docker login ghcr.io。
+    image: ghcr.io/qiuyuxc/bbs:${BBS_TAG:-latest}
+    # 想从源码本地构建就注掉上面的 image,换成:
+    # build:
+    #   context: .
+    #   args:
+    #     GOPROXY: ${GOPROXY:-https://proxy.golang.org,direct}
     container_name: bbs
     restart: unless-stopped
     ports:
@@ -14,4 +15,5 @@ services:
       - TZ=${TZ:-Asia/Shanghai}
       # SMTP、人机验证这些都在后台页面里配,不用写环境变量
     volumes:
+      # SQLite 与上传文件都在 /data(见 Dockerfile 里的 BBS_DB / BBS_UPLOADS)
       - ./data:/data

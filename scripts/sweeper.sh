@@ -23,9 +23,8 @@ cleanup() { kill ${SP:-0} 2>/dev/null || true; rm -rf "$WORK" "$JA" "$JB" 2>/dev
 trap cleanup EXIT
 
 [ -x "$BIN" ] || { echo "先编译: go build -o bbs ./cmd/bbs"; exit 1; }
-# TZ 钉死成 UTC:datetime-local 不带时区,服务端按 time.Local 解析,
-# 而 Termux 的 date 用的是 Android 系统时区(常和 Go 进程的 UTC 差 8 小时)。
-# 两边不统一的话「下一个整分」会算到 8 小时后,定点开奖那段永远等不到。
+# TZ 钉死成 UTC:datetime-local 不带时区,服务端按 time.Local 解析,脚本里的 date 用
+# 系统时区。两边不一致时「下一个整分」会算错,定点开奖那段永远等不到。
 export TZ=UTC
 PORT=$PORT BBS_DB=$WORK/t.db BBS_UPLOADS=$WORK BBS_RP_TTL=2s BBS_SWEEP=1s \
   "$BIN" >"$WORK/log" 2>&1 & SP=$!
