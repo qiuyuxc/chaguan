@@ -1,0 +1,36 @@
+{{define "content"}}
+<div class="page-head">
+  <div>
+    <h1>私信</h1>
+    <p class="page-sub">一对一实时会话;新消息会即时出现,不用刷新</p>
+  </div>
+</div>
+
+{{if .Conversations}}
+<div class="thread-card dm-convs">
+  {{range .Conversations}}
+  <a class="dm-conv{{if .Unread}} unread{{end}}" href="/messages/{{.ID}}">
+    <span class="av-frame">
+      {{if .PeerAvatar}}
+      <span class="avatar av-40"><img src="{{.PeerAvatar}}" alt="" aria-hidden="true"></span>
+      {{else}}
+      <span class="avatar av-40 {{avColor .PeerID}}" aria-hidden="true">{{initial .PeerName}}</span>
+      {{end}}
+      {{vSeal .PeerRole .PeerKind .PeerVerify}}
+    </span>
+    <span class="dm-conv-main">
+      <span class="dm-conv-top">
+        <span class="dm-conv-name">{{.PeerName}}</span>
+        <span class="dm-conv-time">{{relTime .LastAt}}</span>
+      </span>
+      <span class="dm-conv-last">{{if .LastFromMe}}<i>我:</i>{{end}}{{.LastBody}}</span>
+    </span>
+    {{if .Unread}}<span class="dm-badge">{{.Unread}}</span>{{end}}
+  </a>
+  {{end}}
+</div>
+{{template "pagination" .}}
+{{else}}
+<p class="empty">还没有私信。在别人的主页点「发私信」就能开始聊。</p>
+{{end}}
+{{end}}

@@ -1,4 +1,13 @@
 {{define "content"}}
+{{if .IsBanned}}
+<div class="ban-note" role="status">
+  <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>
+  <div class="ban-note-txt">
+    <b>{{if .IsSelf}}你的账号已被封禁{{else}}该账号已被封禁{{end}}</b>
+    <p class="page-sub">封禁期间无法登录、发帖与回复,{{date .BanUntil}} 自动解封。</p>
+  </div>
+</div>
+{{end}}
 <header class="member-head">
   <div class="member-top">
     <div class="member-av">
@@ -16,11 +25,20 @@
         <a class="member-edit" href="/u/{{.Profile.ID}}/edit" title="编辑资料" aria-label="编辑资料">
           <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>
         </a>
+        {{else if .CanDM}}
+        <form method="post" action="/messages/start" class="inline member-dm">
+          {{csrfField .CSRF}}
+          <input type="hidden" name="to" value="{{.Profile.ID}}">
+          <button class="btn btn-outline btn-sm" type="submit">
+            <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+            发私信
+          </button>
+        </form>
         {{end}}
       </div>
       <div class="member-tags">
         {{roleBadge .Profile.Role .Profile.BadgeText}}
-        {{if .Profile.BannedUntil.Valid}}<span class="badge badge-lock">封禁中</span>{{end}}
+        {{if .IsBanned}}<span class="badge badge-lock">封禁中</span>{{end}}
         <span class="lv-badge lv{{.Level}}" title="经验 {{.Exp}}">LV{{.Level}}</span>
       </div>
       <div class="member-stats">
@@ -139,21 +157,5 @@
   {{else}}
   <p class="empty">{{if .IsSelf}}你还没有收藏过主题{{else}}TA 还没有收藏过主题{{end}}</p>
   {{end}}
-{{end}}
-
-{{if and .IsAdminViewer (not .IsSelf)}}
-<section class="member-admin">
-  <div class="profile-sec">管理</div>
-  {{if .Profile.BannedUntil.Valid}}
-  <p class="page-sub">该账号封禁中,{{date .Profile.BannedUntil.Int64}} 解封</p>
-  {{else if eq .Profile.Role "admin"}}
-  <p class="page-sub">管理员账号,无需后台操作</p>
-  {{else}}
-  <p class="page-sub">版主身份与封禁请在管理后台设置</p>
-  {{end}}
-  {{if ne .Profile.Role "admin"}}
-  <a class="btn btn-outline btn-sm" href="/admin/users/{{.Profile.ID}}">在管理后台管理</a>
-  {{end}}
-</section>
 {{end}}
 {{end}}

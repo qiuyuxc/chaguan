@@ -43,7 +43,9 @@ type Base struct {
 	Level        int           // 登录用户 LV0..LV6
 	ExpNext      int64         // 登录用户下一级所需经验(LV6 时经验条满)
 	ExpPct       int           // 登录用户当前等级经验进度 0..100
-	Announcement string        // 站点公告(顶部滚动横幅;空串=不显示)
+	Site         db.Site       // 站点信息(品牌/页脚/图标/公告),后台可配
+	Points       int64         // 登录用户的积分余额(侧栏签到卡)
+	CheckedIn    bool          // 登录用户今天是否已签到
 }
 
 // PostView 是帖子 partial 的数据:帖子 + 当前查看者(决定是否显示删除按钮)。
@@ -57,6 +59,13 @@ type PostView struct {
 	CanDelete bool  // 该查看者可删此回复:作者本人 / 管理员 / 管辖该版块的版主
 }
 
+// DMView 是私信气泡的数据:消息 + 是否我发的 + 对方信息(渲染头像用)。
+type DMView struct {
+	Msg  db.DMMessage
+	Mine bool
+	Peer *db.DMConversation
+}
+
 var funcs = template.FuncMap{
 	"relTime": RelTime,
 	"csrfField": func(token string) template.HTML {
@@ -68,6 +77,9 @@ var funcs = template.FuncMap{
 	"bcatColor": func(id int64) string { return "bcat-" + strconv.Itoa(int(id)%6+1) },
 	"date":      func(ts int64) string { return time.Unix(ts, 0).Format("2006-01-02") },
 	"safeHTML":  func(s string) template.HTML { return template.HTML(s) },
+	// otpauth:// 这类非 http 协议会被模板的 URL 过滤器拦掉,
+	// 这里显式放行(链接由服务端拼装,参数都经过 url 转义)
+	"safeURL": func(s string) template.URL { return template.URL(s) },
 	"postView": func(p db.Post, viewer *db.User) PostView {
 		return PostView{Post: p, Viewer: viewer}
 	},
@@ -103,6 +115,41 @@ var funcs = template.FuncMap{
 	"vSeal":        vSeal,
 	"vColorClass":  vColorClass,
 	"quotePreview": quotePreview,
+	"pointKind":    pointKindName,
+}
+
+// pointKindName 把积分流水类型翻成中文,列表里直接显示。
+func pointKindName(kind string) string {
+	switch kind {
+	case db.PointCheckin:
+		return "每日签到"
+	case db.PointTipOut:
+		return "打赏支出"
+	case db.PointTipIn:
+		return "收到打赏"
+	case db.PointAdmin:
+		return "管理员调整"
+	case db.PointUnlockOut:
+		return "解锁付费帖"
+	case db.PointUnlockIn:
+		return "付费帖收入"
+	case db.PointStake:
+		return "参与抽奖"
+	case db.PointWin:
+		return "抽奖中奖"
+	case db.PointShop:
+		return "商城兑换"
+	case db.PointRedpackOut:
+		return "发出红包"
+	case db.PointRedpackIn:
+		return "领取红包"
+	case db.PointRedpackBack:
+		return "红包退回"
+	case db.PointRename:
+		return "修改显示名"
+	default:
+		return kind
+	}
 }
 
 // roleBadge 渲染用户称号徽章:
@@ -263,8 +310,9 @@ type Renderer struct {
 var pageNames = []string{
 	"home", "login", "register", "category", "thread", "new_thread",
 	"edit_thread", "edit_post", "profile", "edit_profile", "notifications",
-	"verify_apply",
-	"admin_categories", "admin_overview", "admin_users", "admin_threads", "admin_verify", "admin_user_new", "search",
+	"verify_apply", "settings", "dm_list", "dm_thread", "points", "shop",
+	"forgot", "reset", "verify_resend", "account", "login_2fa",
+	"admin_categories", "admin_overview", "admin_users", "admin_threads", "admin_verify", "admin_user_new", "admin_site", "admin_mail", "admin_security", "admin_points", "admin_shop", "search",
 }
 
 func NewRenderer() (*Renderer, error) {
@@ -325,9 +373,7 @@ func (r *Renderer) Partial(w io.Writer, status int, page, define string, data an
 		return fmt.Errorf("unknown define %q in %s", define, page)
 	}
 	if rw, ok := w.(http.ResponseWriter); ok {
-		if strings.Contains(define, "post") {
-			rw.Header().Set("Content-Type", "text/html; charset=utf-8")
-		}
+		rw.Header().Set("Content-Type", "text/html; charset=utf-8")
 		rw.WriteHeader(status)
 	}
 	return tt.Execute(w, data)

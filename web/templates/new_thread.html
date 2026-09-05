@@ -17,17 +17,88 @@
   </div>
   <div class="compose-field">
     <span class="flabel">版块</span>
-    <div class="board-pick" role="radiogroup" data-board-pick aria-label="选择版块">
-      {{range .Categories}}
-      <button type="button" class="board-opt{{if and $.Category (eq $.Category.Slug .Slug)}} on{{end}}" role="radio" data-board-opt="{{.Slug}}" aria-checked="{{if and $.Category (eq $.Category.Slug .Slug)}}true{{else}}false{{end}}">{{.Name}}</button>
-      {{end}}
+    <div class="picker" data-picker>
+      <input type="hidden" name="category" id="thread-category" value="{{if .Category}}{{.Category.Slug}}{{end}}">
+      <button type="button" class="picker-btn" data-picker-open>
+        <span data-picker-label>{{if .Category}}{{.Category.Name}}{{else}}选择版块…{{end}}</span>
+        <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+      <div class="modal" data-picker-modal hidden>
+        <div class="modal-scrim" data-picker-cancel></div>
+        <div class="modal-card picker-card" role="dialog" aria-modal="true" aria-label="选择版块">
+          <div class="picker-top">
+            <b>选择版块</b>
+            <button type="button" class="icon-btn" data-picker-cancel aria-label="关闭">
+              <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+          </div>
+          <input class="input input-sm picker-search" type="search" placeholder="搜索版块名…" data-picker-search aria-label="搜索版块">
+          <div class="picker-list" data-picker-list>
+            {{range .Categories}}
+            <button type="button" class="picker-opt{{if and $.Category (eq $.Category.Slug .Slug)}} on{{end}}" data-val="{{.Slug}}">{{.Name}}</button>
+            {{end}}
+          </div>
+        </div>
+      </div>
     </div>
-    <input type="hidden" name="category" id="thread-category" value="{{if .Category}}{{.Category.Slug}}{{end}}">
   </div>
   <div class="compose-field">
     <span class="flabel">正文</span>
     {{template "composer" (dict "ID" "post-content" "Name" "content" "Rows" 10 "Placeholder" "支持 Markdown,多段落" "Content" .Content)}}
   </div>
+
+  <div class="compose-field">
+    <span class="flabel">帖子类型</span>
+    <div class="board-pick kind-pick" role="radiogroup" data-kind-pick aria-label="帖子类型">
+      <button type="button" class="board-opt{{if ne .Kind "lottery"}} on{{end}}" role="radio" data-kind="normal" aria-checked="{{if ne .Kind "lottery"}}true{{else}}false{{end}}">普通帖</button>
+      <button type="button" class="board-opt{{if eq .Kind "lottery"}} on{{end}}" role="radio" data-kind="lottery" aria-checked="{{if eq .Kind "lottery"}}true{{else}}false{{end}}">抽奖帖</button>
+    </div>
+    <input type="hidden" name="kind" id="thread-kind" value="{{.Kind}}">
+  </div>
+
+  <div class="compose-field gate-box" data-lottery-fields{{if ne .Kind "lottery"}} hidden{{end}}>
+    <span class="flabel">抽奖设置</span>
+    <div class="gate-grid">
+      <label class="um-f">
+        <span class="um-f-lb">奖品说明</span>
+        <input class="input input-sm" name="prize" value="{{.Prize}}" maxlength="80" placeholder="如:100 积分 / 一份周边">
+      </label>
+      <label class="um-f">
+        <span class="um-f-lb">中奖人数</span>
+        <input class="input input-sm" type="number" name="winners" value="{{.Winners}}" min="1" max="50">
+      </label>
+      <label class="um-f">
+        <span class="um-f-lb">参与需投入积分</span>
+        <input class="input input-sm" type="number" name="stake" value="{{.Stake}}" min="0" max="1000">
+        <span class="um-f-tip">填 0 则回复即参与;大于 0 时回复会扣这么多积分并进奖池,开奖后分给中奖者</span>
+      </label>
+    </div>
+  </div>
+
+  <div class="compose-field gate-box">
+    <span class="flabel">阅读门槛(可选)</span>
+    <div class="gate-grid">
+      <div class="um-f">
+        <span class="um-f-lb">观看等级</span>
+        <div class="pick-chips lv-pick" data-level-pick>
+          <input type="hidden" name="min_level" value="{{.MinLevel}}">
+          <button type="button" class="pick-chip" data-lv="0">不限</button>
+          <button type="button" class="pick-chip" data-lv="1"><span class="lv-dot lv1" aria-hidden="true"></span>LV1+</button>
+          <button type="button" class="pick-chip" data-lv="2"><span class="lv-dot lv2" aria-hidden="true"></span>LV2+</button>
+          <button type="button" class="pick-chip" data-lv="3"><span class="lv-dot lv3" aria-hidden="true"></span>LV3+</button>
+          <button type="button" class="pick-chip" data-lv="4"><span class="lv-dot lv4" aria-hidden="true"></span>LV4+</button>
+          <button type="button" class="pick-chip" data-lv="5"><span class="lv-dot lv5" aria-hidden="true"></span>LV5+</button>
+          <button type="button" class="pick-chip" data-lv="6"><span class="lv-dot lv6" aria-hidden="true"></span>LV6</button>
+        </div>
+      </div>
+      <label class="um-f">
+        <span class="um-f-lb">观看需支付积分</span>
+        <input class="input input-sm" type="number" name="price" value="{{.Price}}" min="0" max="10000" placeholder="0">
+        <span class="um-f-tip">填 0 则免费。读者支付一次永久解锁,积分直接进你的账户;两个门槛可同时设,需同时满足</span>
+      </label>
+    </div>
+  </div>
+
   <div class="form-actions">
     <button class="btn btn-primary" type="submit">发布</button>
     <a class="btn btn-white" href="{{if .Category}}/c/{{.Category.Slug}}{{else}}/{{end}}">取消</a>

@@ -2,14 +2,14 @@
 <div class="page-head">
   <div>
     <h1>版块管理</h1>
-    <p class="page-sub">只有空版块可以删除,删除会同时移除其下全部主题</p>
+    <p class="page-sub">空版块可直接删除;有主题的版块需选择「连同主题删除」或先把主题迁走。至少保留一个版块</p>
   </div>
 </div>
 
 {{if .Categories}}
 <div class="thread-card">
   {{range .Categories}}
-  <div class="tr">
+  <div class="tr row-stack">
     <span class="avatar av-40 c1" aria-hidden="true">{{initial .Name}}</span>
     <div class="tr-main">
       <div class="tr-top"><span class="author">{{.Name}}</span><span>{{.ThreadCount}} 主题</span></div>
@@ -24,7 +24,41 @@
       <button class="btn btn-outline-danger btn-sm" type="submit">删除</button>
     </form>
     {{else}}
-    <span class="m" style="white-space:nowrap">不可删</span>
+    <div class="row-acts">
+      <form method="post" action="/admin/categories/{{.ID}}/delete" class="cat-del-move">
+        {{csrfField $.CSRF}}
+        <input type="hidden" name="mode" value="move">
+        <div class="picker" data-picker>
+          <input type="hidden" name="to" value="">
+          <button type="button" class="picker-btn" data-picker-open>
+            <span data-picker-label>迁往…</span>
+            <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+          <div class="modal" data-picker-modal hidden>
+            <div class="modal-scrim" data-picker-cancel></div>
+            <div class="modal-card picker-card" role="dialog" aria-modal="true" aria-label="选择迁往的版块">
+              <div class="picker-top">
+                <b>把「{{.Name}}」的主题迁到</b>
+                <button type="button" class="icon-btn" data-picker-cancel aria-label="关闭">
+                  <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+              </div>
+              <input class="input input-sm picker-search" type="search" placeholder="搜索版块名…" data-picker-search aria-label="搜索版块">
+              <div class="picker-list" data-picker-list>
+                {{$cur := .ID}}
+                {{range $.Categories}}{{if ne .ID $cur}}<button type="button" class="picker-opt" data-val="{{.ID}}">{{.Name}}</button>{{end}}{{end}}
+              </div>
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-white btn-sm" type="submit" data-confirm="把「{{.Name}}」的 {{.ThreadCount}} 个主题迁到所选版块,然后删除该版块?">迁移并删除</button>
+      </form>
+      <form method="post" action="/admin/categories/{{.ID}}/delete">
+        {{csrfField $.CSRF}}
+        <input type="hidden" name="mode" value="cascade">
+        <button class="btn btn-outline-danger btn-sm" type="submit" data-confirm="连同「{{.Name}}」里的 {{.ThreadCount}} 个主题及其全部回复一起删除?此操作不可撤销。">连同主题删除</button>
+      </form>
+    </div>
     {{end}}
   </div>
   {{end}}

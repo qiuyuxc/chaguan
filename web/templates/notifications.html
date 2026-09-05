@@ -22,7 +22,7 @@
     {{end}}
     <div class="tr-main">
       <div class="tr-top"><span class="author">{{.ActorName}}</span><span>{{relTime .CreatedAt}}</span>{{if not .ReadAt.Valid}}<span class="n-new">未读</span>{{end}}</div>
-      <div class="tr-title">{{if eq .Type "mention"}}@了你{{else}}回复了你的主题{{end}}{{if .ThreadTitle}} · {{.ThreadTitle}}{{end}}</div>
+      <div class="tr-title">{{if eq .Type "mention"}}@了你{{else if eq .Type "tip"}}打赏了你{{else if eq .Type "lottery"}}开奖了,你中奖了{{else}}回复了你的主题{{end}}{{if .ThreadTitle}} · {{.ThreadTitle}}{{end}}</div>
     </div>
   </a>
   {{end}}

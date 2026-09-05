@@ -1,0 +1,85 @@
+{{define "content"}}
+<div class="page-head">
+  <div>
+    <h1>邮件设置</h1>
+    <p class="page-sub">配置发信服务后,才能做注册邮箱验证与找回密码</p>
+  </div>
+</div>
+
+{{if .Error}}<p class="form-error">{{.Error}}</p>{{end}}
+{{if .Saved}}<p class="save-ok" role="status">已保存</p>{{end}}
+
+<section class="um-sec">
+  <h3 class="um-sec-h">SMTP 发件</h3>
+  <p class="um-tip">端口 587 配 STARTTLS、465 配 SSL 是最常见的两种组合;具体按邮件服务商的说明填。口令保存后不会再显示出来。</p>
+  <form method="post" action="/admin/mail">
+    {{csrfField .CSRF}}
+    <div class="mail-grid">
+      <label class="um-f">
+        <span class="um-f-lb">SMTP 服务器</span>
+        <input class="input input-sm" name="host" value="{{.Sec.SMTPHost}}" maxlength="120" autocomplete="off" placeholder="smtp.example.com">
+      </label>
+      <label class="um-f">
+        <span class="um-f-lb">端口</span>
+        <input class="input input-sm" type="number" name="port" value="{{.Sec.SMTPPort}}" min="1" max="65535" placeholder="587">
+      </label>
+      <div class="um-f">
+        <span class="um-f-lb">加密方式</span>
+        <div class="pick-chips mail-secure" data-mail-secure>
+          <input type="hidden" name="secure" value="{{.Sec.SMTPSecure}}">
+          <button type="button" class="pick-chip" data-secure="starttls">STARTTLS(587)</button>
+          <button type="button" class="pick-chip" data-secure="ssl">SSL(465)</button>
+          <button type="button" class="pick-chip" data-secure="none">不加密</button>
+        </div>
+      </div>
+      <label class="um-f">
+        <span class="um-f-lb">登录账号</span>
+        <input class="input input-sm" name="user" value="{{.Sec.SMTPUser}}" maxlength="120" autocomplete="off" placeholder="通常就是发件邮箱">
+      </label>
+      <label class="um-f">
+        <span class="um-f-lb">登录口令</span>
+        <input class="input input-sm" type="password" name="pass" maxlength="200" autocomplete="new-password"
+               placeholder="{{if .HasPass}}已保存,留空则不修改{{else}}授权码 / 密码{{end}}">
+      </label>
+      <label class="um-f">
+        <span class="um-f-lb">发件人地址</span>
+        <input class="input input-sm" type="email" name="from" value="{{.Sec.SMTPFrom}}" maxlength="120" autocomplete="off" placeholder="bbs@example.com">
+      </label>
+    </div>
+
+    <div class="um-f mail-switch">
+      <span class="um-f-lb">邮件注册</span>
+      <div class="set-opts set-opts-row">
+        <label class="set-opt{{if .Sec.EmailRegister}} on{{end}}">
+          <input type="radio" name="email_register" value="1"{{if .Sec.EmailRegister}} checked{{end}}>
+          <span class="set-opt-txt"><b>开启</b><i>注册必须填邮箱并点验证链接</i></span>
+        </label>
+        <label class="set-opt{{if not .Sec.EmailRegister}} on{{end}}">
+          <input type="radio" name="email_register" value="0"{{if not .Sec.EmailRegister}} checked{{end}}>
+          <span class="set-opt-txt"><b>关闭</b><i>注册不收邮箱、不做校验</i></span>
+        </label>
+      </div>
+      <span class="um-f-tip">开启前必须先填好服务器/端口/发件人,否则会把新用户全挡在门外。已注册的老账号不受影响。</span>
+    </div>
+
+    <div class="um-act">
+      <button class="btn btn-primary btn-sm" type="submit">保存邮件设置</button>
+      {{if .HasPass}}
+      <button class="btn btn-ghost btn-sm" type="submit" name="clear_pass" value="1" data-confirm="清空已保存的 SMTP 口令?">清空口令</button>
+      {{end}}
+    </div>
+  </form>
+</section>
+
+<section class="um-sec">
+  <h3 class="um-sec-h">测试发信</h3>
+  <p class="um-tip">用当前已保存的配置真发一封,失败会把 SMTP 的原始错误显示出来,方便对着排查。</p>
+  {{if .TestOK}}<p class="save-ok">测试邮件已发出,去 {{.TestTo}} 收一下</p>{{end}}
+  {{if .TestErr}}<p class="form-error">发送失败:{{.TestErr}}</p>{{end}}
+  <form method="post" action="/admin/mail/test" class="mail-test">
+    {{csrfField .CSRF}}
+    <input class="input input-sm" type="email" name="to" value="{{.TestTo}}" maxlength="120" required placeholder="收件邮箱">
+    <button class="btn btn-white btn-sm" type="submit">发送测试邮件</button>
+  </form>
+</section>
+{{end}}

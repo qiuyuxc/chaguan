@@ -2,7 +2,7 @@
 <div class="page-head">
   <div>
     <h1>编辑资料</h1>
-    <p class="page-sub">头像、账号名称与称号标签都在这里改</p>
+    <p class="page-sub">头像、显示名与勋章都在这里改 · 登录用的账户名在<a href="/account">账号</a>页</p>
   </div>
 </div>
 {{if .Error}}<p class="form-error">{{.Error}}</p>{{end}}
@@ -32,9 +32,9 @@
     </div>
 
     <div class="compose-field">
-      <label class="flabel" for="profile-name">账号名称</label>
+      <label class="flabel" for="profile-name">显示名</label>
       <input class="input" name="name" id="profile-name" value="{{.Name}}" maxlength="24" required autocomplete="off">
-      <span class="form-note">2–24 个字符,不能包含空格、@ 或斜杠;名称会同步到你的所有发帖</span>
+      <span class="form-note">别人看到的名字,2–24 个字符,不能包含空格、@ 或斜杠。会同步到你的所有发帖;<b>每次修改扣 3 积分</b></span>
     </div>
 
     <div class="compose-field">
@@ -42,30 +42,42 @@
       <textarea class="input textarea" name="bio" id="profile-bio" maxlength="200" rows="4" placeholder="写点介绍,让大家认识你(可选)">{{.Bio}}</textarea>
     </div>
 
-    <div class="badge-editor">
-      <span class="badge-editor-title">称号标签</span>
-      <label class="opt">
-        <input type="radio" name="badge_mode" value="follow"{{if eq .BadgeMode "follow"}} checked{{end}}>
-        跟随身份{{if eq .Profile.Role "admin"}}(显示「管理员」){{else if eq .Profile.Role "mod"}}(显示「版主」){{else}}(暂无身份标签){{end}}
-      </label>
-      <label class="opt">
-        <input type="radio" name="badge_mode" value="custom"{{if eq .BadgeMode "custom"}} checked{{end}}>
-        自定义称号,替换身份标签
-      </label>
-      <div class="badge-custom-row{{if ne .BadgeMode "custom"}} disabled{{end}}" data-badge-custom>
-        <input class="input" name="badge_text" value="{{.BadgeText}}" maxlength="12" placeholder="如:站长、老司机"{{if ne .BadgeMode "custom"}} disabled{{end}}>
-        <span class="badge-preview"><span id="badge-preview-label">{{if .BadgeText}}{{.BadgeText}}{{else}}自定义称号预览{{end}}</span></span>
-      </div>
-      <label class="opt">
-        <input type="radio" name="badge_mode" value="hide"{{if eq .BadgeMode "hide"}} checked{{end}}>
-        不显示标签
-      </label>
-      <p class="badge-editor-note">自定义称号会替代管理员/版主标签显示;正式称号系统后续再开放。</p>
-    </div>
-
     <div class="form-actions">
       <button class="btn btn-primary" type="submit">保存</button>
       <a class="btn btn-white" href="/u/{{.Profile.ID}}">取消</a>
+    </div>
+  </form>
+
+  <form method="post" action="/u/{{.Profile.ID}}/badge" class="badge-editor">
+    {{csrfField .CSRF}}
+    <span class="badge-editor-title">勋章</span>
+    <label class="opt">
+      <input type="radio" name="badge_mode" value="follow"{{if eq .BadgeMode "follow"}} checked{{end}}>
+      跟随身份{{if eq .Profile.Role "admin"}}(显示「管理员」){{else if eq .Profile.Role "mod"}}(显示「版主」){{else}}(暂无身份标签){{end}}
+    </label>
+    {{if .Badges}}
+    <label class="opt">
+      <input type="radio" name="badge_mode" value="wear"{{if eq .BadgeMode "wear"}} checked{{end}}>
+      佩戴勋章
+    </label>
+    <div class="badge-own-list">
+      {{range .Badges}}
+      <label class="badge-own{{if eq .ID $.WornID}} on{{end}}">
+        <input type="radio" name="badge_id" value="{{.ID}}"{{if eq .ID $.WornID}} checked{{end}}>
+        <span class="badge badge-solid">{{.Name}}</span>
+        {{if .Note}}<span class="badge-own-note">{{.Note}}</span>{{end}}
+      </label>
+      {{end}}
+    </div>
+    {{else}}
+    <p class="badge-editor-note">你还没有勋章。勋章来自活动发放、后台授予,或到 <a href="/shop">积分商城</a> 兑换。</p>
+    {{end}}
+    <label class="opt">
+      <input type="radio" name="badge_mode" value="hide"{{if eq .BadgeMode "hide"}} checked{{end}}>
+      不显示任何标签
+    </label>
+    <div class="form-actions">
+      <button class="btn btn-white btn-sm" type="submit">保存勋章设置</button>
     </div>
   </form>
 </div>

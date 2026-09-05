@@ -1,0 +1,100 @@
+{{define "content"}}
+<div class="page-head">
+  <div>
+    <h1>账号</h1>
+    <p class="page-sub">登录方式与安全设置 · 显示名在<a href="/u/{{.Me.ID}}/edit">编辑资料</a>里改</p>
+  </div>
+</div>
+
+{{if .Error}}<p class="form-error">{{.Error}}</p>{{end}}
+{{if .Saved}}<p class="save-ok" role="status">{{.Saved}}</p>{{end}}
+
+<section class="set-sec">
+  <h2 class="set-sec-h">账户名(登录用)</h2>
+  <p class="set-tip">登录时填它或已验证的邮箱都可以。它不对外展示,别人看到的是你的显示名「{{.Me.Name}}」。</p>
+  <form method="post" action="/account/name" class="acc-form">
+    {{csrfField .CSRF}}
+    <input class="input input-sm" name="login_name" value="{{.Me.Login}}" maxlength="24" required autocomplete="username">
+    <button class="btn btn-white btn-sm" type="submit">保存账户名</button>
+  </form>
+</section>
+
+<section class="set-sec">
+  <h2 class="set-sec-h">邮箱</h2>
+  {{if .Me.Email}}
+    {{if .Me.EmailVerified.Valid}}
+    <p class="set-tip">已绑定并验证:<b>{{.Me.Email}}</b> · 可用于登录与找回密码。换邮箱需要重新验证。</p>
+    {{else}}
+    <p class="set-tip">已填写 <b>{{.Me.Email}}</b>,但还没验证。没收到邮件可以在下面重发一次。</p>
+    {{end}}
+  {{else}}
+  <p class="set-tip">还没绑定邮箱。绑定后可以用邮箱登录、自助找回密码。</p>
+  {{end}}
+  {{if .MailReady}}
+  <form method="post" action="/account/email" class="acc-form">
+    {{csrfField .CSRF}}
+    <input class="input input-sm" type="email" name="email" value="{{.Me.Email}}" maxlength="120" required
+           placeholder="you@example.com" autocomplete="email">
+    <button class="btn btn-white btn-sm" type="submit">发送验证邮件</button>
+  </form>
+  <span class="um-f-tip">点击后会给这个地址发一封确认信,点信里的链接才算绑定成功。</span>
+  {{else}}
+  <p class="muted">站点还没配置发信服务,暂时无法绑定邮箱。</p>
+  {{end}}
+</section>
+
+<section class="set-sec">
+  <h2 class="set-sec-h">修改密码</h2>
+  <p class="set-tip">改完会退出其他设备上的登录,当前这台保持登录。</p>
+  <form method="post" action="/account/password" class="acc-grid">
+    {{csrfField .CSRF}}
+    <label class="um-f">
+      <span class="um-f-lb">当前密码</span>
+      <input class="input input-sm" type="password" name="old" required autocomplete="current-password">
+    </label>
+    <label class="um-f">
+      <span class="um-f-lb">新密码(至少 8 位)</span>
+      <input class="input input-sm" type="password" name="password" minlength="8" required autocomplete="new-password">
+    </label>
+    <label class="um-f">
+      <span class="um-f-lb">再输一次</span>
+      <input class="input input-sm" type="password" name="password2" minlength="8" required autocomplete="new-password">
+    </label>
+    <div class="um-act">
+      <button class="btn btn-primary btn-sm" type="submit">保存新密码</button>
+    </div>
+  </form>
+</section>
+
+<section class="set-sec">
+  <h2 class="set-sec-h">两步验证</h2>
+  {{if .Me.TOTPEnabled}}
+  <p class="set-tip">已开启。登录时除了密码,还要输一次验证器里的 6 位码。</p>
+  <form method="post" action="/account/2fa/disable" class="acc-form">
+    {{csrfField .CSRF}}
+    <input class="input input-sm tfa-code" name="code" inputmode="numeric" autocomplete="one-time-code"
+           maxlength="6" required placeholder="6 位验证码">
+    <button class="btn btn-outline-danger btn-sm" type="submit">关闭两步验证</button>
+  </form>
+  {{else if .Setup}}
+  <p class="set-tip">用 Google Authenticator / 1Password / Bitwarden 等任意验证器添加下面的密钥,再填一次它生成的验证码。</p>
+  <div class="tfa-secret">
+    <code class="tfa-key">{{.Setup}}</code>
+    <a class="btn btn-white btn-sm" href="{{safeURL .SetupURL}}">用验证器打开</a>
+  </div>
+  <span class="um-f-tip">手动添加时:类型选「基于时间(TOTP)」,6 位,30 秒。</span>
+  <form method="post" action="/account/2fa/enable" class="acc-form">
+    {{csrfField .CSRF}}
+    <input class="input input-sm tfa-code" name="code" inputmode="numeric" autocomplete="one-time-code"
+           maxlength="6" required placeholder="6 位验证码" autofocus>
+    <button class="btn btn-primary btn-sm" type="submit">确认开启</button>
+  </form>
+  {{else}}
+  <p class="set-tip">开启后,登录需要密码 + 验证器里的动态验证码,账号被撞库也进不来。</p>
+  <form method="post" action="/account/2fa/setup">
+    {{csrfField .CSRF}}
+    <button class="btn btn-white btn-sm" type="submit">生成密钥</button>
+  </form>
+  {{end}}
+</section>
+{{end}}

@@ -17,9 +17,11 @@
     <span class="badge">楼主</span>
     {{if .User}}
     <span class="op-acts">
+      {{if .Gate.OK}}
       <button type="button" class="ic-act" data-quote data-q-author="{{.First.AuthorName}}" data-q-floor="1" data-q-text="{{quotePreview .First.ContentMD}}" title="引用并回复" aria-label="引用并回复">
         <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 10 4 15 9 20"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></svg>
       </button>
+      {{end}}
       {{if or (eq .User.ID .Thread.AuthorID) .User.IsAdmin}}
       <a class="ic-act" href="/t/{{.Thread.ID}}/edit" title="编辑主题" aria-label="编辑主题">
         <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>
@@ -57,12 +59,76 @@
     <span class="m"><svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>{{.Thread.ReplyCount}} 回复</span>
     <span class="m op-time"><svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>{{relTime .Thread.CreatedAt}}</span>
   </div>
-  <div class="op-reacts-bar">{{template "reacts" .}}</div>
   <div class="op-divider"></div>
+  {{if .Gate.OK}}
   <div class="op-body">{{safeHTML .First.ContentHTML}}</div>
   {{if .First.EditedAt.Valid}}<span class="edited">· 编辑于 {{relTime .First.EditedAt.Int64}}</span>{{end}}
+  {{if .Unlocks}}<p class="gate-sales">已有 <b>{{.Unlocks}}</b> 人解锁</p>{{end}}
+  {{else}}
+  <div class="paywall">
+    <svg class="ic paywall-ic" viewBox="0 0 24 24" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    <div class="paywall-txt">
+      <b>这篇内容设了阅读门槛</b>
+      <p class="page-sub">
+        {{if .Gate.NeedLevel}}需要 LV{{.Gate.NeedLevel}} 及以上{{if .User}}(你现在是 LV{{.Gate.MyLevel}}){{end}}{{end}}
+        {{if and .Gate.NeedLevel .Gate.NeedPay}} · {{end}}
+        {{if .Gate.NeedPay}}需支付 {{.Gate.NeedPay}} 积分解锁{{end}}
+      </p>
+    </div>
+    {{if not .User}}
+    <a class="btn btn-primary btn-sm" href="/login">登录后查看</a>
+    {{else if and .Gate.NeedPay (not .Gate.NeedLevel)}}
+    <form method="post" action="/t/{{.Thread.ID}}/unlock" data-confirm="支付 {{.Gate.NeedPay}} 积分解锁这篇内容?">
+      {{csrfField .CSRF}}
+      <button class="btn btn-primary btn-sm" type="submit">用 {{.Gate.NeedPay}} 积分解锁</button>
+    </form>
+    {{end}}
+  </div>
+  {{end}}
 </article>
 {{end}}
+
+{{if .Lot}}
+<section class="lot-card{{if .Lot.Drawn}} drawn{{end}}">
+  <div class="lot-head">
+    <span class="lot-tag">抽奖</span>
+    <b class="lot-prize">{{.Lot.Prize}}</b>
+    {{if .Lot.Drawn}}<span class="badge badge-lock">已开奖</span>{{else}}<span class="badge">进行中</span>{{end}}
+  </div>
+  <div class="lot-meta">
+    <span>中奖 <b>{{.Lot.Winners}}</b> 人</span>
+    <span>已参与 <b>{{.Lot.Entries}}</b> 人</span>
+    {{if .Lot.Stake}}<span>参与投入 <b>{{.Lot.Stake}}</b> 积分</span>{{end}}
+    {{if .Lot.Pool}}<span>奖池 <b>{{.Lot.Pool}}</b> 积分</span>{{end}}
+  </div>
+  {{if not .Lot.Drawn}}
+  <p class="lot-tip">
+    {{if .LotJoined}}你已参与,等楼主开奖{{else if .User}}在下面回复一句即参与{{if .Lot.Stake}},回复时会扣 {{.Lot.Stake}} 积分进奖池{{end}}{{else}}登录后回复即可参与{{end}}
+  </p>
+  {{end}}
+  {{if .LotEntries}}
+  <div class="lot-list">
+    {{range .LotEntries}}
+    <a class="lot-entry{{if .Won}} won{{end}}" href="/u/{{.UserID}}" title="{{.UserName}}{{if .Won}} · 中奖{{end}}">
+      {{if .UserAvatar}}<span class="avatar av-32"><img src="{{.UserAvatar}}" alt="" aria-hidden="true"></span>
+      {{else}}<span class="avatar av-32 {{avColor .UserID}}" aria-hidden="true">{{initial .UserName}}</span>{{end}}
+      <span class="lot-entry-name">{{.UserName}}</span>
+      {{if .Won}}<span class="lot-win">中奖{{if .Prize}} +{{.Prize}}{{end}}</span>{{end}}
+    </a>
+    {{end}}
+  </div>
+  {{end}}
+  {{if .CanDraw}}
+  <form method="post" action="/t/{{.Thread.ID}}/draw" class="lot-draw" data-confirm="现在开奖?将从 {{.Lot.Entries}} 位参与者里随机抽 {{.Lot.Winners}} 位,不可撤销。">
+    {{csrfField .CSRF}}
+    <button class="btn btn-primary btn-sm" type="submit">开奖</button>
+  </form>
+  {{end}}
+</section>
+{{end}}
+
+{{if .Gate.OK}}
+<section class="react-bar" aria-label="对这篇文章的操作">{{template "reacts" .}}</section>
 
 <div class="replies-head">全部回复 · <b>{{.Thread.ReplyCount}}</b></div>
 <div class="replies" id="replies">
@@ -87,5 +153,8 @@
   {{end}}
 {{else}}
 <p class="empty"><a href="/login">登录</a> 后即可回复</p>
+{{end}}
+{{else}}
+<p class="empty">满足阅读门槛后可以看到回复</p>
 {{end}}
 {{end}}

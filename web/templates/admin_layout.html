@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{.Title}} · BBS 后台</title>
+<title>{{.Title}} · {{.Site.Name}} 后台</title>
+<link rel="icon" href="{{if .Site.IconPath}}{{.Site.IconPath}}{{else}}/static/favicon.svg{{end}}">
 <link rel="stylesheet" href="/static/style.css">
 <script>(function(){try{if(localStorage.getItem("bbs-theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <script src="/static/htmx.min.js" defer></script>
@@ -16,7 +17,7 @@
       <span class="logo-mark">
         <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
       </span>
-      <span class="admin-brand-txt"><b>管理后台</b><small>BBS Admin</small></span>
+      <span class="admin-brand-txt"><b>管理后台</b><small>{{.Site.Name}} Admin</small></span>
     </a>
     <div class="admin-top-actions">
       <button type="button" class="icon-btn" data-theme-toggle aria-pressed="false" title="夜间模式" aria-label="夜间模式">
@@ -58,6 +59,31 @@
       {{else}}<a class="side-link" href="/admin/verify">{{end}}
         <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"/><path d="m9 12 2 2 4-4"/></svg>
         认证
+      </a>
+      {{if eq .ATab "points"}}<a class="side-link on" href="/admin/points">
+      {{else}}<a class="side-link" href="/admin/points">{{end}}
+        <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M14.5 9a2.5 2.5 0 0 0-2.5-2h-1a2.5 2.5 0 0 0 0 5h1a2.5 2.5 0 0 1 0 5h-1a2.5 2.5 0 0 1-2.5-2"/><path d="M12 6v12"/></svg>
+        积分
+      </a>
+      {{if eq .ATab "shop"}}<a class="side-link on" href="/admin/shop">
+      {{else}}<a class="side-link" href="/admin/shop">{{end}}
+        <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+        商城
+      </a>
+      {{if eq .ATab "site"}}<a class="side-link on" href="/admin/site">
+      {{else}}<a class="side-link" href="/admin/site">{{end}}
+        <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+        站点
+      </a>
+      {{if eq .ATab "mail"}}<a class="side-link on" href="/admin/mail">
+      {{else}}<a class="side-link" href="/admin/mail">{{end}}
+        <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+        邮件
+      </a>
+      {{if eq .ATab "security"}}<a class="side-link on" href="/admin/security">
+      {{else}}<a class="side-link" href="/admin/security">{{end}}
+        <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg>
+        安全
       </a>
     </nav>
     <div class="admin-side-foot">

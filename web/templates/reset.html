@@ -1,0 +1,22 @@
+{{define "content"}}
+<div class="auth-card">
+  <div class="auth-brand"><span class="logo-mark"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span></div>
+
+{{if .Bad}}
+  <h1>链接无效</h1>
+  <p class="auth-sub">重置链接可能已过期(有效期 2 小时)或已经用过一次。</p>
+  <p class="hint"><a href="/forgot">重新申请一条</a> · <a href="/login">返回登录</a></p>
+{{else}}
+  <h1>设置新密码</h1>
+  <p class="auth-sub">设置成功后,该账号在其他设备上的登录状态会一并退出</p>
+  {{if .Error}}<p class="form-error">{{.Error}}</p>{{end}}
+  <form method="post" action="/reset" class="form-grid">
+    {{csrfField .CSRF}}
+    <input type="hidden" name="token" value="{{.Token}}">
+    <label>新密码(至少 8 位)<input class="input" type="password" name="password" minlength="8" required autofocus autocomplete="new-password"></label>
+    <label>再输一次<input class="input" type="password" name="password2" minlength="8" required autocomplete="new-password"></label>
+    <button class="btn btn-primary btn-block" type="submit">保存新密码</button>
+  </form>
+{{end}}
+</div>
+{{end}}

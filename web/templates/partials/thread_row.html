@@ -15,6 +15,9 @@
     <a class="tr-title" href="/t/{{.ID}}">
       {{if .IsPinned}}<span class="badge badge-lock">置顶</span>{{end}}
       {{if .IsLocked}}<span class="badge badge-lock">锁定</span>{{end}}
+      {{if eq .Kind "lottery"}}<span class="badge badge-lot">抽奖</span>{{end}}
+      {{if .MinLevel}}<span class="badge badge-gate">LV{{.MinLevel}}+</span>{{end}}
+      {{if .Price}}<span class="badge badge-gate">{{.Price}} 积分</span>{{end}}
       {{.Title}}
     </a>
     <div class="tr-meta">

@@ -1,11 +1,71 @@
 {{define "content"}}
 <div class="page-head">
   <div>
-    <h1>认证申请</h1>
-    <p class="page-sub">共 {{len .List}} 条 · 分类决定 V 颜色:官方蓝 V、厂商红 V、作者黄 V,文案由申请人自定义</p>
+    <h1>认证管理</h1>
+    <p class="page-sub">分类决定 V 颜色:官方蓝 V、厂商红 V、作者黄 V;可以直接给账号加认证,不必等对方申请</p>
   </div>
 </div>
 
+{{if .Error}}<p class="form-error">{{.Error}}</p>{{end}}
+{{if .Saved}}<p class="save-ok" role="status">{{.Saved}}</p>{{end}}
+
+<section class="um-sec">
+  <h3 class="um-sec-h">直接添加认证</h3>
+  <p class="um-tip">填账户名、显示名或邮箱都能找到人;文案留空就显示分类名(如「官方」)。同一账号再加一次会覆盖原有认证。</p>
+  <form method="post" action="/admin/verify/add" class="vadd">
+    {{csrfField .CSRF}}
+    <input class="input input-sm" name="name" maxlength="120" required placeholder="账户名 / 显示名 / 邮箱" aria-label="账号">
+    <div class="pick-chips" data-verify-kind>
+      <input type="hidden" name="kind" value="官方">
+      {{range .Kinds}}
+      <button type="button" class="pick-chip" data-kind="{{.}}">
+        <span class="vdot{{if eq . "厂商"}} v-red{{else if eq . "作者"}} v-yellow{{end}}" aria-hidden="true">V</span>{{.}}
+      </button>
+      {{end}}
+    </div>
+    <input class="input input-sm" name="title" maxlength="80" placeholder="认证文案(可选,如:米哈游官方)" aria-label="认证文案">
+    <button class="btn btn-primary btn-sm" type="submit">添加认证</button>
+  </form>
+</section>
+
+<section class="um-sec">
+  <h3 class="um-sec-h">当前已认证({{len .Verified}})</h3>
+  {{if .Verified}}
+  <div class="thread-card">
+    {{range .Verified}}
+    <div class="tr">
+      <a class="tr-av" href="/u/{{.ID}}" title="查看资料">
+        <span class="av-frame">
+          {{if .AvatarPath}}<span class="avatar av-40"><img src="{{.AvatarPath}}" alt=""></span>
+          {{else}}<span class="avatar av-40 {{avColor .ID}}" aria-hidden="true">{{initial .Name}}</span>{{end}}
+          {{vSeal .Role .Kind .Title}}
+        </span>
+      </a>
+      <div class="tr-main">
+        <div class="tr-top">
+          <a class="author" href="/u/{{.ID}}">{{.Name}}</a>
+          {{if .Kind.Valid}}<span class="badge vr-kind vr-kind-gap"><span class="vdot{{if eq .Kind.String "厂商"}} v-red{{else if eq .Kind.String "作者"}} v-yellow{{end}}" aria-hidden="true">V</span>{{.Kind.String}}</span>{{end}}
+        </div>
+        <div class="tr-meta">
+          <span>{{if .Title.Valid}}{{if .Title.String}}文案:{{.Title.String}}{{else}}未填文案,按分类显示{{end}}{{else}}未填文案,按分类显示{{end}}</span>
+        </div>
+      </div>
+      <div class="row-acts">
+        <form method="post" action="/admin/verify/{{.ID}}/remove">
+          {{csrfField $.CSRF}}
+          <button class="btn btn-outline-danger btn-sm" type="submit" data-confirm="撤销 {{.Name}} 的认证?">撤销认证</button>
+        </form>
+      </div>
+    </div>
+    {{end}}
+  </div>
+  {{else}}
+  <p class="muted">还没有人被认证</p>
+  {{end}}
+</section>
+
+<section class="um-sec">
+  <h3 class="um-sec-h">认证申请({{len .List}})</h3>
 {{if .List}}
 <div class="thread-card vr-card">
   {{range .List}}
@@ -55,4 +115,5 @@
 {{else}}
 <p class="empty">还没有认证申请</p>
 {{end}}
+</section>
 {{end}}

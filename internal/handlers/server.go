@@ -18,16 +18,20 @@ const (
 	postsPerPage   = 15
 	maxPostLen     = 10000
 	maxTitleLen    = 120
+	// 发帖时可设的上限:付费帖价格、抽奖参与投入
+	maxThreadPrice  = 10000
+	maxLotteryStake = 1000
 )
 
 type Server struct {
 	store   *db.Store
 	rend    *web.Renderer
 	uploads string
+	hub     *hub // 实时推送(SSE)连接池
 }
 
 func Routes(store *db.Store, rend *web.Renderer, uploadsDir string) http.Handler {
-	s := &Server{store: store, rend: rend, uploads: uploadsDir}
+	s := &Server{store: store, rend: rend, uploads: uploadsDir, hub: newHub()}
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /{$}", s.home)
@@ -36,6 +40,22 @@ func Routes(store *db.Store, rend *web.Renderer, uploadsDir string) http.Handler
 	mux.HandleFunc("GET /register", s.registerForm)
 	mux.HandleFunc("POST /register", s.register)
 	mux.HandleFunc("POST /logout", s.logout)
+	mux.HandleFunc("GET /login/2fa", s.twoFAForm)
+	mux.HandleFunc("POST /login/2fa", s.twoFA)
+	mux.HandleFunc("GET /account", s.account)
+	mux.HandleFunc("POST /account/name", s.accountName)
+	mux.HandleFunc("POST /account/password", s.accountPassword)
+	mux.HandleFunc("POST /account/email", s.accountEmail)
+	mux.HandleFunc("POST /account/2fa/setup", s.account2FASetup)
+	mux.HandleFunc("POST /account/2fa/enable", s.account2FAEnable)
+	mux.HandleFunc("POST /account/2fa/disable", s.account2FADisable)
+	mux.HandleFunc("GET /verify/email", s.verifyEmail)
+	mux.HandleFunc("GET /verify/resend", s.resendForm)
+	mux.HandleFunc("POST /verify/resend", s.resendVerify)
+	mux.HandleFunc("GET /forgot", s.forgotForm)
+	mux.HandleFunc("POST /forgot", s.forgot)
+	mux.HandleFunc("GET /reset", s.resetForm)
+	mux.HandleFunc("POST /reset", s.reset)
 
 	mux.HandleFunc("GET /c/{slug}", s.category)
 	mux.HandleFunc("GET /new", s.newThreadForm)
@@ -49,6 +69,9 @@ func Routes(store *db.Store, rend *web.Renderer, uploadsDir string) http.Handler
 	mux.HandleFunc("POST /t/{id}/pin", s.togglePin)
 	mux.HandleFunc("POST /t/{id}/like", s.toggleLike)
 	mux.HandleFunc("POST /t/{id}/favorite", s.toggleFavorite)
+	mux.HandleFunc("POST /t/{id}/tip", s.tip)
+	mux.HandleFunc("POST /t/{id}/unlock", s.unlockThread)
+	mux.HandleFunc("POST /t/{id}/draw", s.drawLottery)
 	mux.HandleFunc("POST /t/{id}/lock", s.toggleLock)
 	mux.HandleFunc("POST /t/{id}/delete", s.deleteThread)
 	mux.HandleFunc("POST /p/{id}/like", s.togglePostLike)
@@ -59,6 +82,9 @@ func Routes(store *db.Store, rend *web.Renderer, uploadsDir string) http.Handler
 	mux.HandleFunc("GET /u/{id}", s.profile)
 	mux.HandleFunc("GET /u/{id}/edit", s.editProfileForm)
 	mux.HandleFunc("POST /u/{id}/edit", s.editProfile)
+	mux.HandleFunc("POST /u/{id}/badge", s.wearBadge)
+	mux.HandleFunc("GET /shop", s.shop)
+	mux.HandleFunc("POST /shop/{id}/redeem", s.redeem)
 
 	mux.HandleFunc("POST /uploads", s.uploadImage)
 	mux.HandleFunc("GET /uploads/{id}", s.serveUpload)
@@ -75,13 +101,28 @@ func Routes(store *db.Store, rend *web.Renderer, uploadsDir string) http.Handler
 	mux.HandleFunc("GET /verify/apply", s.verifyApplyForm)
 	mux.HandleFunc("POST /verify/apply", s.verifyApplyPost)
 	mux.HandleFunc("GET /admin/verify", s.adminVerify)
+	mux.HandleFunc("POST /admin/verify/add", s.adminAddVerify)
 	mux.HandleFunc("POST /admin/verify/{id}/approve", s.resolveVerify)
 	mux.HandleFunc("POST /admin/verify/{id}/reject", s.resolveVerify)
+	mux.HandleFunc("POST /admin/verify/{id}/remove", s.adminRemoveVerify)
 
 	mux.HandleFunc("GET /notifications", s.notifications)
 	mux.HandleFunc("GET /notifications/unread", s.unreadCount)
 	mux.HandleFunc("POST /notifications/read-all", s.notificationsReadAll)
 	mux.HandleFunc("POST /notifications/{id}/read", s.notificationRead)
+	mux.HandleFunc("GET /events", s.events)
+	mux.HandleFunc("GET /settings", s.settings)
+	mux.HandleFunc("POST /settings/notify", s.saveNotifySettings)
+	mux.HandleFunc("GET /points", s.points)
+	mux.HandleFunc("POST /checkin", s.checkin)
+	mux.HandleFunc("GET /messages", s.messages)
+	mux.HandleFunc("POST /messages/start", s.dmStart)
+	mux.HandleFunc("GET /messages/{id}", s.dmThread)
+	mux.HandleFunc("GET /messages/{id}/list", s.dmList)
+	mux.HandleFunc("POST /messages/{id}/send", s.dmSend)
+	mux.HandleFunc("POST /messages/{id}/redpack", s.dmRedpack)
+	mux.HandleFunc("POST /messages/{id}/claim", s.dmClaim)
+	mux.HandleFunc("POST /messages/{id}/refund", s.dmRefund)
 	mux.HandleFunc("GET /search", s.search)
 	mux.HandleFunc("GET /api/users", s.userSearch)
 
@@ -90,7 +131,23 @@ func Routes(store *db.Store, rend *web.Renderer, uploadsDir string) http.Handler
 
 	mux.HandleFunc("POST /admin/categories", s.createCategory)
 	mux.HandleFunc("GET /admin", s.adminOverview)
-	mux.HandleFunc("POST /admin/announcement", s.adminSetAnnouncement)
+	mux.HandleFunc("GET /admin/site", s.adminSite)
+	mux.HandleFunc("POST /admin/site", s.adminSaveSite)
+	mux.HandleFunc("POST /admin/site/icon", s.adminSiteIcon)
+	mux.HandleFunc("GET /admin/mail", s.adminMail)
+	mux.HandleFunc("POST /admin/mail", s.adminSaveMail)
+	mux.HandleFunc("POST /admin/mail/test", s.adminTestMail)
+	mux.HandleFunc("GET /admin/security", s.adminSecurity)
+	mux.HandleFunc("POST /admin/security", s.adminSaveSecurity)
+	mux.HandleFunc("GET /admin/points", s.adminPoints)
+	mux.HandleFunc("POST /admin/points/{id}/adjust", s.adminAdjustPoints)
+	mux.HandleFunc("GET /admin/shop", s.adminShop)
+	mux.HandleFunc("POST /admin/shop", s.adminNewShopItem)
+	mux.HandleFunc("POST /admin/shop/{id}/toggle", s.adminToggleShopItem)
+	mux.HandleFunc("POST /admin/shop/{id}/delete", s.adminDeleteShopItem)
+	mux.HandleFunc("POST /admin/badges", s.adminNewBadge)
+	mux.HandleFunc("POST /admin/badges/{id}/delete", s.adminDeleteBadge)
+	mux.HandleFunc("POST /admin/users/{id}/badge", s.adminGrantBadge)
 	mux.HandleFunc("GET /admin/users", s.adminUsers)
 	mux.HandleFunc("GET /admin/users/new", s.adminUserNewForm)
 	mux.HandleFunc("POST /admin/users/new", s.adminUserNew)

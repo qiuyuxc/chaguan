@@ -1,0 +1,56 @@
+{{define "content"}}
+<div class="page-head">
+  <div>
+    <h1>设置</h1>
+    <p class="page-sub">只影响你自己的账号</p>
+  </div>
+</div>
+
+{{if .Saved}}<p class="save-ok" role="status">已保存</p>{{end}}
+
+<form method="post" action="/settings/notify" class="set-form">
+  {{csrfField .CSRF}}
+  <section class="set-sec">
+    <h2 class="set-sec-h">通知接收范围</h2>
+    <p class="set-tip">决定哪些动静会进你的通知列表和铃铛角标。</p>
+    <div class="set-opts">
+      <label class="set-opt{{if eq .Scope "all"}} on{{end}}">
+        <input type="radio" name="scope" value="all"{{if eq .Scope "all"}} checked{{end}}>
+        <span class="set-opt-txt"><b>全部接收</b><i>回复评论与 @提及都通知</i></span>
+      </label>
+      <label class="set-opt{{if eq .Scope "reply"}} on{{end}}">
+        <input type="radio" name="scope" value="reply"{{if eq .Scope "reply"}} checked{{end}}>
+        <span class="set-opt-txt"><b>只接收评论</b><i>别人回复你的主题时通知,@提及不通知</i></span>
+      </label>
+      <label class="set-opt{{if eq .Scope "mention"}} on{{end}}">
+        <input type="radio" name="scope" value="mention"{{if eq .Scope "mention"}} checked{{end}}>
+        <span class="set-opt-txt"><b>只接收 @提及</b><i>只有被 @ 时通知</i></span>
+      </label>
+      <label class="set-opt{{if eq .Scope "none"}} on{{end}}">
+        <input type="radio" name="scope" value="none"{{if eq .Scope "none"}} checked{{end}}>
+        <span class="set-opt-txt"><b>不接收</b><i>关掉全部站内通知</i></span>
+      </label>
+    </div>
+  </section>
+
+  <section class="set-sec">
+    <h2 class="set-sec-h">私信提醒</h2>
+    <p class="set-tip">通知一律实时推送。这里只管私信「要不要提醒你」:关掉后顶栏私信角标不再亮,未读数仍在私信列表里能看到。</p>
+    <div class="set-opts set-opts-row">
+      <label class="set-opt{{if .DM}} on{{end}}">
+        <input type="radio" name="dm" value="1"{{if .DM}} checked{{end}}>
+        <span class="set-opt-txt"><b>提醒我</b><i>新私信即时亮角标</i></span>
+      </label>
+      <label class="set-opt{{if not .DM}} on{{end}}">
+        <input type="radio" name="dm" value="0"{{if not .DM}} checked{{end}}>
+        <span class="set-opt-txt"><b>免打扰</b><i>不亮角标,自己去列表看</i></span>
+      </label>
+    </div>
+  </section>
+
+  <div class="set-act">
+    <button class="btn btn-primary" type="submit">保存设置</button>
+    <a class="btn btn-white" href="/notifications">去通知中心</a>
+  </div>
+</form>
+{{end}}

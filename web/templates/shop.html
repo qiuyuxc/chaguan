@@ -1,0 +1,71 @@
+{{define "content"}}
+<div class="page-head">
+  <div>
+    <h1>积分商城</h1>
+    <p class="page-sub">用积分兑换勋章与增值服务 · 当前 <b>{{.Points}}</b> 积分</p>
+  </div>
+  <a class="btn btn-white btn-sm" href="/points">积分明细</a>
+</div>
+
+{{if .Notice}}<p class="save-ok" role="status">{{.Notice}}</p>{{end}}
+{{if .Error}}<p class="form-error">{{.Error}}</p>{{end}}
+
+{{if .Items}}
+<div class="shop-grid">
+  {{range .Items}}
+  <div class="shop-item{{if .SoldOut}} off{{end}}">
+    <div class="shop-item-top">
+      {{if eq .Kind "badge"}}
+      <span class="badge badge-solid shop-badge">{{.Name}}</span>
+      {{else if eq .Kind "checkin"}}
+      <span class="shop-kind">
+        <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/></svg>
+        {{.Name}}
+      </span>
+      {{else}}
+      <span class="shop-kind">
+        <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 7.3 12 2 3.5 7.3v9.4L12 22l8.5-5.3z"/><path d="M12 22V12"/><path d="m3.5 7.3 8.5 4.7 8.5-4.7"/></svg>
+        {{.Name}}
+      </span>
+      {{end}}
+      <b class="shop-price">{{.Price}} 积分</b>
+    </div>
+    {{if .Note}}<p class="shop-note">{{.Note}}</p>{{end}}
+    <p class="shop-spec">
+      {{if eq .Kind "badge"}}兑换后可在「编辑资料」里佩戴{{else if eq .Kind "checkin"}}签到每天多得 <b>{{.Bonus}}</b> 积分{{if .Days}} · 有效 {{.Days}} 天{{else}} · 不限期{{end}}{{else}}兑换后由管理员按说明发放{{end}}
+      {{if ge .Stock 0}} · 剩余 {{.Stock}}{{end}}
+    </p>
+    <div class="shop-act">
+      {{if .Owned}}
+      <button class="btn btn-white btn-sm" type="button" disabled>已拥有</button>
+      {{else if .SoldOut}}
+      <button class="btn btn-white btn-sm" type="button" disabled>已兑换完</button>
+      {{else}}
+      <form method="post" action="/shop/{{.ID}}/redeem" data-confirm="用 {{.Price}} 积分兑换「{{.Name}}」?">
+        {{csrfField $.CSRF}}
+        <button class="btn btn-primary btn-sm" type="submit">兑换</button>
+      </form>
+      {{end}}
+    </div>
+  </div>
+  {{end}}
+</div>
+{{else}}
+<p class="empty">商城还没有上架商品</p>
+{{end}}
+
+{{if .Orders}}
+<div class="profile-sec">我的兑换记录</div>
+<div class="thread-card pt-logs">
+  {{range .Orders}}
+  <div class="pt-log">
+    <div class="pt-log-main"><span class="pt-log-kind">{{.Name}}</span></div>
+    <div class="pt-log-side">
+      <b class="pt-delta down">-{{.Price}}</b>
+      <span class="pt-log-time">{{relTime .CreatedAt}}</span>
+    </div>
+  </div>
+  {{end}}
+</div>
+{{end}}
+{{end}}

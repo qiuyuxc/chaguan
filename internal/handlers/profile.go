@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"bbs/internal/auth"
@@ -13,7 +14,11 @@ import (
 	"bbs/web"
 )
 
-const maxBioLen = 200
+const (
+	maxBioLen = 200
+	// 改显示名收费:显示名全站唯一且到处都在展示,收点积分挡住随手改名
+	renameCost = 3
+)
 
 type profileData struct {
 	web.Base
@@ -36,7 +41,9 @@ type profileData struct {
 	ExpNext       int64            // 升下一级所需经验(LV6 时等于 ExpStart,经验条满)
 	ExpPct        int              // 经验条百分比 0..100
 	IsSelf        bool
-	IsAdminViewer bool
+	CanDM         bool   // 显示「发私信」:已登录且不是自己
+	IsBanned      bool   // 账号当前封禁中(已过期的 banned_until 不算)
+	BanUntil      int64  // 解封时间(IsBanned 为真时有效)
 	CertText      string // 认证信息(管理员 / 版主+管辖版块),空则不展示
 	Page, Pages   int
 	BaseURL       string
@@ -46,9 +53,18 @@ type profileData struct {
 
 const profileItemsPerPage = 15
 
-// 等级经验规则:发主题 +12、回复 +3、收到点赞 +1(后续互动扩展在此累加)。
-func socialExp(threads, replies, liked int64) int64 {
-	return threads*12 + replies*3 + liked
+// banState 判断账号当前是否处于封禁中。banned_until 落在过去只是历史记录,
+// 会话中间件也已按同样口径放行,不应再显示为封禁。
+func banState(u *db.User) (banned bool, until int64) {
+	if u == nil || !u.BannedUntil.Valid || u.BannedUntil.Int64 <= time.Now().Unix() {
+		return false, 0
+	}
+	return true, u.BannedUntil.Int64
+}
+
+// 等级经验规则:发主题 +12、回复 +3、收到点赞 +1,再加上签到/活动/商城送的经验。
+func socialExp(threads, replies, liked, extra int64) int64 {
+	return threads*12 + replies*3 + liked + extra
 }
 
 // levelThresholds 仿 B 站成长曲线(简化):下标即等级 LV0..LV6。
@@ -106,12 +122,28 @@ func clipRunes(s string, n int) string {
 type editProfileData struct {
 	web.Base
 	Profile   *db.User
-	Name      string // 修改后的账号名称(校验失败时保留输入)
+	Name      string     // 修改后的账号名称(校验失败时保留输入)
 	Bio       string
-	BadgeMode string // follow | hide | custom
-	BadgeText string
-	AvatarNew string // 刚上传、尚未保存的新头像路径(校验失败后保留选择)
+	Badges    []db.Badge // 我持有的勋章(供选择佩戴)
+	BadgeMode string     // follow | hide | wear
+	WornID    int64      // 正佩戴的勋章 id
+	AvatarNew string     // 刚上传、尚未保存的新头像路径(校验失败后保留选择)
 	Error     string
+}
+
+// badgeState 把用户当前的标签状态拆成编辑表单的选项。
+// 勋章改为发放/兑换后,用户只能在「跟随身份 / 隐藏 / 佩戴某枚勋章」之间选。
+func badgeState(u *db.User) (mode string, wornID int64) {
+	if u == nil || !u.BadgeText.Valid {
+		return "follow", 0
+	}
+	if u.BadgeText.String == "" {
+		return "hide", 0
+	}
+	if u.BadgeID.Valid {
+		return "wear", u.BadgeID.Int64
+	}
+	return "follow", 0
 }
 
 // profile GET /u/{id}:公开资料页。
@@ -151,7 +183,7 @@ func (s *Server) profile(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, err)
 		return
 	}
-	exp := socialExp(threads, replies, likedReal)
+	exp := socialExp(threads, replies, likedReal, u.ExpExtra)
 	level, expShown, expStart, expNext := levelInfo(exp, u.LevelOverride)
 	expPct := 100
 	if expNext > expStart {
@@ -204,6 +236,7 @@ func (s *Server) profile(w http.ResponseWriter, r *http.Request) {
 		title = "我的资料"
 	}
 	cert := userCert(u, s.store)
+	banned, banUntil := banState(u)
 	s.rend.Render(w, 200, "profile", profileData{
 		Base:          s.base(r, title),
 		Profile:       u,
@@ -225,7 +258,9 @@ func (s *Server) profile(w http.ResponseWriter, r *http.Request) {
 		ExpNext:       expNext,
 		ExpPct:        expPct,
 		IsSelf:        viewer != nil && viewer.ID == u.ID,
-		IsAdminViewer: viewer != nil && viewer.IsAdmin(),
+		CanDM:         viewer != nil && viewer.ID != u.ID,
+		IsBanned:      banned,
+		BanUntil:      banUntil,
 		CertText:      cert,
 		Page:          page,
 		Pages:         totalPages(total, profileItemsPerPage),
@@ -252,17 +287,6 @@ func (s *Server) selfUser(w http.ResponseWriter, r *http.Request) *db.User {
 	return user
 }
 
-// badgeState 把用户当前称号拆成编辑表单的状态。
-func badgeState(u *db.User) (mode, text string) {
-	if u == nil || !u.BadgeText.Valid {
-		return "follow", ""
-	}
-	if u.BadgeText.String == "" {
-		return "hide", ""
-	}
-	return "custom", u.BadgeText.String
-}
-
 // editProfileForm GET /u/{id}/edit:本人资料编辑页。
 func (s *Server) editProfileForm(w http.ResponseWriter, r *http.Request) {
 	if s.selfUser(w, r) == nil {
@@ -274,14 +298,20 @@ func (s *Server) editProfileForm(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, err)
 		return
 	}
-	mode, text := badgeState(u)
+	mode, wornID := badgeState(u)
+	badges, err := s.store.UserBadges(u.ID)
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
 	s.rend.Render(w, 200, "edit_profile", editProfileData{
 		Base:      s.base(r, "编辑资料"),
 		Profile:   u,
 		Name:      u.Name,
 		Bio:       u.Bio,
+		Badges:    badges,
 		BadgeMode: mode,
-		BadgeText: text,
+		WornID:    wornID,
 	})
 }
 
@@ -312,8 +342,6 @@ func (s *Server) editProfile(w http.ResponseWriter, r *http.Request) {
 		name = u.Name
 	}
 	bio := strings.TrimSpace(r.FormValue("bio"))
-	badgeMode := r.FormValue("badge_mode")
-	badgeText := strings.TrimSpace(r.FormValue("badge_text"))
 	avatarURL := strings.TrimSpace(r.FormValue("avatar_url"))
 	avatarPath := u.AvatarPath
 	pendingAvatar := ""
@@ -326,15 +354,7 @@ func (s *Server) editProfile(w http.ResponseWriter, r *http.Request) {
 		avatarPath = "/uploads/" + strconv.FormatInt(uploadID, 10)
 	} else if avatarURL != "" && avatarURL != u.AvatarPath {
 		if !s.validAvatarUpload(avatarURL, user.ID) {
-			s.rend.Render(w, 200, "edit_profile", editProfileData{
-				Base:      s.base(r, "编辑资料"),
-				Profile:   u,
-				Name:      name,
-				Bio:       bio,
-				BadgeMode: badgeMode,
-				BadgeText: badgeText,
-				Error:     "头像无效,请重新选择",
-			})
+			s.renderEditProfile(w, r, u, name, bio, "", "头像无效,请重新选择")
 			return
 		}
 		avatarPath = avatarURL
@@ -343,24 +363,15 @@ func (s *Server) editProfile(w http.ResponseWriter, r *http.Request) {
 		pendingAvatar = avatarPath
 	}
 	fail := func(msg string) {
-		s.rend.Render(w, 200, "edit_profile", editProfileData{
-			Base:      s.base(r, "编辑资料"),
-			Profile:   u,
-			Name:      name,
-			Bio:       bio,
-			BadgeMode: badgeMode,
-			BadgeText: badgeText,
-			AvatarNew: pendingAvatar,
-			Error:     msg,
-		})
+		s.renderEditProfile(w, r, u, name, bio, pendingAvatar, msg)
 	}
 	if name != u.Name {
 		switch {
 		case utf8.RuneCountInString(name) < 2 || utf8.RuneCountInString(name) > 24:
-			fail("账号名称需要 2–24 个字符")
+			fail("显示名需要 2–24 个字符")
 			return
 		case strings.ContainsAny(name, " \t\r\n@/"):
-			fail("账号名称不能包含空格、@ 或斜杠")
+			fail("显示名不能包含空格、@ 或斜杠")
 			return
 		}
 	}
@@ -368,13 +379,9 @@ func (s *Server) editProfile(w http.ResponseWriter, r *http.Request) {
 		fail("简介最多 200 字")
 		return
 	}
-	if utf8.RuneCountInString(badgeText) > 12 {
-		fail("自定义称号最多 12 个字符")
-		return
-	}
 	if name != u.Name {
-		if clash, _ := s.store.GetUserByName(name); clash != nil && clash.ID != u.ID {
-			fail("用户名已被占用")
+		if taken, _ := s.store.NameTaken(u.ID, name); taken {
+			fail("这个显示名已被占用")
 			return
 		}
 	}
@@ -393,29 +400,44 @@ func (s *Server) editProfile(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if name != u.Name {
-		if err := s.store.UpdateUserName(u.ID, name); err != nil {
-			if err == db.ErrDuplicateName {
-				fail("用户名已被占用")
-			} else {
-				s.serverError(w, err)
-			}
+		// 改名与扣分在一个事务里:余额不够不改名,改名失败不扣分
+		err := s.store.RenameDisplayName(u.ID, name, renameCost)
+		switch err {
+		case nil:
+		case db.ErrNotEnoughPoints:
+			fail("修改显示名需要 3 积分,你的余额不够")
 			return
-		}
-	}
-	badge := sql.NullString{}
-	switch badgeMode {
-	case "custom":
-		badge = sql.NullString{String: badgeText, Valid: true}
-	case "hide":
-		badge = sql.NullString{String: "", Valid: true}
-	}
-	if badge.Valid != u.BadgeText.Valid || badge.String != u.BadgeText.String {
-		if err := s.store.UpdateUserBadge(u.ID, badge); err != nil {
+		case db.ErrDuplicateName:
+			fail("这个显示名已被占用")
+			return
+		default:
 			s.serverError(w, err)
 			return
 		}
 	}
 	http.Redirect(w, r, "/u/"+strconv.FormatInt(u.ID, 10), http.StatusSeeOther)
+}
+
+// renderEditProfile 回填编辑资料表单(校验失败时用),勋章状态按库里的当前值。
+func (s *Server) renderEditProfile(w http.ResponseWriter, r *http.Request, u *db.User,
+	name, bio, pendingAvatar, errMsg string) {
+	mode, wornID := badgeState(u)
+	badges, err := s.store.UserBadges(u.ID)
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	s.rend.Render(w, 200, "edit_profile", editProfileData{
+		Base:      s.base(r, "编辑资料"),
+		Profile:   u,
+		Name:      name,
+		Bio:       bio,
+		Badges:    badges,
+		BadgeMode: mode,
+		WornID:    wornID,
+		AvatarNew: pendingAvatar,
+		Error:     errMsg,
+	})
 }
 
 // validAvatarUpload 校验头像路径是本人生成过的上传记录。

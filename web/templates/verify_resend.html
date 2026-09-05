@@ -1,0 +1,25 @@
+{{define "content"}}
+<div class="auth-card">
+  <div class="auth-brand"><span class="logo-mark"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"/><path d="m9 12 2 2 4-4"/></svg></span></div>
+
+{{if .Sent}}
+  <h1>已重新发送</h1>
+  <p class="auth-sub">如果 <b>{{.Email}}</b> 对应的账号还没验证,验证邮件已经发过去了。</p>
+  <p class="hint">激活后 <a href="/login">去登录</a></p>
+{{else}}
+  <h1>重发验证邮件</h1>
+  <p class="auth-sub">填注册时用的邮箱,我们再发一封激活链接</p>
+  {{if .Error}}<p class="form-error">{{.Error}}</p>{{end}}
+  <form method="post" action="/verify/resend" class="form-grid">
+    {{csrfField .CSRF}}
+    <label>邮箱<input class="input" type="email" name="email" value="{{.Email}}" maxlength="120" required autofocus placeholder="you@example.com"></label>
+    {{if .CaptchaSite}}
+    <div class="cf-turnstile" data-sitekey="{{.CaptchaSite}}" data-theme="auto"></div>
+    {{end}}
+    <button class="btn btn-primary btn-block" type="submit">重新发送</button>
+  </form>
+  <p class="hint"><a href="/login">返回登录</a></p>
+  {{if .CaptchaSite}}<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>{{end}}
+{{end}}
+</div>
+{{end}}

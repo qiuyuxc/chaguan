@@ -1,0 +1,94 @@
+{{define "dm_msgs"}}
+{{if .Messages}}
+{{range .Messages}}
+<div class="dm-row{{if .Mine}} mine{{end}}">
+  {{if not .Mine}}
+  <a class="dm-av" href="/u/{{.Peer.PeerID}}" aria-label="查看 {{.Peer.PeerName}} 的主页">
+    {{if .Peer.PeerAvatar}}<span class="avatar av-32"><img src="{{.Peer.PeerAvatar}}" alt="" aria-hidden="true"></span>
+    {{else}}<span class="avatar av-32 {{avColor .Peer.PeerID}}" aria-hidden="true">{{initial .Peer.PeerName}}</span>{{end}}
+  </a>
+  {{end}}
+  {{if .Msg.IsRedpack}}
+  <div class="dm-bubble rp-bubble{{if ne .Msg.RPStatus "open"}} done{{end}}">
+    <div class="rp-top">
+      <svg class="ic rp-ic" viewBox="0 0 24 24" aria-hidden="true"><rect width="18" height="13" x="3" y="8" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5"/></svg>
+      <b class="rp-amount">{{.Msg.Amount}} 积分</b>
+    </div>
+    <div class="rp-state">
+      {{if eq .Msg.RPStatus "claimed"}}已领取
+      {{else if eq .Msg.RPStatus "refunded"}}已退回发送者
+      {{else if .Mine}}等待对方领取
+      {{else}}对方给你发了个红包{{end}}
+    </div>
+    {{if .Msg.RPOpen}}
+      {{if .Mine}}
+      <form hx-post="/messages/{{.Peer.ID}}/refund" hx-target="#dm-msgs" hx-swap="innerHTML"
+            hx-confirm="撤回这个红包?积分会退回你的账户。" class="rp-act">
+        {{csrfField $.CSRF}}
+        <input type="hidden" name="msg" value="{{.Msg.ID}}">
+        <button class="btn btn-ghost btn-sm" type="submit">撤回</button>
+      </form>
+      {{else}}
+      <form hx-post="/messages/{{.Peer.ID}}/claim" hx-target="#dm-msgs" hx-swap="innerHTML" class="rp-act">
+        {{csrfField $.CSRF}}
+        <input type="hidden" name="msg" value="{{.Msg.ID}}">
+        <button class="btn btn-primary btn-sm" type="submit">领取</button>
+      </form>
+      {{end}}
+    {{end}}
+    <span class="dm-time">{{relTime .Msg.CreatedAt}}</span>
+  </div>
+  {{else}}
+  <div class="dm-bubble">
+    <p class="dm-text">{{.Msg.Body}}</p>
+    <span class="dm-time">{{relTime .Msg.CreatedAt}}{{if and .Mine .Msg.ReadAt.Valid}} · 已读{{end}}</span>
+  </div>
+  {{end}}
+</div>
+{{end}}
+{{else}}
+<p class="empty dm-empty">还没有消息,说点什么吧</p>
+{{end}}
+{{end}}
+
+{{define "content"}}
+<div class="dm-head">
+  <a class="icon-btn" href="/messages" aria-label="返回私信列表" title="返回私信列表">
+    <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+  </a>
+  <a class="dm-peer" href="/u/{{.Conv.PeerID}}">
+    <span class="av-frame">
+      {{if .Conv.PeerAvatar}}
+      <span class="avatar av-32"><img src="{{.Conv.PeerAvatar}}" alt="" aria-hidden="true"></span>
+      {{else}}
+      <span class="avatar av-32 {{avColor .Conv.PeerID}}" aria-hidden="true">{{initial .Conv.PeerName}}</span>
+      {{end}}
+      {{vSeal .Conv.PeerRole .Conv.PeerKind .Conv.PeerVerify}}
+    </span>
+    <span class="dm-peer-name">{{.Conv.PeerName}}</span>
+  </a>
+</div>
+
+<div class="dm-msgs" id="dm-msgs"
+     hx-get="/messages/{{.Conv.ID}}/list" hx-trigger="dm-refresh from:body" hx-swap="innerHTML">
+  {{template "dm_msgs" .}}
+</div>
+
+<div class="dm-compose">
+  <form class="dm-form" hx-post="/messages/{{.Conv.ID}}/send" hx-target="#dm-msgs" hx-swap="innerHTML">
+    {{csrfField .CSRF}}
+    {{template "composer" (dict "ID" "dm-body" "Name" "body" "Rows" 3 "Placeholder" "写点什么…(Ctrl+Enter 发送)" "Content" "" "Send" true "Redpack" true)}}
+  </form>
+  <div class="rp-panel" data-rp-panel hidden>
+    <span class="rp-panel-t">发红包 · 我有 {{.Points}} 积分</span>
+    <form hx-post="/messages/{{.Conv.ID}}/redpack" hx-target="#dm-msgs" hx-swap="innerHTML" class="rp-form">
+      {{csrfField .CSRF}}
+      <button class="tip-amt" type="submit" name="amount" value="10">10</button>
+      <button class="tip-amt" type="submit" name="amount" value="50">50</button>
+      <button class="tip-amt" type="submit" name="amount" value="100">100</button>
+      <input class="input input-sm rp-input" type="number" name="amount" min="1" max="5000" placeholder="自定义" aria-label="自定义红包积分">
+      <button class="btn btn-primary btn-sm" type="submit">发出</button>
+    </form>
+  </div>
+</div>
+{{end}}

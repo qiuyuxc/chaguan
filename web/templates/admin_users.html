@@ -38,7 +38,7 @@
         <span>获赞 {{.Likes}}</span>
       </div>
     </div>
-    <div class="admin-row-go">
+    <div class="row-acts">
       <button type="button" class="btn btn-white btn-sm js-um-open" data-um-id="{{.ID}}">管理</button>
     </div>
   </div>
@@ -111,23 +111,36 @@
           <textarea class="input input-sm um-f-bio" name="bio" rows="2" maxlength="200" placeholder="还没有写简介">{{.Target.Bio}}</textarea>
         </label>
         <div class="um-f">
-          <span class="um-f-lb">称号标签</span>
-          <div class="um-badge" data-um-badge>
-            <label class="opt"><input type="radio" name="badge_mode" value="follow"{{if eq .BadgeMode "follow"}} checked{{end}}>跟随身份{{if or (eq .Target.Role "admin") (eq .Target.Role "mod")}}(管理员/版主){{else}}(暂无){{end}}</label>
-            <label class="opt"><input type="radio" name="badge_mode" value="custom"{{if eq .BadgeMode "custom"}} checked{{end}}>自定义</label>
-            <input class="input input-sm um-badge-text" name="badge_text" value="{{.BadgeText}}" maxlength="12" placeholder="如:站长、老司机"{{if ne .BadgeMode "custom"}} disabled{{end}}>
-            <label class="opt"><input type="radio" name="badge_mode" value="hide"{{if eq .BadgeMode "hide"}} checked{{end}}>隐藏标签</label>
-          </div>
-        </div>
-        <label class="um-f">
           <span class="um-f-lb">重置密码</span>
           <input class="input input-sm" type="password" name="password" maxlength="72" autocomplete="new-password" placeholder="留空则不修改,至少 8 位">
-        </label>
+        </div>
         <div class="um-act">
           <button class="btn btn-primary btn-sm" type="submit">保存资料</button>
         </div>
       </form>
     </div>
+  </section>
+
+  <section class="um-sec">
+    <h3 class="um-sec-h">勋章</h3>
+    {{if .Badges}}
+    <p class="um-tip">点一下发放,已持有的(高亮)再点一次收回。佩戴哪一枚由用户自己在「编辑资料」里选。</p>
+    <div class="um-badge-grant">
+      {{range .Badges}}
+      <form method="post" action="/admin/users/{{$.Target.ID}}/badge" class="um-badge-item">
+        {{csrfField $.CSRF}}<input type="hidden" name="next" value="{{$.Next}}">
+        <input type="hidden" name="badge_id" value="{{.ID}}">
+        {{if .Owned}}<input type="hidden" name="revoke" value="1">{{end}}
+        <button class="pick-chip{{if .Owned}} on{{end}}" type="submit"
+                title="{{if .Owned}}点一下收回{{else}}点一下发放{{end}}{{if .Note}} · {{.Note}}{{end}}">
+          {{.Name}}{{if eq .ID $.WornID}} · 佩戴中{{end}}
+        </button>
+      </form>
+      {{end}}
+    </div>
+    {{else}}
+    <p class="um-tip">还没有勋章,去<a href="/admin/shop">商城与勋章</a>建一个。</p>
+    {{end}}
   </section>
 
   {{if ne .Target.Role "admin"}}

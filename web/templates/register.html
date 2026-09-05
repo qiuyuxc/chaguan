@@ -1,18 +1,33 @@
 {{define "content"}}
 <div class="auth-card">
   <div class="auth-brand"><span class="logo-mark"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg></span></div>
+
+{{if .Sent}}
+  <h1>去邮箱收一下</h1>
+  <p class="auth-sub">验证邮件已发往 <b>{{.Sent}}</b>,点里面的链接就能激活账号(24 小时内有效)。</p>
+  {{if .SendErr}}<p class="form-error">{{.SendErr}}</p>{{end}}
+  <p class="hint">没收到?<a href="/verify/resend">重发验证邮件</a> · 已激活?<a href="/login">去登录</a></p>
+{{else}}
   <h1>加入我们</h1>
   <p class="auth-sub">注册账号,参与讨论 · 首位注册用户自动成为管理员</p>
   {{if .Error}}<p class="form-error">{{.Error}}</p>{{end}}
   <form method="post" action="/register" class="form-grid">
     {{csrfField .CSRF}}
     <label>用户名(2–24 字符)<input class="input" name="name" value="{{.Name}}" maxlength="24" required autofocus placeholder="支持中文"></label>
+    {{if .EmailMode}}
+    <label>邮箱(需验证后才能登录)<input class="input" type="email" name="email" value="{{.Email}}" maxlength="120" required placeholder="you@example.com"></label>
+    {{end}}
     <label>密码(至少 8 位)<input class="input" type="password" name="password" minlength="8" required></label>
+    {{if .CaptchaSite}}
+    <div class="cf-turnstile" data-sitekey="{{.CaptchaSite}}" data-theme="auto"></div>
+    {{end}}
     <button class="btn btn-primary btn-block" type="submit">
       <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg>
       注册
     </button>
   </form>
   <p class="hint">已有账号?<a href="/login">登录</a></p>
+  {{if .CaptchaSite}}<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>{{end}}
+{{end}}
 </div>
 {{end}}

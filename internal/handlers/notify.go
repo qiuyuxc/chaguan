@@ -77,7 +77,8 @@ func (s *Server) notificationRead(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// unreadCount GET /notifications/unread:未读数 JSON,前端 30s 轮询。
+// unreadCount GET /notifications/unread:未读数 JSON(通知 + 私信),
+// 前端拿它同时更新铃铛与私信两个角标。
 func (s *Server) unreadCount(w http.ResponseWriter, r *http.Request) {
 	info := auth.From(r.Context())
 	n := int64(0)
@@ -88,25 +89,40 @@ func (s *Server) unreadCount(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	writeJSON(w, map[string]int64{"unread": n})
+	writeJSON(w, map[string]int64{"unread": n, "dm": s.dmUnread(info.User)})
 }
 
 // notifyReply 回复落库后给主题作者与 @提及用户发通知(失败仅记日志)。
+// 接收范围由 store.CreateNotification 统一过滤,真的落库了才推实时信号。
 func (s *Server) notifyReply(actorID int64, t *db.Thread, postID int64, content string) {
+	replySent := false
 	if t.AuthorID != actorID {
-		if err := s.store.CreateNotification(t.AuthorID, actorID, "reply", t.ID, postID); err != nil {
+		created, err := s.store.CreateNotification(t.AuthorID, actorID, "reply", t.ID, postID)
+		if err != nil {
 			log.Printf("notify reply: %v", err)
+		} else if created {
+			s.notifyPush(t.AuthorID)
+			replySent = true
 		}
 	}
-	for _, uid := range s.mentionTargets(content, t.AuthorID, actorID) {
-		if err := s.store.CreateNotification(uid, actorID, "mention", t.ID, postID); err != nil {
+	// 作者已收到「回复」通知时不再重复发 mention;若那条通知被其接收范围
+	// 过滤掉了(如只收 @提及),这里仍要把 @ 补给作者。
+	var skip int64
+	if replySent {
+		skip = t.AuthorID
+	}
+	for _, uid := range s.mentionTargets(content, skip, actorID) {
+		created, err := s.store.CreateNotification(uid, actorID, "mention", t.ID, postID)
+		if err != nil {
 			log.Printf("notify mention: %v", err)
+		} else if created {
+			s.notifyPush(uid)
 		}
 	}
 }
 
-// mentionTargets 解析 @用户名;作者已被「回复」通知覆盖,不再重复发 mention。
-func (s *Server) mentionTargets(content string, threadAuthorID, actorID int64) []int64 {
+// mentionTargets 解析 @用户名;skipUserID 与操作者本人不在结果内。
+func (s *Server) mentionTargets(content string, skipUserID, actorID int64) []int64 {
 	matches := mentionRe.FindAllStringSubmatch(content, -1)
 	if len(matches) == 0 {
 		return nil
@@ -124,7 +140,7 @@ func (s *Server) mentionTargets(content string, threadAuthorID, actorID int64) [
 	}
 	var out []int64
 	for _, uid := range ids {
-		if uid != actorID && uid != threadAuthorID {
+		if uid != actorID && uid != skipUserID {
 			out = append(out, uid)
 		}
 	}

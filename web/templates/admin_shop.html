@@ -1,0 +1,170 @@
+{{define "content"}}
+<div class="page-head">
+  <div>
+    <h1>商城与勋章</h1>
+    <p class="page-sub">勋章只能由后台发放或用积分兑换,用户自己不能再随便写称号</p>
+  </div>
+  <a class="btn btn-white btn-sm" href="/shop" target="_blank" rel="noopener">查看前台商城</a>
+</div>
+
+{{if .Error}}<p class="form-error">{{.Error}}</p>{{end}}
+{{if .Saved}}<p class="save-ok" role="status">{{.Saved}}</p>{{end}}
+
+<section class="um-sec">
+  <h3 class="um-sec-h">勋章</h3>
+  <p class="um-tip">勋章文案会显示在用户名后面(和「管理员」标签同一个位置)。删除勋章会同时收回所有人的持有记录。</p>
+  {{if .Badges}}
+  <div class="badge-admin-list">
+    {{range .Badges}}
+    <div class="badge-admin-row">
+      <span class="badge badge-solid">{{.Name}}</span>
+      <span class="badge-admin-note">{{if .Note}}{{.Note}} · {{end}}{{.Owners}} 人持有</span>
+      <form method="post" action="/admin/badges/{{.ID}}/delete">
+        {{csrfField $.CSRF}}
+        <button class="btn btn-outline-danger btn-sm" type="submit" data-confirm="删除勋章「{{.Name}}」?{{.Owners}} 人的持有记录会一并清掉。">删除</button>
+      </form>
+    </div>
+    {{end}}
+  </div>
+  {{else}}
+  <p class="muted">还没有勋章,先建一个</p>
+  {{end}}
+  <form method="post" action="/admin/badges" class="badge-new">
+    {{csrfField .CSRF}}
+    <input class="input input-sm" name="name" maxlength="12" required placeholder="勋章文案,如:早期成员" aria-label="勋章文案">
+    <input class="input input-sm" name="note" maxlength="60" placeholder="说明(可选,仅后台可见)" aria-label="勋章说明">
+    <button class="btn btn-primary btn-sm" type="submit">新建勋章</button>
+  </form>
+</section>
+
+<section class="um-sec">
+  <h3 class="um-sec-h">商品</h3>
+  <p class="um-tip">两类商品:勋章(兑换后可佩戴)、签到加成(每天签到多给积分,可设有效期)。库存留空表示不限量。</p>
+  {{if .Items}}
+  <div class="thread-card">
+    {{range .Items}}
+    <div class="tr">
+      <div class="tr-main">
+        <div class="tr-top">
+          <span class="author">{{.Name}}</span>
+          {{if eq .Kind "badge"}}<span class="badge">勋章</span>{{else if eq .Kind "checkin"}}<span class="badge">签到加成</span>{{else}}<span class="badge">自定义</span>{{end}}
+          {{if not .Active}}<span class="badge badge-lock">已下架</span>{{end}}
+          <span class="m">{{.Price}} 积分</span>
+        </div>
+        <div class="tr-meta">
+          {{if eq .Kind "checkin"}}<span>每天 +{{.Bonus}} 积分{{if .Days}} · {{.Days}} 天{{else}} · 不限期{{end}}</span>{{end}}
+          <span>{{if ge .Stock 0}}剩余 {{.Stock}}{{else}}不限量{{end}}</span>
+          {{if .Note}}<span>{{.Note}}</span>{{end}}
+        </div>
+      </div>
+      <div class="row-acts row-acts-tight">
+        <form method="post" action="/admin/shop/{{.ID}}/toggle">
+          {{csrfField $.CSRF}}
+          <button class="btn btn-white btn-sm" type="submit">{{if .Active}}下架{{else}}上架{{end}}</button>
+        </form>
+        <form method="post" action="/admin/shop/{{.ID}}/delete">
+          {{csrfField $.CSRF}}
+          <button class="btn btn-outline-danger btn-sm" type="submit" data-confirm="删除商品「{{.Name}}」?已兑换记录会保留。">删除</button>
+        </form>
+      </div>
+    </div>
+    {{end}}
+  </div>
+  {{else}}
+  <p class="muted">还没有商品</p>
+  {{end}}
+
+  <form method="post" action="/admin/shop" class="shop-new">
+    {{csrfField .CSRF}}
+    <div class="shop-new-head">
+      <b>添加商品</b>
+      <div class="pick-chips" data-shop-kind>
+        <input type="hidden" name="kind" value="badge">
+        <button type="button" class="pick-chip on" data-kind="badge">勋章</button>
+        <button type="button" class="pick-chip" data-kind="checkin">签到加成</button>
+        <button type="button" class="pick-chip" data-kind="custom">自定义</button>
+      </div>
+    </div>
+    <p class="um-tip" data-kind-tip="badge">兑换后进用户的勋章库,用户自己选择佩戴。</p>
+    <p class="um-tip" data-kind-tip="checkin" hidden>兑换后每天签到多给积分,可设有效期,到期自动失效。</p>
+    <p class="um-tip" data-kind-tip="custom" hidden>兑换只扣积分并留一条记录,具体怎么发放写在说明里,你在下面的「兑换记录」里按单处理。</p>
+    <div class="mail-grid">
+      <label class="um-f">
+        <span class="um-f-lb">商品名</span>
+        <input class="input input-sm" name="name" maxlength="30" required placeholder="如:早期成员勋章">
+      </label>
+      <label class="um-f">
+        <span class="um-f-lb">价格(积分)</span>
+        <input class="input input-sm" type="number" name="price" min="1" max="1000000" required placeholder="100">
+      </label>
+      <div class="um-f" data-shop-badge>
+        <span class="um-f-lb">对应勋章</span>
+        <div class="picker" data-picker data-optional>
+          <input type="hidden" name="badge_id" value="">
+          <button type="button" class="picker-btn" data-picker-open>
+            <span data-picker-label>{{if .Badges}}选择勋章…{{else}}先建一枚勋章{{end}}</span>
+            <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+          <div class="modal" data-picker-modal hidden>
+            <div class="modal-scrim" data-picker-cancel></div>
+            <div class="modal-card picker-card" role="dialog" aria-modal="true" aria-label="选择勋章">
+              <div class="picker-top">
+                <b>选择勋章</b>
+                <button type="button" class="icon-btn" data-picker-cancel aria-label="关闭">
+                  <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+              </div>
+              <input class="input input-sm picker-search" type="search" placeholder="搜索勋章名…" data-picker-search aria-label="搜索勋章">
+              <div class="picker-list" data-picker-list>
+                {{range .Badges}}<button type="button" class="picker-opt" data-val="{{.ID}}">{{.Name}}</button>{{end}}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <label class="um-f" data-shop-checkin hidden>
+        <span class="um-f-lb">每天额外积分</span>
+        <input class="input input-sm" type="number" name="bonus" min="1" max="100" value="3">
+      </label>
+      <label class="um-f" data-shop-checkin hidden>
+        <span class="um-f-lb">有效天数(0=不限期)</span>
+        <input class="input input-sm" type="number" name="days" min="0" max="3650" value="30">
+      </label>
+      <label class="um-f">
+        <span class="um-f-lb">库存(留空不限量)</span>
+        <input class="input input-sm" type="number" name="stock" min="0" max="1000000" placeholder="不限量">
+      </label>
+      <label class="um-f">
+        <span class="um-f-lb">说明</span>
+        <input class="input input-sm" name="note" maxlength="80" placeholder="展示在商品卡片上">
+      </label>
+    </div>
+    <div class="um-act">
+      <button class="btn btn-primary btn-sm" type="submit">上架商品</button>
+    </div>
+  </form>
+</section>
+
+<section class="um-sec">
+  <h3 class="um-sec-h">兑换记录</h3>
+  <p class="um-tip">最近 20 条。自定义商品按这里的记录线下发放。</p>
+  {{if .Orders}}
+  <div class="thread-card pt-logs">
+    {{range .Orders}}
+    <div class="pt-log">
+      <div class="pt-log-main">
+        <span class="pt-log-kind">{{.Name}}</span>
+        <span class="pt-log-note">兑换人:<a href="/u/{{.UserID}}">{{.UserName}}</a></span>
+      </div>
+      <div class="pt-log-side">
+        <b class="pt-delta down">-{{.Price}}</b>
+        <span class="pt-log-time">{{relTime .CreatedAt}}</span>
+      </div>
+    </div>
+    {{end}}
+  </div>
+  {{else}}
+  <p class="muted">还没有人兑换</p>
+  {{end}}
+</section>
+{{end}}

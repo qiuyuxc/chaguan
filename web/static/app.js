@@ -1,25 +1,80 @@
 // bbs 前端交互(不依赖任何构建工具)
-// 通知未读数:进入页面拉一次,之后 30s 轮询(角标只对登录用户渲染)
+// 未读角标(通知 + 私信):一律走 SSE 实时推送,收到信号再拉数字;
+// 长连接不可用(老浏览器 / 被反代掐断)时退回 30s 轮询,角标不会因此停摆。
+// 收到 dm 信号时额外派发 dm-refresh,打开着的会话页由 htmx 拉最新消息。
 (function () {
   var badge = document.getElementById("notif-count");
-  if (!badge) return;
+  var dmBadge = document.getElementById("dm-count");
+  if (!badge && !dmBadge) return;
+  var timer = null;
+
+  function paint(el, n) {
+    if (!el) return;
+    if (n > 0) {
+      el.textContent = n > 99 ? "99+" : String(n);
+      el.removeAttribute("hidden");
+    } else {
+      el.setAttribute("hidden", "");
+    }
+  }
   function refresh() {
     fetch("/notifications/unread", { headers: { "Accept": "application/json" } })
       .then(function (res) { return res.json(); })
       .then(function (d) {
-        var n = d.unread || 0;
-        if (n > 0) {
-          badge.textContent = n > 99 ? "99+" : String(n);
-          badge.removeAttribute("hidden");
-        } else {
-          badge.setAttribute("hidden", "");
-        }
+        paint(badge, d.unread || 0);
+        paint(dmBadge, d.dm || 0);
       })
       .catch(function () {});
   }
+  function poll(sec) {
+    if (timer) clearInterval(timer);
+    timer = setInterval(refresh, sec * 1000);
+  }
+
   refresh();
-  setInterval(refresh, 30000);
   window.__bbsNotifRefresh = refresh;
+
+  if (typeof EventSource === "undefined") {
+    poll(30);
+    return;
+  }
+  var es = new EventSource("/events");
+  es.addEventListener("notif", refresh);
+  es.addEventListener("dm", function () {
+    refresh();
+    document.body.dispatchEvent(new CustomEvent("dm-refresh"));
+  });
+  es.onerror = function () {
+    // EventSource 自带重连;连续失败(连接被关闭)时退回轮询
+    if (es.readyState === 2) poll(30);
+  };
+})();
+
+// 私信会话页:发送后清空输入框,消息列表滚到底部(新消息在最下面)
+(function () {
+  var box = document.getElementById("dm-msgs");
+  if (!box) return;
+  var form = document.querySelector(".dm-form");
+  var ta = form ? form.querySelector("textarea") : null;
+
+  function toBottom() { box.scrollTop = box.scrollHeight; }
+  toBottom();
+
+  if (ta) {
+    ta.addEventListener("keydown", function (e) {
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        e.preventDefault();
+        if (form.requestSubmit) form.requestSubmit(); else form.submit();
+      }
+    });
+  }
+  document.body.addEventListener("htmx:afterSwap", function (e) {
+    if (e.target !== box) return;
+    toBottom();
+  });
+  document.body.addEventListener("htmx:afterRequest", function (e) {
+    if (form && e.detail.elt === form && e.detail.successful && ta) ta.value = "";
+  });
 })();
 
 // 编辑器「插入图片」:上传到 /uploads,在光标处插入 Markdown 图片链接
@@ -652,22 +707,41 @@
   });
   window.bbsConfirm = open;
 
+  // 确认之后真正提交表单。
+  // 必须走 requestSubmit 而不是 submit():
+  //   1) submit() 不触发 submit 事件,htmx 表单(hx-post)会被直接绕过 —— 表现就是
+  //      「点了确认什么也没发生」,比如私信红包的撤回;
+  //   2) submit() 丢掉提交按钮的 name/value,像「恢复内置图标」的 clear=1 会丢。
+  // 二次提交时用 data-confirmed 标记放行,避免又被自己拦下形成死循环。
+  function submitConfirmed(form, btn) {
+    if (form.hasAttribute("data-confirm")) form.setAttribute("data-confirmed", "1");
+    if (form.requestSubmit) {
+      form.requestSubmit(btn && btn.type === "submit" ? btn : undefined);
+    } else {
+      form.submit();
+    }
+  }
+
   // 普通表单:data-confirm="文案" → 内置确认后提交
   document.addEventListener("submit", function (e) {
     var form = e.target;
     if (!form || !form.hasAttribute || !form.hasAttribute("data-confirm")) return;
+    if (form.getAttribute("data-confirmed")) {
+      form.removeAttribute("data-confirmed");
+      return; // 已经确认过,放行
+    }
     e.preventDefault();
-    open(form.getAttribute("data-confirm"), function () { form.submit(); });
+    open(form.getAttribute("data-confirm"), function () { submitConfirmed(form, null); });
   }, true);
 
-  // 按钮:data-confirm="文案" → 内置确认后提交所属表单(封禁等)
+  // 按钮:data-confirm="文案" → 内置确认后提交所属表单(封禁、删除等)
   document.addEventListener("click", function (e) {
     var btn = e.target.closest ? e.target.closest("button[data-confirm]") : null;
     if (!btn) return;
     var form = btn.closest("form");
     if (!form) return;
     e.preventDefault();
-    open(btn.getAttribute("data-confirm"), function () { form.submit(); });
+    open(btn.getAttribute("data-confirm"), function () { submitConfirmed(form, btn); });
   }, true);
 
   // htmx 对每个 hx 请求都会发 htmx:confirm;只有带 hx-confirm 文案的
@@ -924,6 +998,202 @@
   if (holder) loadPanel(holder.getAttribute("data-panel-href"));
 })();
 
+// 后台认证页:分类芯片写入隐藏 kind
+(function () {
+  var box = document.querySelector("[data-verify-kind]");
+  if (!box) return;
+  var input = box.querySelector('input[name="kind"]');
+  var chips = Array.prototype.slice.call(box.querySelectorAll(".pick-chip"));
+  function sync() {
+    chips.forEach(function (c) {
+      var on = c.getAttribute("data-kind") === input.value;
+      c.classList.toggle("on", on);
+      c.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+  }
+  chips.forEach(function (c) {
+    c.addEventListener("click", function () {
+      input.value = c.getAttribute("data-kind");
+      sync();
+    });
+  });
+  sync();
+})();
+
+// 公告横幅:暂停/继续按钮(触屏上 :hover 会粘住,得能手动恢复)
+(function () {
+  var btn = document.querySelector("[data-ann-toggle]");
+  if (!btn) return;
+  var bar = btn.closest(".announce");
+  var pause = btn.querySelector(".ann-pause");
+  var play = btn.querySelector(".ann-play");
+  btn.addEventListener("click", function () {
+    var paused = bar.classList.toggle("paused");
+    btn.setAttribute("aria-pressed", paused ? "true" : "false");
+    btn.setAttribute("aria-label", paused ? "继续滚动" : "暂停滚动");
+    btn.title = paused ? "继续滚动" : "暂停滚动";
+    if (pause) pause.toggleAttribute("hidden", paused);
+    if (play) play.toggleAttribute("hidden", !paused);
+  });
+})();
+
+// 后台商城:商品类型芯片(勋章 / 签到加成)切换对应字段
+(function () {
+  var box = document.querySelector("[data-shop-kind]");
+  if (!box) return;
+  var input = box.querySelector('input[name="kind"]');
+  var chips = Array.prototype.slice.call(box.querySelectorAll(".pick-chip"));
+  var badgeFields = document.querySelectorAll("[data-shop-badge]");
+  var checkinFields = document.querySelectorAll("[data-shop-checkin]");
+  var tips = document.querySelectorAll("[data-kind-tip]");
+  function sync() {
+    var kind = input.value || "badge";
+    chips.forEach(function (c) {
+      var on = c.getAttribute("data-kind") === kind;
+      c.classList.toggle("on", on);
+      c.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+    badgeFields.forEach(function (el) { el.hidden = kind !== "badge"; });
+    checkinFields.forEach(function (el) { el.hidden = kind !== "checkin"; });
+    tips.forEach(function (el) { el.hidden = el.getAttribute("data-kind-tip") !== kind; });
+  }
+  chips.forEach(function (c) {
+    c.addEventListener("click", function () {
+      input.value = c.getAttribute("data-kind");
+      sync();
+    });
+  });
+  sync();
+})();
+
+// 发帖:帖子类型(普通/抽奖)与观看等级门槛的芯片选择
+(function () {
+  var kindBox = document.querySelector("[data-kind-pick]");
+  if (kindBox) {
+    var kindInput = document.getElementById("thread-kind");
+    var lotFields = document.querySelector("[data-lottery-fields]");
+    var opts = Array.prototype.slice.call(kindBox.querySelectorAll("[data-kind]"));
+    function syncKind() {
+      var v = kindInput.value === "lottery" ? "lottery" : "normal";
+      opts.forEach(function (o) {
+        var on = o.getAttribute("data-kind") === v;
+        o.classList.toggle("on", on);
+        o.setAttribute("aria-checked", on ? "true" : "false");
+      });
+      if (lotFields) lotFields.hidden = v !== "lottery";
+    }
+    opts.forEach(function (o) {
+      o.addEventListener("click", function () {
+        kindInput.value = o.getAttribute("data-kind");
+        syncKind();
+      });
+    });
+    syncKind();
+  }
+
+  var lvBox = document.querySelector("[data-level-pick]");
+  if (lvBox) {
+    var lvInput = lvBox.querySelector('input[name="min_level"]');
+    var chips = Array.prototype.slice.call(lvBox.querySelectorAll(".pick-chip"));
+    function syncLv() {
+      chips.forEach(function (c) {
+        var on = c.getAttribute("data-lv") === lvInput.value;
+        c.classList.toggle("on", on);
+        c.setAttribute("aria-pressed", on ? "true" : "false");
+      });
+    }
+    chips.forEach(function (c) {
+      c.addEventListener("click", function () {
+        lvInput.value = c.getAttribute("data-lv");
+        syncLv();
+      });
+    });
+    syncLv();
+  }
+})();
+
+// 打赏:点礼物图标展开金额气泡(反应条被 htmx 换掉后仍要能用,故走事件委托)
+(function () {
+  function closeTips(except) {
+    document.querySelectorAll("[data-tip-pop]").forEach(function (p) {
+      if (p === except) return;
+      p.hidden = true;
+      var btn = p.parentNode && p.parentNode.querySelector("[data-tip-toggle]");
+      if (btn) btn.setAttribute("aria-expanded", "false");
+    });
+  }
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest ? e.target.closest("[data-tip-toggle]") : null;
+    if (btn) {
+      e.preventDefault();
+      var pop = btn.parentNode.querySelector("[data-tip-pop]");
+      if (!pop) return;
+      var willOpen = pop.hidden;
+      closeTips(pop);
+      pop.hidden = !willOpen;
+      btn.setAttribute("aria-expanded", willOpen ? "true" : "false");
+      return;
+    }
+    if (e.target.closest && e.target.closest("[data-tip-close]")) {
+      e.preventDefault();
+      closeTips();
+      return;
+    }
+    if (!e.target.closest("[data-tip-pop]")) closeTips();
+  });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeTips(); });
+})();
+
+// 设置页:单选卡片选中态(:has 不支持时也能高亮)
+(function () {
+  var groups = document.querySelectorAll(".set-opts");
+  if (!groups.length) return;
+  groups.forEach(function (box) {
+    box.addEventListener("change", function () {
+      box.querySelectorAll(".set-opt").forEach(function (opt) {
+        var input = opt.querySelector("input");
+        opt.classList.toggle("on", !!(input && input.checked));
+      });
+    });
+  });
+})();
+
+// 管理后台:邮件加密方式芯片(STARTTLS / SSL / 不加密)→ 写入隐藏 input
+(function () {
+  var box = document.querySelector("[data-mail-secure]");
+  if (!box) return;
+  var input = box.querySelector('input[name="secure"]');
+  if (!input) return;
+  var chips = Array.prototype.slice.call(box.querySelectorAll(".pick-chip"));
+  function sync() {
+    chips.forEach(function (c) {
+      var on = c.getAttribute("data-secure") === input.value;
+      c.classList.toggle("on", on);
+      c.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+  }
+  chips.forEach(function (c) {
+    c.addEventListener("click", function () {
+      input.value = c.getAttribute("data-secure");
+      sync();
+    });
+  });
+  sync();
+})();
+
+// 管理后台:站点图标(点图标选图,选中即提交上传)
+(function () {
+  var btn = document.querySelector("[data-site-icon]");
+  if (!btn) return;
+  var form = btn.closest("form");
+  var input = form ? form.querySelector("[data-site-icon-input]") : null;
+  if (!input) return;
+  btn.addEventListener("click", function () { input.click(); });
+  input.addEventListener("change", function () {
+    if (input.files && input.files.length) form.submit();
+  });
+})();
+
 // 管理后台:内容管理行尾「⋯」菜单(置顶/锁定/删除低频操作收拢)
 (function () {
   function closeMenus(except) {
@@ -953,5 +1223,96 @@
   });
   document.addEventListener("keydown", function (e) {
     if (e.key === "Escape") closeMenus();
+  });
+})();
+
+// 内置选择弹窗:选项多的时候不平铺,点开一个带搜索的面板慢慢挑
+// 结构见 .picker(隐藏 input + 触发按钮 + modal 里的 .picker-opt 列表)
+(function () {
+  document.querySelectorAll("[data-picker]").forEach(function (box) {
+    var input = box.querySelector('input[type="hidden"]');
+    var open = box.querySelector("[data-picker-open]");
+    var label = box.querySelector("[data-picker-label]");
+    var modal = box.querySelector("[data-picker-modal]");
+    var search = box.querySelector("[data-picker-search]");
+    var list = box.querySelector("[data-picker-list]");
+    if (!input || !open || !modal) return;
+    var opts = Array.prototype.slice.call(box.querySelectorAll(".picker-opt"));
+    var empty = null;
+
+    function filter() {
+      var q = (search && search.value || "").trim().toLowerCase();
+      var shown = 0;
+      opts.forEach(function (o) {
+        var hit = q === "" || o.textContent.toLowerCase().indexOf(q) !== -1;
+        o.hidden = !hit;
+        if (hit) shown++;
+      });
+      if (!empty && list) {
+        empty = document.createElement("p");
+        empty.className = "picker-empty";
+        empty.textContent = "没有匹配的选项";
+        list.appendChild(empty);
+      }
+      if (empty) empty.hidden = shown > 0;
+    }
+    function show() {
+      modal.hidden = false;
+      if (search) { search.value = ""; filter(); try { search.focus(); } catch (e) {} }
+    }
+    function hide() { modal.hidden = true; }
+
+    open.addEventListener("click", show);
+    box.querySelectorAll("[data-picker-cancel]").forEach(function (el) {
+      el.addEventListener("click", hide);
+    });
+    if (search) search.addEventListener("input", filter);
+    opts.forEach(function (o) {
+      o.addEventListener("click", function () {
+        input.value = o.getAttribute("data-val");
+        if (label) label.textContent = o.textContent.trim();
+        opts.forEach(function (x) { x.classList.toggle("on", x === o); });
+        box.classList.remove("need");
+        hide();
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !modal.hidden) hide();
+    });
+    // 必选项:没选就拦住提交并给出视觉提示
+    var form = box.closest("form");
+    if (form && box.getAttribute("data-optional") === null) {
+      form.addEventListener("submit", function (e) {
+        if (!input.value) {
+          e.preventDefault();
+          box.classList.add("need");
+          setTimeout(function () { box.classList.remove("need"); }, 700);
+        }
+      });
+    }
+  });
+})();
+
+// 私信:红包面板开合(按钮在编辑器工具栏里)
+(function () {
+  var btn = document.querySelector("[data-rp-toggle]");
+  var panel = document.querySelector("[data-rp-panel]");
+  if (!btn || !panel) return;
+  btn.addEventListener("click", function () {
+    var open = panel.hidden;
+    panel.hidden = !open;
+    btn.classList.toggle("on", open);
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+  });
+  document.body.addEventListener("htmx:afterRequest", function (e) {
+    // 红包发出后收起面板并清空自定义金额
+    if (!e.detail.elt || !e.detail.elt.closest || !e.detail.elt.closest("[data-rp-panel]")) return;
+    if (!e.detail.successful) return;
+    panel.hidden = true;
+    btn.classList.remove("on");
+    btn.setAttribute("aria-expanded", "false");
+    var input = panel.querySelector("input[type=number]");
+    if (input) input.value = "";
   });
 })();

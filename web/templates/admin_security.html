@@ -1,0 +1,53 @@
+{{define "content"}}
+<div class="page-head">
+  <div>
+    <h1>安全设置</h1>
+    <p class="page-sub">人机验证:挡住批量注册与撞库找回</p>
+  </div>
+</div>
+
+{{if .Error}}<p class="form-error">{{.Error}}</p>{{end}}
+{{if .Saved}}<p class="save-ok" role="status">已保存</p>{{end}}
+
+<section class="um-sec">
+  <h3 class="um-sec-h">Cloudflare Turnstile</h3>
+  <p class="um-tip">
+    在 Cloudflare 控制台 → Turnstile 新建一个 Widget,把 Site Key 与 Secret Key 填到这里。
+    开启后作用于<b>注册</b>、<b>找回密码</b>、<b>重发验证邮件</b>三个入口;登录不加验证,避免密钥填错时把自己也关在门外。
+    服务端密钥保存后不再显示。
+  </p>
+  <form method="post" action="/admin/security">
+    {{csrfField .CSRF}}
+    <div class="um-fields">
+      <label class="um-f">
+        <span class="um-f-lb">Site Key(前端公开)</span>
+        <input class="input input-sm" name="site_key" value="{{.Sec.TurnstileSite}}" maxlength="200" autocomplete="off" placeholder="0x4AAAAAAA...">
+      </label>
+      <label class="um-f">
+        <span class="um-f-lb">Secret Key(服务端校验)</span>
+        <input class="input input-sm" type="password" name="secret_key" maxlength="200" autocomplete="new-password"
+               placeholder="{{if .HasSecret}}已保存,留空则不修改{{else}}0x4AAAAAAA...{{end}}">
+      </label>
+      <div class="um-f">
+        <span class="um-f-lb">启用状态</span>
+        <div class="set-opts set-opts-row">
+          <label class="set-opt{{if .Sec.TurnstileOn}} on{{end}}">
+            <input type="radio" name="turnstile_on" value="1"{{if .Sec.TurnstileOn}} checked{{end}}>
+            <span class="set-opt-txt"><b>开启</b><i>注册/找回需通过验证</i></span>
+          </label>
+          <label class="set-opt{{if not .Sec.TurnstileOn}} on{{end}}">
+            <input type="radio" name="turnstile_on" value="0"{{if not .Sec.TurnstileOn}} checked{{end}}>
+            <span class="set-opt-txt"><b>关闭</b><i>不做人机验证</i></span>
+          </label>
+        </div>
+      </div>
+    </div>
+    <div class="um-act">
+      <button class="btn btn-primary btn-sm" type="submit">保存安全设置</button>
+      {{if .HasSecret}}
+      <button class="btn btn-ghost btn-sm" type="submit" name="clear_secret" value="1" data-confirm="清空已保存的 Secret Key?清空后人机验证会自动停用。">清空密钥</button>
+      {{end}}
+    </div>
+  </form>
+</section>
+{{end}}

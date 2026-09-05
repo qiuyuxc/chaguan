@@ -17,8 +17,10 @@ import (
 func (s *Server) base(r *http.Request, title string) web.Base {
 	i := auth.From(r.Context())
 	b := web.Base{Title: title, User: i.User, CSRF: i.CSRF}
-	if ann, err := s.store.Announcement(); err == nil {
-		b.Announcement = ann
+	if site, err := s.store.Site(); err == nil {
+		b.Site = site
+	} else {
+		b.Site = db.Site{Name: db.SiteDefaultName, Footer: db.SiteDefaultFooter}
 	}
 	if cats, err := s.store.ListCategories(); err == nil {
 		b.Categories = cats
@@ -30,11 +32,15 @@ func (s *Server) base(r *http.Request, title string) web.Base {
 		b.TotalThreads = n
 	}
 	if u := i.User; u != nil {
+		b.Points = u.Points
+		if done, err := s.store.CheckedIn(u.ID, today()); err == nil {
+			b.CheckedIn = done
+		}
 		if threads, err := s.store.CountUserThreads(u.ID); err == nil {
 			if replies, err := s.store.CountUserReplies(u.ID); err == nil {
 				// 等级经验只看真实获赞,后台覆盖的展示获赞不参与
 				if likedReal, err := s.store.LikesReceived(u.ID); err == nil {
-					exp := socialExp(threads, replies, likedReal)
+					exp := socialExp(threads, replies, likedReal, u.ExpExtra)
 					level, shown, start, next := levelInfo(exp, u.LevelOverride)
 					b.Exp = shown
 					b.Level = level
@@ -201,7 +207,12 @@ func (s *Server) adminCategories(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// deleteCategory 删除空版块(有主题的版块禁止删除,防止级联清空)。
+// deleteCategory 删除版块。空版块直接删;非空版块必须明确指定处理方式:
+//
+//	mode=cascade     连同版块内的主题与回复一起删除(政策原因需强删时用)
+//	mode=move&to=ID  先把主题整体迁到别的版块,再删掉这个版块
+//
+// 无论哪种都保留最后一个版块,否则发帖页会没有可选版块。
 func (s *Server) deleteCategory(w http.ResponseWriter, r *http.Request) {
 	user := s.currentUser(w, r)
 	if user == nil {
@@ -216,17 +227,53 @@ func (s *Server) deleteCategory(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	if total, err := s.store.CountCategories(); err != nil {
+		s.serverError(w, err)
+		return
+	} else if total <= 1 {
+		http.Error(w, "至少要保留一个版块", http.StatusBadRequest)
+		return
+	}
 	n, err := s.store.CountThreads(id)
 	if err != nil {
 		s.serverError(w, err)
 		return
 	}
-	if n > 0 {
-		http.Error(w, "版块内还有主题,不能删除", http.StatusBadRequest)
+	if n == 0 {
+		if err := s.store.DeleteCategory(id); err != nil {
+			s.serverError(w, err)
+			return
+		}
+		http.Redirect(w, r, "/admin/categories", http.StatusSeeOther)
 		return
 	}
-	if err := s.store.DeleteCategory(id); err != nil {
-		s.serverError(w, err)
+	switch r.FormValue("mode") {
+	case "cascade":
+		if err := s.store.DeleteCategory(id); err != nil {
+			s.serverError(w, err)
+			return
+		}
+	case "move":
+		toID, err := strconv.ParseInt(strings.TrimSpace(r.FormValue("to")), 10, 64)
+		if err != nil || toID < 1 || toID == id {
+			http.Error(w, "请选择要迁往的版块", http.StatusBadRequest)
+			return
+		}
+		target, err := s.store.GetCategoryByID(toID)
+		if err != nil {
+			s.serverError(w, err)
+			return
+		}
+		if target == nil {
+			http.Error(w, "目标版块不存在", http.StatusBadRequest)
+			return
+		}
+		if err := s.store.MoveThreadsAndDeleteCategory(id, toID); err != nil {
+			s.serverError(w, err)
+			return
+		}
+	default:
+		http.Error(w, "版块内还有主题,请选择「连同主题删除」或「先迁移主题」", http.StatusBadRequest)
 		return
 	}
 	http.Redirect(w, r, "/admin/categories", http.StatusSeeOther)
@@ -311,11 +358,18 @@ type newThreadData struct {
 	Error      string
 	FormTitle  string // 发帖草稿标题(避免遮蔽 Base.Title 页面标题)
 	Content    string
+	// 帖子类型与门槛草稿(校验失败后回填)
+	Kind     string
+	MinLevel int
+	Price    int64
+	Prize    string
+	Winners  int
+	Stake    int64
 }
 
 // loadNewThreadData 组装发帖表单:全量版块 + 预选 slug(可为空)。
 func (s *Server) loadNewThreadData(r *http.Request, selSlug string) (newThreadData, error) {
-	d := newThreadData{Base: s.base(r, "发新帖")}
+	d := newThreadData{Base: s.base(r, "发新帖"), Kind: "normal", Winners: 1}
 	cats, err := s.store.ListCategories()
 	if err != nil {
 		return d, err
@@ -413,6 +467,19 @@ func (s *Server) newThreadPost(w http.ResponseWriter, r *http.Request) {
 func (s *Server) createThread(w http.ResponseWriter, r *http.Request, user *db.User, cat *db.Category, selSlug string) {
 	title := strings.TrimSpace(r.FormValue("title"))
 	content := strings.TrimSpace(r.FormValue("content"))
+	kind := strings.TrimSpace(r.FormValue("kind"))
+	if kind != "lottery" {
+		kind = "normal"
+	}
+	minLevel, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("min_level")))
+	price, _ := strconv.ParseInt(strings.TrimSpace(r.FormValue("price")), 10, 64)
+	prize := strings.TrimSpace(r.FormValue("prize"))
+	winners, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("winners")))
+	stake, _ := strconv.ParseInt(strings.TrimSpace(r.FormValue("stake")), 10, 64)
+	if winners < 1 {
+		winners = 1
+	}
+
 	fail := func(msg string) {
 		d, err := s.loadNewThreadData(r, selSlug)
 		if err != nil {
@@ -420,6 +487,8 @@ func (s *Server) createThread(w http.ResponseWriter, r *http.Request, user *db.U
 			return
 		}
 		d.Error, d.FormTitle, d.Content = msg, title, content
+		d.Kind, d.MinLevel, d.Price = kind, minLevel, price
+		d.Prize, d.Winners, d.Stake = prize, winners, stake
 		s.rend.Render(w, 200, "new_thread", d)
 	}
 	switch {
@@ -429,8 +498,30 @@ func (s *Server) createThread(w http.ResponseWriter, r *http.Request, user *db.U
 	case utf8.RuneCountInString(content) < 1 || utf8.RuneCountInString(content) > maxPostLen:
 		fail("正文 1–10000 字")
 		return
+	case minLevel < 0 || minLevel > 6:
+		fail("观看等级门槛需在 LV0–LV6 之间")
+		return
+	case price < 0 || price > maxThreadPrice:
+		fail("观看积分需在 0–10000 之间")
+		return
 	}
-	id, err := s.store.CreateThread(cat.ID, user.ID, title, content, markdown.Render(content))
+	if kind == "lottery" {
+		switch {
+		case utf8.RuneCountInString(prize) < 1 || utf8.RuneCountInString(prize) > 80:
+			fail("请填写奖品说明(1–80 字)")
+			return
+		case winners < 1 || winners > 50:
+			fail("中奖人数需在 1–50 之间")
+			return
+		case stake < 0 || stake > maxLotteryStake:
+			fail("参与积分需在 0–1000 之间")
+			return
+		}
+	}
+	id, err := s.store.CreateThread(cat.ID, user.ID, title, content, markdown.Render(content), db.NewThread{
+		Kind: kind, MinLevel: minLevel, Price: price,
+		Prize: prize, Winners: winners, Stake: stake,
+	})
 	if err != nil {
 		s.serverError(w, err)
 		return
@@ -456,7 +547,16 @@ type threadData struct {
 	LikedByMe   bool
 	FavCount    int64
 	FavedByMe   bool
-	CanModerate bool // 当前查看者:管理员或该版块的版主(可置顶/锁定)
+	TipTotal    int64 // 该帖收到的打赏总额
+	CanTip      bool  // 登录且不是自己的帖子
+	MyPoints    int64 // 我的积分余额(打赏面板提示)
+	CanModerate bool  // 当前查看者:管理员或该版块的版主(可置顶/锁定)
+	Gate        threadGate
+	Lot         *db.Lottery        // 抽奖设置(非抽奖帖为 nil)
+	LotEntries  []db.LotteryEntry  // 参与名单(中奖者在前)
+	LotJoined   bool               // 我是否已参与
+	CanDraw     bool               // 我能否开奖(楼主/管理员且未开奖)
+	Unlocks     int64              // 付费帖已解锁人数(作者/管理员可见)
 }
 
 func (s *Server) thread(w http.ResponseWriter, r *http.Request) {
@@ -547,8 +647,56 @@ func (s *Server) thread(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	tipTotal, err := s.store.ThreadTipTotal(t.ID)
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	myPoints := int64(0)
+	if viewer != nil {
+		myPoints = viewer.Points
+	}
+	base := s.base(r, t.Title)
+	gate, err := s.gateFor(t, viewer, base.Level, canMod)
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	// 门槛没过就不把正文与回复送到模板里,避免「样式挡住但源码能看」
+	if !gate.OK {
+		pvs = nil
+	}
+	var lot *db.Lottery
+	var lotEntries []db.LotteryEntry
+	lotJoined, canDraw := false, false
+	if t.Kind == "lottery" {
+		if lot, err = s.store.GetLottery(t.ID); err != nil {
+			s.serverError(w, err)
+			return
+		}
+		if lot != nil {
+			if lotEntries, err = s.store.ListLotteryEntries(t.ID, lotteryEntryLimit); err != nil {
+				s.serverError(w, err)
+				return
+			}
+			if viewer != nil {
+				if lotJoined, err = s.store.JoinedLottery(t.ID, viewer.ID); err != nil {
+					s.serverError(w, err)
+					return
+				}
+				canDraw = !lot.Drawn() && (viewer.ID == t.AuthorID || viewer.IsAdmin())
+			}
+		}
+	}
+	var unlocks int64
+	if t.Price > 0 && viewer != nil && (viewer.ID == t.AuthorID || viewer.IsAdmin()) {
+		if unlocks, err = s.store.CountThreadUnlocks(t.ID); err != nil {
+			s.serverError(w, err)
+			return
+		}
+	}
 	s.rend.Render(w, 200, "thread", threadData{
-		Base:        s.base(r, t.Title),
+		Base:        base,
 		Thread:      t,
 		Category:    cat,
 		First:       first,
@@ -560,7 +708,16 @@ func (s *Server) thread(w http.ResponseWriter, r *http.Request) {
 		LikedByMe:   liked,
 		FavCount:    favCount,
 		FavedByMe:   faved,
+		TipTotal:    tipTotal,
+		CanTip:      viewer != nil && viewer.ID != t.AuthorID,
+		MyPoints:    myPoints,
 		CanModerate: canMod,
+		Gate:        gate,
+		Lot:         lot,
+		LotEntries:  lotEntries,
+		LotJoined:   lotJoined,
+		CanDraw:     canDraw,
+		Unlocks:     unlocks,
 	})
 }
 
@@ -589,9 +746,30 @@ func (s *Server) reply(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "主题已锁定,无法回复", http.StatusForbidden)
 		return
 	}
+	// 有阅读门槛的帖子,没过门槛也不能回复
+	canMod := s.canModerateThread(user, t)
+	level, err := s.userLevel(user)
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	gate, err := s.gateFor(t, user, level, canMod)
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	if !gate.OK {
+		http.Error(w, "先满足阅读门槛才能回复", http.StatusForbidden)
+		return
+	}
 	content := strings.TrimSpace(r.FormValue("content"))
 	if utf8.RuneCountInString(content) < 1 || utf8.RuneCountInString(content) > maxPostLen {
 		http.Error(w, "正文 1–10000 字", http.StatusUnprocessableEntity)
+		return
+	}
+	// 抽奖帖:回复即参与,设了参与积分就一并扣款
+	if msg := s.joinLotteryOnReply(t, user); msg != "" {
+		http.Error(w, msg, http.StatusUnprocessableEntity)
 		return
 	}
 	postID, err := s.store.CreatePost(t.ID, user.ID, content, markdown.Render(content))
@@ -717,6 +895,21 @@ func (s *Server) canModeratePost(user *db.User, p *db.Post) bool {
 	}
 	if user.IsAdmin() {
 		return true
+	}
+	mod, err := s.store.IsModOf(user.ID, t.CategoryID)
+	return err == nil && mod
+}
+
+// canModerateThread 该用户是否为该主题所在版块的管理者(管理员或管辖版主)。
+func (s *Server) canModerateThread(user *db.User, t *db.Thread) bool {
+	if user == nil || t == nil {
+		return false
+	}
+	if user.IsAdmin() {
+		return true
+	}
+	if !user.IsMod() {
+		return false
 	}
 	mod, err := s.store.IsModOf(user.ID, t.CategoryID)
 	return err == nil && mod

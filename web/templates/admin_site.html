@@ -1,0 +1,75 @@
+{{define "content"}}
+<div class="page-head">
+  <div>
+    <h1>站点设置</h1>
+    <p class="page-sub">这里改的都是前台可见的信息:顶栏品牌、页脚、站点图标与顶部公告</p>
+  </div>
+  <a class="btn btn-white btn-sm" href="/" target="_blank" rel="noopener">
+    <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+    查看前台
+  </a>
+</div>
+
+{{if .Error}}<p class="form-error">{{.Error}}</p>{{end}}
+{{if .Saved}}<p class="save-ok" role="status">已保存,前台刷新即生效</p>{{end}}
+
+<section class="um-sec">
+  <h3 class="um-sec-h">站点图标</h3>
+  <p class="um-tip">用于顶栏品牌标与浏览器标签页图标(favicon)。建议正方形,jpg/png/gif/webp,≤5MB;不设置则用内置图标。</p>
+  <form class="site-icon" method="post" action="/admin/site/icon" enctype="multipart/form-data">
+    {{csrfField .CSRF}}
+    <button type="button" class="site-icon-btn" data-site-icon title="更换站点图标" aria-label="更换站点图标">
+      {{if .Form.IconPath}}<img src="{{.Form.IconPath}}" alt="当前站点图标">
+      {{else}}<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>{{end}}
+    </button>
+    <input type="file" name="icon" accept="image/jpeg,image/png,image/gif,image/webp" hidden data-site-icon-input>
+    <div class="site-icon-txt">
+      <span class="muted">点击图标选图,选中后立即上传并保存</span>
+      {{if .Form.IconPath}}
+      <button class="btn btn-ghost btn-sm" type="submit" name="clear" value="1" data-confirm="恢复内置图标?当前图标文件会被删除。">恢复内置图标</button>
+      {{end}}
+    </div>
+  </form>
+</section>
+
+<form method="post" action="/admin/site">
+  {{csrfField .CSRF}}
+  <section class="um-sec">
+    <h3 class="um-sec-h">品牌信息</h3>
+    <div class="um-fields">
+      <label class="um-f">
+        <span class="um-f-lb">站点名称</span>
+        <input class="input input-sm" name="name" value="{{.Form.Name}}" maxlength="30" required autocomplete="off" placeholder="如:星海论坛">
+        <span class="um-f-tip">顶栏品牌文字,同时作为浏览器标题的后缀</span>
+      </label>
+      <label class="um-f">
+        <span class="um-f-lb">品牌副标题</span>
+        <input class="input input-sm" name="tagline" value="{{.Form.Tagline}}" maxlength="60" autocomplete="off" placeholder="如:折腾、自建与分享">
+        <span class="um-f-tip">顶栏站点名右侧的小字,窄屏自动隐藏;留空不显示</span>
+      </label>
+    </div>
+  </section>
+
+  <section class="um-sec">
+    <h3 class="um-sec-h">页脚</h3>
+    <label class="um-f">
+      <span class="um-f-lb">页脚文案</span>
+      <input class="input input-sm" name="footer" value="{{.Form.Footer}}" maxlength="120" autocomplete="off" placeholder="Powered by bbs">
+      <span class="um-f-tip">可写版权、备案号等;留空则显示默认「Powered by bbs」</span>
+    </label>
+  </section>
+
+  <section class="um-sec">
+    <h3 class="um-sec-h">站点公告</h3>
+    <label class="um-f">
+      <span class="um-f-lb">公告内容</span>
+      <input class="input input-sm" name="announcement" value="{{.Form.Announcement}}" maxlength="200" autocomplete="off" placeholder="如:发帖前请先阅读版规">
+      <span class="um-f-tip">显示为整站顶部的滚动横幅;留空并保存即关闭</span>
+    </label>
+  </section>
+
+  <div class="um-act site-save">
+    <button class="btn btn-primary" type="submit">保存设置</button>
+  </div>
+</form>
+{{end}}

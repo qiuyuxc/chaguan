@@ -162,8 +162,8 @@ func (s *Server) setUserRole(w http.ResponseWriter, r *http.Request) {
 	s.redirectAfter(w, r, "/admin/users")
 }
 
-// adminEditUser POST /admin/users/{id}/edit:后台编辑基础资料(名称/简介/称号标签),
-// 可选重置密码(留空不改)。与本人资料页同一套校验规则。
+// adminEditUser POST /admin/users/{id}/edit:后台编辑基础资料(名称/简介),
+// 可选重置密码(留空不改)。称号标签已改为勋章体系,发放走 /admin/users/{id}/badge。
 func (s *Server) adminEditUser(w http.ResponseWriter, r *http.Request) {
 	target, ok := s.adminTarget(w, r)
 	if !ok {
@@ -175,8 +175,6 @@ func (s *Server) adminEditUser(w http.ResponseWriter, r *http.Request) {
 		name = target.Name
 	}
 	bio := strings.TrimSpace(r.FormValue("bio"))
-	badgeMode := r.FormValue("badge_mode")
-	badgeText := strings.TrimSpace(r.FormValue("badge_text"))
 	password := r.FormValue("password")
 
 	fail := func(msg string) {
@@ -191,17 +189,13 @@ func (s *Server) adminEditUser(w http.ResponseWriter, r *http.Request) {
 			fail("账号名称不能包含空格、@ 或斜杠")
 			return
 		}
-		if clash, _ := s.store.GetUserByName(name); clash != nil && clash.ID != target.ID {
-			fail("用户名已被占用")
+		if taken, _ := s.store.NameTaken(target.ID, name); taken {
+			fail("这个名字已被占用")
 			return
 		}
 	}
 	if utf8.RuneCountInString(bio) > maxBioLen {
 		fail("简介最多 200 字")
-		return
-	}
-	if utf8.RuneCountInString(badgeText) > 12 {
-		fail("自定义称号最多 12 个字符")
 		return
 	}
 	if password != "" {
@@ -232,19 +226,6 @@ func (s *Server) adminEditUser(w http.ResponseWriter, r *http.Request) {
 	}
 	if bio != target.Bio {
 		if err := s.store.UpdateUserBio(target.ID, bio); err != nil {
-			s.serverError(w, err)
-			return
-		}
-	}
-	badge := sql.NullString{}
-	switch badgeMode {
-	case "custom":
-		badge = sql.NullString{String: badgeText, Valid: true}
-	case "hide":
-		badge = sql.NullString{String: "", Valid: true}
-	}
-	if badge.Valid != target.BadgeText.Valid || badge.String != target.BadgeText.String {
-		if err := s.store.UpdateUserBadge(target.ID, badge); err != nil {
 			s.serverError(w, err)
 			return
 		}

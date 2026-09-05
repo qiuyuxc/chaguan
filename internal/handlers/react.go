@@ -7,7 +7,7 @@ import (
 	"bbs/web"
 )
 
-// reactsData 帖子页「点赞 / 收藏」反应条(整页渲染与 htmx 局部刷新共用)。
+// reactsData 帖子页「点赞 / 收藏 / 打赏」反应条(整页渲染与 htmx 局部刷新共用)。
 type reactsData struct {
 	web.Base
 	Thread    *db.Thread
@@ -15,6 +15,9 @@ type reactsData struct {
 	LikedByMe bool
 	FavCount  int64
 	FavedByMe bool
+	TipTotal  int64 // 该帖收到的打赏总额
+	CanTip    bool  // 登录且不是自己的帖子
+	MyPoints  int64 // 我的余额(打赏面板里提示)
 }
 
 // toggleLike POST /t/{id}/like:点赞 / 取消点赞文章(仅首帖文章,评论不加赞)。
@@ -112,6 +115,16 @@ func (s *Server) renderReacts(w http.ResponseWriter, t *db.Thread, user *db.User
 		s.serverError(w, err)
 		return
 	}
+	tips, err := s.store.ThreadTipTotal(t.ID)
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	points, err := s.store.Points(user.ID)
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
 	s.rend.Partial(w, 200, "thread", "reacts", reactsData{
 		Base:      web.Base{User: user},
 		Thread:    t,
@@ -119,5 +132,8 @@ func (s *Server) renderReacts(w http.ResponseWriter, t *db.Thread, user *db.User
 		LikedByMe: liked,
 		FavCount:  favCount,
 		FavedByMe: faved,
+		TipTotal:  tips,
+		CanTip:    t.AuthorID != user.ID,
+		MyPoints:  points,
 	})
 }
