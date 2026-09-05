@@ -5,6 +5,7 @@ package handlers
 import (
 	"math/rand/v2"
 	"net/http"
+	"slices"
 	"strconv"
 
 	"bbs/internal/db"
@@ -141,8 +142,8 @@ func (s *Server) joinLotteryOnReply(t *db.Thread, user *db.User) string {
 	return ""
 }
 
-// drawLottery POST /t/{id}/draw:楼主或管理员开奖。
-// 随机取中奖者;奖池积分按人数均分,余数给第一位。
+// drawLottery POST /t/{id}/draw:楼主或管理员手动开奖。
+// 真正的抽签逻辑在 runDraw 里,定点开奖的巡检走同一个函数。
 func (s *Server) drawLottery(w http.ResponseWriter, r *http.Request) {
 	user := s.currentUser(w, r)
 	if user == nil {
@@ -175,41 +176,82 @@ func (s *Server) drawLottery(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "这不是抽奖帖", http.StatusBadRequest)
 		return
 	}
-	if lot.Drawn() {
+	if lot.Over() {
 		http.Redirect(w, r, "/t/"+strconv.FormatInt(t.ID, 10), http.StatusSeeOther)
 		return
 	}
-	ids, err := s.store.LotteryEntryIDs(t.ID)
-	if err != nil {
+	if err := s.runDraw(t.ID, t.AuthorID, lot, user.ID); err != nil {
 		s.serverError(w, err)
 		return
+	}
+	http.Redirect(w, r, "/t/"+strconv.FormatInt(t.ID, 10), http.StatusSeeOther)
+}
+
+// runDraw 抽签并发奖。手动开奖和定点开奖走同一条路。
+// actorID 只用来当通知的发起人,0 表示系统自动开奖(记在楼主名下)。
+// 没人参与时不报错:把抽奖关掉、楼主预扣的奖池原路退回 —— 否则那笔钱会一直卡着。
+func (s *Server) runDraw(threadID, authorID int64, lot *db.Lottery, actorID int64) error {
+	ids, err := s.store.LotteryEntryIDs(threadID)
+	if err != nil {
+		return err
 	}
 	if len(ids) == 0 {
-		http.Error(w, "还没有人参与,不能开奖", http.StatusBadRequest)
-		return
+		_, err := s.store.CancelLottery(threadID)
+		return err
+	}
+	if actorID == 0 {
+		actorID = authorID
+	}
+	lot.Entries = int64(len(ids))
+	n := lot.MaxWinners()
+	if n < 1 {
+		// 积分奖但奖池是 0(实物奖不会走到这):没东西可发,当无人参与处理
+		_, err := s.store.CancelLottery(threadID)
+		return err
 	}
 	rand.Shuffle(len(ids), func(i, j int) { ids[i], ids[j] = ids[j], ids[i] })
-	n := lot.Winners
-	if n > len(ids) {
-		n = len(ids)
-	}
 	winners := ids[:n]
-	prizes := make([]int64, n)
-	if lot.Pool > 0 {
-		each := lot.Pool / int64(n)
-		for i := range prizes {
-			prizes[i] = each
-		}
-		prizes[0] += lot.Pool - each*int64(n) // 余数给第一位,保证奖池发完
-	}
-	if _, err := s.store.CloseLottery(t.ID, winners, prizes); err != nil {
-		s.serverError(w, err)
-		return
+	prizes := splitPool(lot.Pool, n)
+	if _, err := s.store.CloseLottery(threadID, winners, prizes); err != nil {
+		return err
 	}
 	for _, uid := range winners {
-		if created, err := s.store.CreateNotification(uid, user.ID, "lottery", t.ID, 0); err == nil && created {
+		if created, err := s.store.CreateNotification(uid, actorID, "lottery", threadID, 0); err == nil && created {
 			s.notifyPush(uid)
 		}
 	}
-	http.Redirect(w, r, "/t/"+strconv.FormatInt(t.ID, 10), http.StatusSeeOther)
+	return nil
+}
+
+// splitPool 把奖池随机拆成 n 份,每份至少 1、总和严格等于 pool。
+// 用「随机切点法」:在 1..pool-1 里取 n-1 个互不相同的切点,排序后取相邻差值。
+// 比「先随机再取整」稳 —— 后者会拆出 0,也会因为取整把总额丢掉一两分。
+// pool 为 0(实物奖)时返回全 0,表示只抽人不发积分。
+func splitPool(pool int64, n int) []int64 {
+	out := make([]int64, n)
+	if pool <= 0 || n <= 0 {
+		return out
+	}
+	if int64(n) >= pool { // 每人正好 1,没有可切的空间
+		for i := range out {
+			out[i] = 1
+		}
+		return out
+	}
+	cuts := map[int64]bool{}
+	for int64(len(cuts)) < int64(n-1) {
+		cuts[rand.Int64N(pool-1)+1] = true // 1..pool-1
+	}
+	sorted := make([]int64, 0, len(cuts))
+	for c := range cuts {
+		sorted = append(sorted, c)
+	}
+	slices.Sort(sorted)
+	prev := int64(0)
+	for i, c := range sorted {
+		out[i] = c - prev
+		prev = c
+	}
+	out[n-1] = pool - prev
+	return out
 }

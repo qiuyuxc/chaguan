@@ -50,27 +50,46 @@
   <div class="compose-field">
     <span class="flabel">帖子类型</span>
     <div class="board-pick kind-pick" role="radiogroup" data-kind-pick aria-label="帖子类型">
-      <button type="button" class="board-opt{{if ne .Kind "lottery"}} on{{end}}" role="radio" data-kind="normal" aria-checked="{{if ne .Kind "lottery"}}true{{else}}false{{end}}">普通帖</button>
+      <button type="button" class="board-opt{{if eq .Kind "normal"}} on{{end}}" role="radio" data-kind="normal" aria-checked="{{if eq .Kind "normal"}}true{{else}}false{{end}}">普通帖</button>
       <button type="button" class="board-opt{{if eq .Kind "lottery"}} on{{end}}" role="radio" data-kind="lottery" aria-checked="{{if eq .Kind "lottery"}}true{{else}}false{{end}}">抽奖帖</button>
+      <button type="button" class="board-opt{{if eq .Kind "lottery_points"}} on{{end}}" role="radio" data-kind="lottery_points" aria-checked="{{if eq .Kind "lottery_points"}}true{{else}}false{{end}}">积分抽奖帖</button>
     </div>
     <input type="hidden" name="kind" id="thread-kind" value="{{.Kind}}">
   </div>
 
-  <div class="compose-field gate-box" data-lottery-fields{{if ne .Kind "lottery"}} hidden{{end}}>
+  <div class="compose-field gate-box" data-lottery-fields{{if eq .Kind "normal"}} hidden{{end}}>
     <span class="flabel">抽奖设置</span>
+    <p class="um-tip" data-lot-tip="item"{{if eq .PayKind "points"}} hidden{{end}}>实物或自定义奖:平台只负责随机抽人、出中奖名单,奖品由你自己发给中奖者。</p>
+    <p class="um-tip" data-lot-tip="points"{{if ne .PayKind "points"}} hidden{{end}}>积分奖:开奖时平台把奖池随机拆开自动打给中奖者,每人至少 1 积分。</p>
     <div class="gate-grid">
-      <label class="um-f">
+      <label class="um-f" data-lot-item{{if eq .PayKind "points"}} hidden{{end}}>
         <span class="um-f-lb">奖品说明</span>
-        <input class="input input-sm" name="prize" value="{{.Prize}}" maxlength="80" placeholder="如:100 积分 / 一份周边">
+        <input class="input input-sm" name="prize" value="{{.Prize}}" maxlength="80" placeholder="如:一份周边 / 一个月会员">
+      </label>
+      <label class="um-f" data-lot-points{{if ne .PayKind "points"}} hidden{{end}}>
+        <span class="um-f-lb">你出的奖池积分</span>
+        <input class="input input-sm" type="number" name="sponsor" value="{{.Sponsor}}" min="0" max="100000">
+        <span class="um-f-tip">发帖时就从你账上扣走,开不了奖会原路退回</span>
       </label>
       <label class="um-f">
         <span class="um-f-lb">中奖人数</span>
-        <input class="input input-sm" type="number" name="winners" value="{{.Winners}}" min="1" max="50">
+        <input class="input input-sm" type="number" name="winners" value="{{.Winners}}" min="0" max="50">
+        <span class="um-f-tip" data-lot-points{{if ne .PayKind "points"}} hidden{{end}}>填 0 = 不设人数,参与者全员分。每人至少 1 积分,所以实际中奖人数不会超过奖池</span>
       </label>
       <label class="um-f">
         <span class="um-f-lb">参与需投入积分</span>
         <input class="input input-sm" type="number" name="stake" value="{{.Stake}}" min="0" max="1000">
         <span class="um-f-tip">填 0 则回复即参与;大于 0 时回复会扣这么多积分并进奖池,开奖后分给中奖者</span>
+      </label>
+      <label class="um-f">
+        <span class="um-f-lb">参与人数上限</span>
+        <input class="input input-sm" type="number" name="max_entries" value="{{.MaxEntries}}" min="0" max="10000">
+        <span class="um-f-tip">先来后到,填 0 不限。满了之后来的人回复照发,但不进参与名单</span>
+      </label>
+      <label class="um-f">
+        <span class="um-f-lb">自动开奖时间(可选)</span>
+        <input class="input input-sm" type="datetime-local" name="draw_at" value="{{.DrawAtStr}}">
+        <span class="um-f-tip">留空则只能你自己点「开奖」</span>
       </label>
     </div>
   </div>

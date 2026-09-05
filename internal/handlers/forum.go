@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"bbs/internal/auth"
@@ -365,11 +366,16 @@ type newThreadData struct {
 	Prize    string
 	Winners  int
 	Stake    int64
+	// 抽奖:PayKind 决定表单显示哪一组字段(item=实物奖 / points=积分奖)
+	PayKind    string
+	Sponsor    int64
+	MaxEntries int
+	DrawAtStr  string // datetime-local 的原始值,回填用
 }
 
 // loadNewThreadData 组装发帖表单:全量版块 + 预选 slug(可为空)。
 func (s *Server) loadNewThreadData(r *http.Request, selSlug string) (newThreadData, error) {
-	d := newThreadData{Base: s.base(r, "发新帖"), Kind: "normal", Winners: 1}
+	d := newThreadData{Base: s.base(r, "发新帖"), Kind: "normal", Winners: 1, PayKind: "item"}
 	cats, err := s.store.ListCategories()
 	if err != nil {
 		return d, err
@@ -467,17 +473,35 @@ func (s *Server) newThreadPost(w http.ResponseWriter, r *http.Request) {
 func (s *Server) createThread(w http.ResponseWriter, r *http.Request, user *db.User, cat *db.Category, selSlug string) {
 	title := strings.TrimSpace(r.FormValue("title"))
 	content := strings.TrimSpace(r.FormValue("content"))
-	kind := strings.TrimSpace(r.FormValue("kind"))
-	if kind != "lottery" {
-		kind = "normal"
+	// 表单里的类型有三档:normal / lottery(实物奖) / lottery_points(积分奖)。
+	// threads.kind 仍然只有 normal|lottery,奖品形态记在 lotteries.pay_kind 上。
+	formKind := strings.TrimSpace(r.FormValue("kind"))
+	kind, payKind := "normal", "item"
+	switch formKind {
+	case "lottery":
+		kind = "lottery"
+	case "lottery_points":
+		kind, payKind = "lottery", "points"
+	default:
+		formKind = "normal" // 回填时靠它选中芯片,别留空值
 	}
 	minLevel, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("min_level")))
 	price, _ := strconv.ParseInt(strings.TrimSpace(r.FormValue("price")), 10, 64)
 	prize := strings.TrimSpace(r.FormValue("prize"))
 	winners, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("winners")))
 	stake, _ := strconv.ParseInt(strings.TrimSpace(r.FormValue("stake")), 10, 64)
-	if winners < 1 {
-		winners = 1
+	sponsor, _ := strconv.ParseInt(strings.TrimSpace(r.FormValue("sponsor")), 10, 64)
+	maxEntries, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("max_entries")))
+	drawAtStr := strings.TrimSpace(r.FormValue("draw_at"))
+	var drawAt int64
+	if drawAtStr != "" {
+		// datetime-local 不带时区,按服务器本地时间解析(签到那边也是这个口径)
+		if ts, err := time.ParseInLocation("2006-01-02T15:04", drawAtStr, time.Local); err == nil {
+			drawAt = ts.Unix()
+		}
+	}
+	if payKind == "item" && winners < 1 {
+		winners = 1 // 实物奖必须有明确人数,0 人没意义
 	}
 
 	fail := func(msg string) {
@@ -487,8 +511,9 @@ func (s *Server) createThread(w http.ResponseWriter, r *http.Request, user *db.U
 			return
 		}
 		d.Error, d.FormTitle, d.Content = msg, title, content
-		d.Kind, d.MinLevel, d.Price = kind, minLevel, price
+		d.Kind, d.MinLevel, d.Price = formKind, minLevel, price
 		d.Prize, d.Winners, d.Stake = prize, winners, stake
+		d.PayKind, d.Sponsor, d.MaxEntries, d.DrawAtStr = payKind, sponsor, maxEntries, drawAtStr
 		s.rend.Render(w, 200, "new_thread", d)
 	}
 	switch {
@@ -507,21 +532,51 @@ func (s *Server) createThread(w http.ResponseWriter, r *http.Request, user *db.U
 	}
 	if kind == "lottery" {
 		switch {
-		case utf8.RuneCountInString(prize) < 1 || utf8.RuneCountInString(prize) > 80:
+		case payKind == "item" && (utf8.RuneCountInString(prize) < 1 || utf8.RuneCountInString(prize) > 80):
 			fail("请填写奖品说明(1–80 字)")
 			return
-		case winners < 1 || winners > 50:
-			fail("中奖人数需在 1–50 之间")
+		case winners < 0 || winners > 50:
+			fail("中奖人数需在 0–50 之间(0=不设人数,参与者全员分)")
 			return
 		case stake < 0 || stake > maxLotteryStake:
 			fail("参与积分需在 0–1000 之间")
 			return
+		case maxEntries < 0 || maxEntries > 10000:
+			fail("参与人数上限需在 0–10000 之间(0=不限)")
+			return
+		case drawAtStr != "" && drawAt <= time.Now().Unix():
+			fail("自动开奖时间要晚于现在")
+			return
+		case drawAtStr != "" && drawAt > time.Now().Add(90*24*time.Hour).Unix():
+			fail("自动开奖时间最多设到 90 天后")
+			return
+		}
+		if payKind == "points" {
+			switch {
+			case sponsor < 0 || sponsor > maxLotteryPool:
+				fail("奖池积分需在 0–100000 之间")
+				return
+			case sponsor < 1 && stake < 1:
+				fail("积分抽奖要么自己出奖池,要么设参与投入,不然没有奖可发")
+				return
+			case stake < 1 && winners > 0 && int64(winners) > sponsor:
+				// 每人至少分到 1 分,所以中奖人数不可能超过奖池
+				fail("中奖人数不能超过奖池积分 —— 每位中奖者至少分到 1 积分")
+				return
+			}
+			// 积分奖的「奖品」是奖池本身,标题上不再要求另填说明
+			prize = "积分奖池"
 		}
 	}
 	id, err := s.store.CreateThread(cat.ID, user.ID, title, content, markdown.Render(content), db.NewThread{
 		Kind: kind, MinLevel: minLevel, Price: price,
 		Prize: prize, Winners: winners, Stake: stake,
+		PayKind: payKind, Sponsor: sponsor, MaxEntries: maxEntries, DrawAt: drawAt,
 	})
+	if err == db.ErrNotEnoughPoints {
+		fail("你的积分不够垫这个奖池")
+		return
+	}
 	if err != nil {
 		s.serverError(w, err)
 		return
@@ -684,7 +739,7 @@ func (s *Server) thread(w http.ResponseWriter, r *http.Request) {
 					s.serverError(w, err)
 					return
 				}
-				canDraw = !lot.Drawn() && (viewer.ID == t.AuthorID || viewer.IsAdmin())
+				canDraw = !lot.Over() && (viewer.ID == t.AuthorID || viewer.IsAdmin())
 			}
 		}
 	}

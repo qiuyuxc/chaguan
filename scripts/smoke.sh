@@ -833,6 +833,95 @@ code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" -d "_csrf=$CSRF" "$BASE/
 check "重复开奖幂等跳回" "303" "$code"
 contains "开奖后奖池只发一次" "$(curl -s -b "$JAR" "$BASE/t/$LOTID")" "已开奖"
 
+echo "== 积分抽奖帖 =="
+contains "发帖页有三档类型" "$(curl -s -b "$JAR" "$BASE/new")" 'data-kind="lottery_points"'
+csrf "$BASE/new"
+A=$(curl -s -b "$JAR" -d "_csrf=$CSRF" --data-urlencode "category=tech" --data-urlencode "title=垫不起的奖池" \
+  --data-urlencode "content=测试余额不足" --data-urlencode "kind=lottery_points" \
+  --data-urlencode "sponsor=100000" --data-urlencode "winners=1" "$BASE/new")
+contains "积分不够垫奖池被拒" "$A" "积分不够垫这个奖池"
+csrf "$BASE/new"
+A=$(curl -s -b "$JAR" -d "_csrf=$CSRF" --data-urlencode "category=tech" --data-urlencode "title=人数超奖池" \
+  --data-urlencode "content=测试" --data-urlencode "kind=lottery_points" \
+  --data-urlencode "sponsor=3" --data-urlencode "winners=5" --data-urlencode "stake=0" "$BASE/new")
+contains "中奖人数不能超过奖池" "$A" "每位中奖者至少分到 1 积分"
+csrf "$BASE/new"
+A=$(curl -s -b "$JAR" -d "_csrf=$CSRF" --data-urlencode "category=tech" --data-urlencode "title=没奖可发" \
+  --data-urlencode "content=测试" --data-urlencode "kind=lottery_points" \
+  --data-urlencode "sponsor=0" --data-urlencode "stake=0" --data-urlencode "winners=1" "$BASE/new")
+contains "既不出奖也不收投入被拒" "$A" "没有奖可发"
+# 正式一场:楼主出 10 分、不设中奖人数(全员分)、参与上限 2 人
+PB1=$(curl -s -b "$JAR" "$BASE/points" | grep -oE '<b class="pt-num">[0-9]+' | sed 's/.*>//')
+csrf "$BASE/new"
+PT=$(curl -s -o /dev/null -w '%{redirect_url}' -b "$JAR" -d "_csrf=$CSRF" \
+  --data-urlencode "category=tech" --data-urlencode "title=积分红包抽奖" \
+  --data-urlencode "content=回复即参与,奖池随机拆" --data-urlencode "kind=lottery_points" \
+  --data-urlencode "sponsor=10" --data-urlencode "winners=0" --data-urlencode "stake=0" \
+  --data-urlencode "max_entries=2" "$BASE/new")
+PTID=$(echo "$PT" | grep -oE '[0-9]+$')
+check "发出积分抽奖帖" "1" "$([ -n "$PTID" ] && echo 1 || echo 0)"
+PB2=$(curl -s -b "$JAR" "$BASE/points" | grep -oE '<b class="pt-num">[0-9]+' | sed 's/.*>//')
+check "发帖即预扣奖池" "$((PB1-10))" "$PB2"
+contains "流水记出奖预扣" "$(curl -s -b "$JAR" "$BASE/points")" "抽奖出奖"
+P=$(curl -s -b "$JAR" "$BASE/t/$PTID")
+contains "卡片标成积分抽奖" "$P" "积分抽奖"
+contains "标题位显示奖池金额" "$P" "10 积分"
+contains "中奖人数显示全员" "$P" "全员"
+contains "显示参与上限" "$P" "已参与 <b>0</b> / 2 人"
+contains "说明会自动到账" "$P" "自动打进中奖者账户"
+# 先来后到:前 2 人进名单,第 3 个人回复照发但不计入
+CSRF=$(curl -s -b "$JAR2" -c "$JAR2" "$BASE/t/$PTID" | grep -o 'name="_csrf" value="[^"]*"' | head -1 | sed 's/.*value="//;s/"//' || true)
+curl -s -o /dev/null -b "$JAR2" -H "X-CSRF-Token: $CSRF" -d "content=占个位" "$BASE/t/$PTID/reply"
+CSRFG=$(curl -s -b "$JARG" -c "$JARG" "$BASE/t/$PTID" | grep -o 'name="_csrf" value="[^"]*"' | head -1 | sed 's/.*value="//;s/"//' || true)
+curl -s -o /dev/null -b "$JARG" -H "X-CSRF-Token: $CSRFG" -d "content=我也来" "$BASE/t/$PTID/reply"
+P=$(curl -s -b "$JAR" "$BASE/t/$PTID")
+contains "两人参与后满员" "$P" "已参与 <b>2</b> / 2 人"
+csrf "$BASE/t/$PTID"
+R=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" -H "X-CSRF-Token: $CSRF" -d "content=楼主也想蹭" "$BASE/t/$PTID/reply")
+P=$(curl -s -b "$JAR" "$BASE/t/$PTID")
+contains "满员后参与人数不再增加" "$P" "已参与 <b>2</b> / 2 人"
+contains "满员提示" "$P" "参与人数已满"
+# 开奖:奖池随机拆开,总额不丢、每人至少 1
+csrf "$BASE/t/$PTID"
+code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" -d "_csrf=$CSRF" "$BASE/t/$PTID/draw")
+check "积分抽奖开奖" "303" "$code"
+P=$(curl -s -b "$JAR" "$BASE/t/$PTID")
+WON=$(grep -oE 'lot-win">中奖 \+[0-9]+' <<<"$P" | grep -oE '[0-9]+$')
+check "中奖人数等于参与人数(全员分)" "2" "$(grep -c . <<<"$WON")"
+check "奖池随机拆完不丢分" "10" "$(awk '{s+=$1} END{print s+0}' <<<"$WON")"
+check "每位中奖者至少 1 积分" "1" "$([ "$(sort -n <<<"$WON" | head -1)" -ge 1 ] && echo 1 || echo 0)"
+contains "中奖者积分到账" "$(curl -s -b "$JARG" "$BASE/points")" "抽奖中奖"
+# 无人参与:开奖等于关掉,奖池原路退回
+PB3=$(curl -s -b "$JAR" "$BASE/points" | grep -oE '<b class="pt-num">[0-9]+' | sed 's/.*>//')
+csrf "$BASE/new"
+EMPID=$(curl -s -o /dev/null -w '%{redirect_url}' -b "$JAR" -d "_csrf=$CSRF" \
+  --data-urlencode "category=tech" --data-urlencode "title=没人来的抽奖" \
+  --data-urlencode "content=不会有人回复" --data-urlencode "kind=lottery_points" \
+  --data-urlencode "sponsor=20" --data-urlencode "winners=1" --data-urlencode "stake=0" "$BASE/new" | grep -oE '[0-9]+$')
+csrf "$BASE/t/$EMPID"
+code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" -d "_csrf=$CSRF" "$BASE/t/$EMPID/draw")
+check "无人参与也能开奖(转成已退回)" "303" "$code"
+contains "卡片标成无人参与已退回" "$(curl -s -b "$JAR" "$BASE/t/$EMPID")" "无人参与,已退回"
+check "奖池原路退回楼主" "$PB3" "$(curl -s -b "$JAR" "$BASE/points" | grep -oE '<b class="pt-num">[0-9]+' | sed 's/.*>//')"
+contains "流水记奖池退回" "$(curl -s -b "$JAR" "$BASE/points")" "奖池退回"
+# 帖子被删:楼主的奖池和参与者的投入都要退,不能跟着帖子一起蒸发
+PB4=$(curl -s -b "$JAR" "$BASE/points" | grep -oE '<b class="pt-num">[0-9]+' | sed 's/.*>//')
+BB4=$(curl -s -b "$JAR2" "$BASE/points" | grep -oE '<b class="pt-num">[0-9]+' | sed 's/.*>//')
+csrf "$BASE/new"
+DELID=$(curl -s -o /dev/null -w '%{redirect_url}' -b "$JAR" -d "_csrf=$CSRF" \
+  --data-urlencode "category=tech" --data-urlencode "title=待删除的抽奖" \
+  --data-urlencode "content=删帖要退款" --data-urlencode "kind=lottery_points" \
+  --data-urlencode "sponsor=30" --data-urlencode "winners=1" --data-urlencode "stake=4" "$BASE/new" | grep -oE '[0-9]+$')
+CSRF=$(curl -s -b "$JAR2" -c "$JAR2" "$BASE/t/$DELID" | grep -o 'name="_csrf" value="[^"]*"' | head -1 | sed 's/.*value="//;s/"//' || true)
+curl -s -o /dev/null -b "$JAR2" -H "X-CSRF-Token: $CSRF" -d "content=投 4 分参与" "$BASE/t/$DELID/reply"
+check "参与者投入已扣" "$((BB4-4))" "$(curl -s -b "$JAR2" "$BASE/points" | grep -oE '<b class="pt-num">[0-9]+' | sed 's/.*>//')"
+csrf "$BASE/t/$DELID"
+code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" -d "_csrf=$CSRF" "$BASE/t/$DELID/delete")
+check "删掉抽奖帖" "303" "$code"
+check "楼主奖池退回" "$PB4" "$(curl -s -b "$JAR" "$BASE/points" | grep -oE '<b class="pt-num">[0-9]+' | sed 's/.*>//')"
+check "参与者投入退回" "$BB4" "$(curl -s -b "$JAR2" "$BASE/points" | grep -oE '<b class="pt-num">[0-9]+' | sed 's/.*>//')"
+contains "流水记删帖退回" "$(curl -s -b "$JAR2" "$BASE/points")" "抽奖帖已删除"
+
 echo "== 勋章与积分商城 =="
 code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" "$BASE/admin/shop")
 check "后台商城页可访问" "200" "$code"

@@ -19,9 +19,10 @@ const (
 	postsPerPage   = 15
 	maxPostLen     = 10000
 	maxTitleLen    = 120
-	// 发帖时可设的上限:付费帖价格、抽奖参与投入
+	// 发帖时可设的上限:付费帖价格、抽奖参与投入、楼主自掏的抽奖奖池
 	maxThreadPrice  = 10000
 	maxLotteryStake = 1000
+	maxLotteryPool  = 100000
 )
 
 type Server struct {
@@ -187,9 +188,9 @@ func Routes(store *db.Store, rend *web.Renderer, uploadsDir string, opts Options
 	return s.recoverMW(s.loadUserMW(s.csrfMW(mux)))
 }
 
-// startSweeper 起一个后台巡检:目前只做「红包超时退回」。
+// startSweeper 起一个后台巡检:红包超时退回 + 抽奖定点开奖。
 // 进程内 goroutine 而不是外部 cron —— 这是个单二进制应用,没有别的调度器可用;
-// 生命周期跟进程一致,所以不带 ctx 也不会泄漏。启动时先扫一次,补上停机期间过期的。
+// 生命周期跟进程一致,所以不带 ctx 也不会泄漏。启动时先扫一次,补上停机期间到点的。
 func (s *Server) startSweeper(opts Options) {
 	ttl, every := opts.redpackTTL(), opts.sweepEvery()
 	go func() {
@@ -201,6 +202,11 @@ func (s *Server) startSweeper(opts Options) {
 }
 
 func (s *Server) sweepOnce(ttl time.Duration) {
+	s.sweepRedpacks(ttl)
+	s.sweepLotteries()
+}
+
+func (s *Server) sweepRedpacks(ttl time.Duration) {
 	gone, err := s.store.ExpireRedpacks(time.Now().Add(-ttl).Unix())
 	if err != nil {
 		log.Printf("红包超时退回失败: %v", err)
@@ -213,6 +219,31 @@ func (s *Server) sweepOnce(ttl time.Duration) {
 	}
 	if len(gone) > 0 {
 		log.Printf("红包超时退回 %d 笔", len(gone))
+	}
+}
+
+// sweepLotteries 到点自动开奖。抽签逻辑和手动开奖共用 runDraw,
+// actorID 传 0 表示系统开的(通知记在楼主名下)。
+func (s *Server) sweepLotteries() {
+	ids, err := s.store.DueLotteries(time.Now().Unix())
+	if err != nil {
+		log.Printf("定点开奖扫描失败: %v", err)
+		return
+	}
+	for _, id := range ids {
+		t, err := s.store.GetThread(id)
+		if err != nil || t == nil {
+			continue
+		}
+		lot, err := s.store.GetLottery(id)
+		if err != nil || lot == nil || lot.Over() {
+			continue
+		}
+		if err := s.runDraw(id, t.AuthorID, lot, 0); err != nil {
+			log.Printf("定点开奖失败(主题 %d): %v", id, err)
+			continue
+		}
+		log.Printf("定点开奖 主题 %d", id)
 	}
 }
 

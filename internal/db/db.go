@@ -1507,9 +1507,37 @@ func (s *Store) CountSearchThreads(q string) (int64, error) {
 }
 
 // DeleteCategory 删除版块;版块内的主题/回复由外键级联清掉,调用方需先确认过。
+// DeleteCategory 删版块。版块里的主题靠外键级联一起消失,所以要先把里面
+// 未开奖的抽奖退款干净(同 DeleteThread 的理由)。
 func (s *Store) DeleteCategory(id int64) error {
-	_, err := s.DB.Exec(`DELETE FROM categories WHERE id = ?`, id)
-	return err
+	return s.withTx(func(tx *sql.Tx) error {
+		rows, err := tx.Query(`SELECT l.thread_id FROM lotteries l
+			JOIN threads t ON t.id = l.thread_id
+			WHERE t.category_id = ? AND l.status = 'open'`, id)
+		if err != nil {
+			return err
+		}
+		var ids []int64
+		for rows.Next() {
+			var tid int64
+			if err := rows.Scan(&tid); err != nil {
+				rows.Close()
+				return err
+			}
+			ids = append(ids, tid)
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return err
+		}
+		for _, tid := range ids {
+			if err := refundLotteryTx(tx, tid, "版块已删除"); err != nil {
+				return err
+			}
+		}
+		_, err = tx.Exec(`DELETE FROM categories WHERE id = ?`, id)
+		return err
+	})
 }
 
 // CountCategories 版块总数(删除时用于保住最后一个版块)。
@@ -1553,9 +1581,13 @@ type NewThread struct {
 	MinLevel int    // 观看门槛等级
 	Price    int64  // 观看需支付积分
 	// 以下仅 kind=lottery 时有意义
-	Prize   string
-	Winners int
-	Stake   int64
+	Prize      string
+	Winners    int
+	Stake      int64
+	PayKind    string // item=实物奖(楼主自己发) | points=积分奖(平台自动发)
+	Sponsor    int64  // 楼主自掏的奖池积分,建帖时预扣
+	MaxEntries int    // 参与人数上限,0=不限
+	DrawAt     int64  // 到点自动开奖(0=只能手动开)
 }
 
 // CreateThread 建主题 + 首帖(+抽奖设置),同一事务里维护计数。
@@ -1585,9 +1617,33 @@ func (s *Store) CreateThread(catID, authorID int64, title, contentMD, contentHTM
 			return err
 		}
 		if kind == "lottery" {
-			_, err = tx.Exec(
-				`INSERT INTO lotteries (thread_id, prize, winners, stake, created_at)
-				 VALUES (?, ?, ?, ?, ?)`, threadID, opt.Prize, opt.Winners, opt.Stake, now)
+			payKind := opt.PayKind
+			if payKind != "points" {
+				payKind = "item"
+			}
+			sponsor := opt.Sponsor
+			if payKind != "points" {
+				sponsor = 0 // 实物奖没有平台奖池,别让表单里的残值漏进来
+			}
+			var drawArg any
+			if opt.DrawAt > 0 {
+				drawArg = opt.DrawAt
+			}
+			if _, err = tx.Exec(
+				`INSERT INTO lotteries (thread_id, prize, winners, stake, pool, pay_kind,
+				                        sponsor, max_entries, draw_at, created_at)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				threadID, opt.Prize, opt.Winners, opt.Stake, sponsor, payKind,
+				sponsor, opt.MaxEntries, drawArg, now); err != nil {
+				return err
+			}
+			// 楼主出的奖池当场扣款:余额不足会返回 ErrNotEnoughPoints,整个建帖事务回滚
+			if sponsor > 0 {
+				if err := addPointsTx(tx, authorID, -sponsor, PointLotFund,
+					"抽奖出奖预扣", threadID, 0); err != nil {
+					return err
+				}
+			}
 		}
 		return err
 	})
@@ -1644,17 +1700,48 @@ func (s *Store) CountThreadUnlocks(threadID int64) (int64, error) {
 
 // Lottery 抽奖设置与进度。
 type Lottery struct {
-	ThreadID int64
-	Prize    string
-	Winners  int
-	Stake    int64
-	Pool     int64
-	Status   string // open | drawn
-	DrawnAt  sql.NullInt64
-	Entries  int64 // 参与人数(查询时一并带出)
+	ThreadID   int64
+	Prize      string
+	Winners    int
+	Stake      int64
+	Pool       int64
+	Status     string // open | drawn | canceled(无人参与,奖池已退回)
+	DrawnAt    sql.NullInt64
+	PayKind    string // item | points
+	Sponsor    int64
+	MaxEntries int
+	DrawAt     sql.NullInt64
+	Entries    int64 // 参与人数(查询时一并带出)
 }
 
 func (l *Lottery) Drawn() bool { return l != nil && l.Status == "drawn" }
+
+// Canceled 无人参与被关掉(奖池已退回楼主)。
+func (l *Lottery) Canceled() bool { return l != nil && l.Status == "canceled" }
+
+// Over 抽奖是不是已经结束(开过奖或被关掉),用来决定还能不能参与。
+func (l *Lottery) Over() bool { return l.Drawn() || l.Canceled() }
+
+// IsPoints 是不是积分奖 —— 只有这种平台会自动把奖池发出去。
+func (l *Lottery) IsPoints() bool { return l != nil && l.PayKind == "points" }
+
+// Full 参与人数是否已达上限(先来后到,满了后来的人回复照发但不进名单)。
+func (l *Lottery) Full() bool {
+	return l != nil && l.MaxEntries > 0 && l.Entries >= int64(l.MaxEntries)
+}
+
+// MaxWinners 实际最多能有几个中奖者。积分奖每人至少 1 分,所以中奖人数
+// 不可能超过奖池总额;Winners 为 0 表示「不设人数」= 参与者全员分。
+func (l *Lottery) MaxWinners() int {
+	n := l.Winners
+	if n <= 0 || int64(n) > l.Entries {
+		n = int(l.Entries)
+	}
+	if l.IsPoints() && int64(n) > l.Pool {
+		n = int(l.Pool)
+	}
+	return n
+}
 
 // LotteryEntry 一条参与记录。
 type LotteryEntry struct {
@@ -1672,9 +1759,11 @@ func (s *Store) GetLottery(threadID int64) (*Lottery, error) {
 	l := &Lottery{}
 	err := s.DB.QueryRow(`
 		SELECT thread_id, prize, winners, stake, pool, status, drawn_at,
+		       pay_kind, sponsor, max_entries, draw_at,
 		       (SELECT COUNT(*) FROM lottery_entries e WHERE e.thread_id = l.thread_id)
 		FROM lotteries l WHERE thread_id = ?`, threadID).
-		Scan(&l.ThreadID, &l.Prize, &l.Winners, &l.Stake, &l.Pool, &l.Status, &l.DrawnAt, &l.Entries)
+		Scan(&l.ThreadID, &l.Prize, &l.Winners, &l.Stake, &l.Pool, &l.Status, &l.DrawnAt,
+			&l.PayKind, &l.Sponsor, &l.MaxEntries, &l.DrawAt, &l.Entries)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -1682,6 +1771,62 @@ func (s *Store) GetLottery(threadID int64) (*Lottery, error) {
 		return nil, err
 	}
 	return l, nil
+}
+
+// DueLotteries 到点该自动开奖的抽奖帖 id(巡检用)。
+func (s *Store) DueLotteries(now int64) ([]int64, error) {
+	rows, err := s.DB.Query(
+		`SELECT thread_id FROM lotteries
+		  WHERE status = 'open' AND draw_at IS NOT NULL AND draw_at <= ?
+		  ORDER BY thread_id LIMIT 100`, now)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
+}
+
+// CancelLottery 关掉一场开不了奖的抽奖(没人参与),楼主预扣的奖池原路退回。
+// 参与者投入的 stake 不在这里退 —— 没人参与就没有 stake。幂等。
+func (s *Store) CancelLottery(threadID int64) (bool, error) {
+	done := false
+	err := s.withTx(func(tx *sql.Tx) error {
+		var status string
+		var sponsor, authorID int64
+		if err := tx.QueryRow(`SELECT l.status, l.sponsor, t.author_id
+			FROM lotteries l JOIN threads t ON t.id = l.thread_id
+			WHERE l.thread_id = ?`, threadID).Scan(&status, &sponsor, &authorID); err != nil {
+			return err
+		}
+		if status != "open" {
+			return nil
+		}
+		res, err := tx.Exec(`UPDATE lotteries SET status = 'canceled', drawn_at = ?
+			WHERE thread_id = ? AND status = 'open'`, time.Now().Unix(), threadID)
+		if err != nil {
+			return err
+		}
+		if n, _ := res.RowsAffected(); n == 0 {
+			return nil
+		}
+		if sponsor > 0 {
+			if err := addPointsTx(tx, authorID, sponsor, PointLotBack,
+				"抽奖无人参与,奖池退回", threadID, 0); err != nil {
+				return err
+			}
+		}
+		done = true
+		return nil
+	})
+	return done, err
 }
 
 // JoinedLottery 该用户是否已参与。
@@ -1694,10 +1839,31 @@ func (s *Store) JoinedLottery(threadID, userID int64) (bool, error) {
 }
 
 // JoinLottery 参与抽奖(回复时自动调用):写参与记录,stake>0 时扣积分进奖池。
-// 已参与返回 false;积分不足返回 ErrNotEnoughPoints。
+// 已参与、已开奖、或参与人数已满都返回 false —— 这三种情况回复照发,只是不进
+// 参与名单(把人的回复整条拦掉太狠了)。积分不足返回 ErrNotEnoughPoints。
 func (s *Store) JoinLottery(threadID, userID, stake int64, note string) (bool, error) {
 	joined := false
 	err := s.withTx(func(tx *sql.Tx) error {
+		var status string
+		var maxEntries int64
+		if err := tx.QueryRow(`SELECT status, max_entries FROM lotteries WHERE thread_id = ?`,
+			threadID).Scan(&status, &maxEntries); err != nil {
+			return err
+		}
+		if status != "open" {
+			return nil
+		}
+		// 名额在事务里复查,不然并发下会挤进第 31 个人(跟商城库存同一个套路)
+		if maxEntries > 0 {
+			var n int64
+			if err := tx.QueryRow(`SELECT COUNT(*) FROM lottery_entries WHERE thread_id = ?`,
+				threadID).Scan(&n); err != nil {
+				return err
+			}
+			if n >= maxEntries {
+				return nil
+			}
+		}
 		res, err := tx.Exec(
 			`INSERT OR IGNORE INTO lottery_entries (thread_id, user_id, stake, created_at)
 			 VALUES (?, ?, ?, ?)`, threadID, userID, stake, time.Now().Unix())
@@ -2342,10 +2508,68 @@ func (s *Store) DeletePost(postID int64) error {
 	})
 }
 
-// DeleteThread 删除整个主题(posts 级联)。
+// DeleteThread 删除整个主题(posts / 抽奖 / 参与记录靠外键级联)。
+// 主题上还挂着没开奖的抽奖时,先把钱退干净再删 —— 楼主预扣的奖池退给楼主,
+// 参与者投入的 stake 逐笔退回本人,否则这些积分会跟着帖子一起蒸发。
 func (s *Store) DeleteThread(threadID int64) error {
-	_, err := s.DB.Exec(`DELETE FROM threads WHERE id = ?`, threadID)
-	return err
+	return s.withTx(func(tx *sql.Tx) error {
+		if err := refundLotteryTx(tx, threadID, "抽奖帖已删除"); err != nil {
+			return err
+		}
+		_, err := tx.Exec(`DELETE FROM threads WHERE id = ?`, threadID)
+		return err
+	})
+}
+
+// refundLotteryTx 把某主题上未开奖的抽奖退款。已开奖的不动 —— 奖已经发出去了。
+// 不是抽奖帖时直接返回 nil。point_logs.thread_id 没有外键,所以流水不会跟着帖子删掉。
+func refundLotteryTx(tx *sql.Tx, threadID int64, why string) error {
+	var status string
+	var sponsor, authorID int64
+	err := tx.QueryRow(`SELECT l.status, l.sponsor, t.author_id
+		FROM lotteries l JOIN threads t ON t.id = l.thread_id
+		WHERE l.thread_id = ?`, threadID).Scan(&status, &sponsor, &authorID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if status != "open" {
+		return nil
+	}
+	if sponsor > 0 {
+		if err := addPointsTx(tx, authorID, sponsor, PointLotBack,
+			why+",奖池退回", threadID, 0); err != nil {
+			return err
+		}
+	}
+	rows, err := tx.Query(`SELECT user_id, stake FROM lottery_entries
+		WHERE thread_id = ? AND stake > 0`, threadID)
+	if err != nil {
+		return err
+	}
+	type back struct{ uid, amt int64 }
+	var list []back
+	for rows.Next() {
+		var b back
+		if err := rows.Scan(&b.uid, &b.amt); err != nil {
+			rows.Close()
+			return err
+		}
+		list = append(list, b)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for _, b := range list {
+		if err := addPointsTx(tx, b.uid, b.amt, PointLotBack,
+			why+",投入退回", threadID, 0); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // ---------- 私信 ----------
@@ -2786,8 +3010,10 @@ const (
 	PointAdmin    = "admin"         // 管理员手动调整
 	PointUnlockOut = "unlock_out"   // 解锁付费帖支出
 	PointUnlockIn  = "unlock_in"    // 付费帖作者收入
-	PointStake     = "lottery_stake" // 参与抽奖投入
-	PointWin       = "lottery_win"   // 抽奖中奖
+	PointStake       = "lottery_stake" // 参与抽奖投入
+	PointWin         = "lottery_win"   // 抽奖中奖
+	PointLotFund     = "lottery_fund"  // 抽奖出奖预扣(楼主自掏奖池)
+	PointLotBack     = "lottery_back"  // 抽奖奖池退回(无人参与/帖子删了)
 	PointShop      = "shop"          // 商城兑换
 	PointRedpackOut = "redpack_out"  // 发出私信红包
 	PointRedpackIn  = "redpack_in"   // 领取私信红包

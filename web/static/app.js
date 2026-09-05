@@ -1139,13 +1139,21 @@
     var lotFields = document.querySelector("[data-lottery-fields]");
     var opts = Array.prototype.slice.call(kindBox.querySelectorAll("[data-kind]"));
     function syncKind() {
-      var v = kindInput.value === "lottery" ? "lottery" : "normal";
+      var v = kindInput.value;
+      if (v !== "lottery" && v !== "lottery_points") v = "normal";
       opts.forEach(function (o) {
         var on = o.getAttribute("data-kind") === v;
         o.classList.toggle("on", on);
         o.setAttribute("aria-checked", on ? "true" : "false");
       });
-      if (lotFields) lotFields.hidden = v !== "lottery";
+      if (lotFields) lotFields.hidden = v === "normal";
+      // 实物奖填「奖品说明」,积分奖填「奖池积分」,两组字段互斥
+      var pts = v === "lottery_points";
+      document.querySelectorAll("[data-lot-points]").forEach(function (el) { el.hidden = !pts; });
+      document.querySelectorAll("[data-lot-item]").forEach(function (el) { el.hidden = pts; });
+      document.querySelectorAll("[data-lot-tip]").forEach(function (el) {
+        el.hidden = el.getAttribute("data-lot-tip") !== (pts ? "points" : "item");
+      });
     }
     opts.forEach(function (o) {
       o.addEventListener("click", function () {

@@ -76,7 +76,9 @@ var funcs = template.FuncMap{
 	"avColor":   func(id int64) string { return "c" + strconv.Itoa(int(id)%6+1) },
 	"bcatColor": func(id int64) string { return "bcat-" + strconv.Itoa(int(id)%6+1) },
 	"date":      func(ts int64) string { return time.Unix(ts, 0).Format("2006-01-02") },
-	"safeHTML":  func(s string) template.HTML { return template.HTML(s) },
+	// relTime 只讲得清过去;定点开奖这类未来时间要给绝对值
+	"absTime":  func(ts int64) string { return time.Unix(ts, 0).Format("01-02 15:04") },
+	"safeHTML": func(s string) template.HTML { return template.HTML(s) },
 	// otpauth:// 这类非 http 协议会被模板的 URL 过滤器拦掉,
 	// 这里显式放行(链接由服务端拼装,参数都经过 url 转义)
 	"safeURL": func(s string) template.URL { return template.URL(s) },
@@ -137,6 +139,10 @@ func pointKindName(kind string) string {
 		return "参与抽奖"
 	case db.PointWin:
 		return "抽奖中奖"
+	case db.PointLotFund:
+		return "抽奖出奖"
+	case db.PointLotBack:
+		return "奖池退回"
 	case db.PointShop:
 		return "商城兑换"
 	case db.PointRedpackOut:

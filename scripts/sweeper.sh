@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# 红包超时自动退回:开一个 TTL=2s / 巡检=1s 的实例,验证没人领的红包会被
-# 后台巡检退回发送者(状态 expired,气泡改文案但金额照旧显示)。
-# 生产是 24 小时,靠 BBS_RP_TTL / BBS_SWEEP 把等待压成两秒。
-# 用法: bash scripts/rpexpire.sh
+# 后台巡检两件事:红包超时自动退回、抽奖定点开奖。
+# 开一个 TTL=2s / 巡检=1s 的实例,把生产的「24 小时」压成两秒。
+# 定点开奖那段没法压 —— datetime-local 只能精确到分钟,所以会等到下一个整分。
+# 用法: bash scripts/sweeper.sh
 # 注意:这里刻意不开 pipefail —— 脚本里大量 `echo 大段内容 | grep -q` 与
 # `grep | head` 的写法,前者会让 grep 命中即退出、把 echo 打成 SIGPIPE,
 # 后者同理;开 pipefail 会把这些正常情况判成失败。
@@ -23,6 +23,10 @@ cleanup() { kill ${SP:-0} 2>/dev/null || true; rm -rf "$WORK" "$JA" "$JB" 2>/dev
 trap cleanup EXIT
 
 [ -x "$BIN" ] || { echo "先编译: go build -o bbs ./cmd/bbs"; exit 1; }
+# TZ 钉死成 UTC:datetime-local 不带时区,服务端按 time.Local 解析,
+# 而 Termux 的 date 用的是 Android 系统时区(常和 Go 进程的 UTC 差 8 小时)。
+# 两边不统一的话「下一个整分」会算到 8 小时后,定点开奖那段永远等不到。
+export TZ=UTC
 PORT=$PORT BBS_DB=$WORK/t.db BBS_UPLOADS=$WORK BBS_RP_TTL=2s BBS_SWEEP=1s \
   "$BIN" >"$WORK/log" 2>&1 & SP=$!
 for _ in $(seq 1 30); do [ "$(curl -s -m 2 $BASE/healthz)" = "ok" ] && break; sleep 0.5; done
@@ -80,7 +84,40 @@ check "领过的红包不会再被退回" "$B" "$(bal "$JB")"
 check "发送者余额也不受影响" "80" "$(bal "$JA")"
 has "领取状态没被巡检改掉" "$(curl -s -b "$JB" "$BASE/messages/$DMID")" "已领取"
 
+echo "== 抽奖定点开奖 =="
+# datetime-local 只到分钟,所以把 draw_at 设到下一个整分再等过去。
+# 快到整分时先跨过去,免得刚提交就已经过期(校验要求晚于现在)。
+LEFT=$(( 60 - 10#$(date +%S) ))   # 10# 强制十进制:秒数 08/09 会被当八进制报错
+[ "$LEFT" -lt 6 ] && { sleep "$((LEFT + 1))"; LEFT=60; }
+WHEN=$(date -d "@$(( $(date +%s) + LEFT ))" +%Y-%m-%dT%H:%M 2>/dev/null || date -v+${LEFT}S +%Y-%m-%dT%H:%M)
+T=$(tok "$JA" $BASE/admin/points)
+curl -s -o /dev/null -b "$JA" -d "_csrf=$T&delta=200&note=定点开奖测试" $BASE/admin/points/1/adjust
+T=$(tok "$JA" $BASE/new)
+LID=$(curl -s -o /dev/null -w '%{redirect_url}' -b "$JA" -d "_csrf=$T" \
+  --data-urlencode "category=general" --data-urlencode "title=定点开奖测试" \
+  --data-urlencode "content=到点自动开" --data-urlencode "kind=lottery_points" \
+  --data-urlencode "sponsor=12" --data-urlencode "winners=0" --data-urlencode "stake=0" \
+  --data-urlencode "draw_at=$WHEN" $BASE/new | grep -oE '[0-9]+$')
+check "发出定点开奖帖" "1" "$([ -n "$LID" ] && echo 1 || echo 0)"
+L=$(curl -s -b "$JA" "$BASE/t/$LID")
+has "卡片写明自动开奖时间" "$L" "自动开奖"
+T=$(tok "$JB" "$BASE/t/$LID")
+curl -s -o /dev/null -b "$JB" -H "X-CSRF-Token: $T" -d "content=我来参与" "$BASE/t/$LID/reply"
+has "参与成功" "$(curl -s -b "$JB" "$BASE/t/$LID")" "你已参与"
+echo "  … 等下一个整分($WHEN)自动开奖,最多 ${LEFT} 秒"
+for _ in $(seq 1 80); do
+  grep -q "定点开奖 主题 $LID" "$WORK/log" && break
+  sleep 1
+done
+has "日志记下定点开奖" "$(cat "$WORK/log")" "定点开奖 主题 $LID"
+L=$(curl -s -b "$JA" "$BASE/t/$LID")
+has "帖子转成已开奖" "$L" "已开奖"
+WON=$(grep -oE 'lot-win">中奖 \+[0-9]+' <<<"$L" | grep -oE '[0-9]+$')
+check "奖池全给了唯一参与者" "12" "$(awk '{s+=$1} END{print s+0}' <<<"$WON")"
+has "中奖者收到积分" "$(curl -s -b "$JB" $BASE/points)" "抽奖中奖"
+has "中奖者收到通知" "$(curl -s -b "$JB" $BASE/notifications)" "你中奖了"
+
 echo
 echo "结果: $PASS 通过, $FAIL 失败"
 [ "$FAIL" -eq 0 ] || exit 1
-echo "RPEXPIRE OK"
+echo "SWEEPER OK"
