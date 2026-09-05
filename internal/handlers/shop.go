@@ -255,7 +255,8 @@ func parseShopItemForm(r *http.Request, kind string) (db.ShopItem, string) {
 	case price < 1 || price > 1000000:
 		return db.ShopItem{}, "价格需在 1–1000000 积分之间"
 	}
-	it := db.ShopItem{Kind: kind, Name: name, Note: note, Price: price, Stock: stock}
+	// 价格与加成表单里填的是整数积分,库里存「分」,在这里换算一次
+	it := db.ShopItem{Kind: kind, Name: name, Note: note, Price: db.Pts(price), Stock: stock}
 	switch kind {
 	case "badge":
 		if badgeID <= 0 {
@@ -269,7 +270,7 @@ func parseShopItemForm(r *http.Request, kind string) (db.ShopItem, string) {
 		if days < 0 || days > 3650 {
 			return db.ShopItem{}, "有效天数需在 0–3650 之间(0=不限期)"
 		}
-		it.Bonus, it.Days = bonus, days
+		it.Bonus, it.Days = db.Pts(bonus), days
 	case "custom":
 		if utf8.RuneCountInString(note) < 1 {
 			return db.ShopItem{}, "自定义商品请在说明里写清兑换后怎么发放"

@@ -15,8 +15,8 @@ import (
 const (
 	maxDMLen        = 2000
 	dmPerPage       = 20
-	dmMessagesLimit = 200  // 会话页最多展示最近这么多条
-	maxRedpack      = 5000 // 单个红包上限
+	dmMessagesLimit = 200                  // 会话页最多展示最近这么多条
+	maxRedpack      = 5000 * db.PointScale // 单个红包上限(内部单位「分」)
 )
 
 type dmListData struct {
@@ -190,9 +190,10 @@ func (s *Server) dmRedpack(w http.ResponseWriter, r *http.Request) {
 	if conv == nil {
 		return
 	}
-	amount, err := strconv.ParseInt(strings.TrimSpace(r.FormValue("amount")), 10, 64)
+	// 红包金额允许两位小数
+	amount, err := db.ParsePoints(r.FormValue("amount"))
 	if err != nil || amount < 1 || amount > maxRedpack {
-		http.Error(w, "红包积分需在 1–5000 之间", http.StatusBadRequest)
+		http.Error(w, "红包积分需在 0.01–5000 之间", http.StatusBadRequest)
 		return
 	}
 	_, err = s.store.SendRedpack(conv.ID, user.ID, amount, "发给 "+conv.PeerName+" 的红包")

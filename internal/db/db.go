@@ -2879,7 +2879,11 @@ const dmConvSelect = `
 	       COALESCE((SELECT CASE
 	                          WHEN m.kind <> 'redpack' THEN m.body
 	                          WHEN m.rp_status = 'refunded' THEN '撤回了一条消息'
-	                          ELSE '[红包 ' || m.amount || ' 积分]' END
+	                          -- amount 存的是「分」,这里按两位小数展开再去掉末尾的 0,
+	                          -- 跟 Go 侧 db.FormatPoints 的口径保持一致
+	                          ELSE '[红包 ' ||
+	                               rtrim(rtrim(printf('%.2f', m.amount / 100.0), '0'), '.') ||
+	                               ' 积分]' END
 	                  FROM dm_messages m WHERE m.thread_id = t.id
 	                  ORDER BY m.id DESC LIMIT 1), ''),
 	       COALESCE((SELECT m.sender_id = ? FROM dm_messages m WHERE m.thread_id = t.id

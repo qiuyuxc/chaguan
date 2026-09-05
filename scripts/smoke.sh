@@ -715,6 +715,27 @@ check "打赏金额过大被拒" "400" "$code"
 CSRF2=$(curl -s -b "$JAR" -c "$JAR" "$BASE/t/1" | grep -o 'name="_csrf" value="[^"]*"' | head -1 | sed 's/.*value="//;s/"//')
 code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" -H "X-CSRF-Token: $CSRF2" -d "amount=5" "$BASE/t/1/tip")
 check "不能打赏自己" "400" "$code"
+# 两位小数:打赏 3.24 要精确到分,整数余额不该显示成 80.00
+CSRF=$(curl -s -b "$JAR2" -c "$JAR2" "$BASE/t/1" | grep -o 'name="_csrf" value="[^"]*"' | head -1 | sed 's/.*value="//;s/"//' || true)
+TIPD=$(curl -s -b "$JAR2" -H "X-CSRF-Token: $CSRF" -d "amount=3.24" "$BASE/t/1/tip")
+contains "小数打赏累加进总额" "$TIPD" '<b>23.24</b>'
+PD=$(curl -s -b "$JAR2" "$BASE/points")
+contains "小数打赏后余额精确到分" "$PD" '<b class="pt-num">76.76</b>'
+contains "流水里的小数金额也带两位" "$PD" "\-3.24"
+lacks "整数金额不补 .00" "$PD" "每日签到</span>.*+5.00"
+code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR2" -H "X-CSRF-Token: $CSRF" -d "amount=1.234" "$BASE/t/1/tip")
+check "超过两位小数被拒" "400" "$code"
+code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR2" -H "X-CSRF-Token: $CSRF" -d "amount=0.001" "$BASE/t/1/tip")
+check "小于 0.01 被拒" "400" "$code"
+code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR2" -H "X-CSRF-Token: $CSRF" -d "amount=abc" "$BASE/t/1/tip")
+check "非数字金额被拒" "400" "$code"
+# 后台调整也能用小数,把零头抹平
+csrf "$BASE/admin/points"
+curl -s -o /dev/null -b "$JAR" -d "_csrf=$CSRF&delta=-0.76&note=抹平零头" "$BASE/admin/points/2/adjust"
+contains "后台按小数扣减" "$(curl -s -b "$JAR2" "$BASE/points")" '<b class="pt-num">76</b>'
+csrf "$BASE/admin/points"
+A=$(curl -s -b "$JAR" -d "_csrf=$CSRF&delta=1.005&note=三位小数" "$BASE/admin/points/2/adjust")
+contains "后台三位小数被拒" "$A" "最多两位小数"
 JAR6=$(mktemp)
 CSRF3=$(curl -s -c "$JAR6" "$BASE/register" | grep -o 'name="_csrf" value="[^"]*"' | head -1 | sed 's/.*value="//;s/"//')
 curl -s -o /dev/null -b "$JAR6" -c "$JAR6" -d "_csrf=$CSRF3&name=poorguy&password=password123" "$BASE/register"
@@ -860,10 +881,10 @@ A=$(curl -s -b "$JAR" -d "_csrf=$CSRF" --data-urlencode "category=tech" --data-u
   --data-urlencode "sponsor=100000" --data-urlencode "winners=1" "$BASE/new")
 contains "积分不够垫奖池被拒" "$A" "积分不够垫这个奖池"
 csrf "$BASE/new"
-A=$(curl -s -b "$JAR" -d "_csrf=$CSRF" --data-urlencode "category=tech" --data-urlencode "title=人数超奖池" \
-  --data-urlencode "content=测试" --data-urlencode "kind=lottery_points" \
+A=$(curl -s -b "$JAR" -d "_csrf=$CSRF" --data-urlencode "category=tech" --data-urlencode "title=人数多于奖池整数" \
+  --data-urlencode "content=积分能拆到两位小数,3 分给 5 个人是可以的" --data-urlencode "kind=lottery_points" \
   --data-urlencode "sponsor=3" --data-urlencode "winners=5" --data-urlencode "stake=0" "$BASE/new")
-contains "中奖人数不能超过奖池" "$A" "每位中奖者至少分到 1 积分"
+lacks "3 积分分给 5 人不再被拒(小数拆得开)" "$A" "每位中奖者至少分到"
 csrf "$BASE/new"
 A=$(curl -s -b "$JAR" -d "_csrf=$CSRF" --data-urlencode "category=tech" --data-urlencode "title=没奖可发" \
   --data-urlencode "content=测试" --data-urlencode "kind=lottery_points" \
@@ -905,10 +926,10 @@ csrf "$BASE/t/$PTID"
 code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" -d "_csrf=$CSRF" "$BASE/t/$PTID/draw")
 check "积分抽奖开奖" "303" "$code"
 P=$(curl -s -b "$JAR" "$BASE/t/$PTID")
-WON=$(grep -oE 'lot-win">中奖 \+[0-9]+' <<<"$P" | grep -oE '[0-9]+$')
+WON=$(grep -oE 'lot-win">中奖 \+[0-9.]+' <<<"$P" | grep -oE '[0-9.]+$')
 check "中奖人数等于参与人数(全员分)" "2" "$(grep -c . <<<"$WON")"
-check "奖池随机拆完不丢分" "10" "$(awk '{s+=$1} END{print s+0}' <<<"$WON")"
-check "每位中奖者至少 1 积分" "1" "$([ "$(sort -n <<<"$WON" | head -1)" -ge 1 ] && echo 1 || echo 0)"
+check "奖池随机拆完不丢分" "10.00" "$(awk '{s+=$1} END{printf "%.2f", s}' <<<"$WON")"
+check "每位中奖者至少 0.01 积分" "1" "$(awk 'BEGIN{ok=1} {if ($1 < 0.01) ok=0} END{print ok}' <<<"$WON")"
 contains "中奖者积分到账" "$(curl -s -b "$JARG" "$BASE/points")" "抽奖中奖"
 # 无人参与:开奖等于关掉,奖池原路退回
 PB3=$(curl -s -b "$JAR" "$BASE/points" | grep -oE '<b class="pt-num">[0-9]+' | sed 's/.*>//')

@@ -12,11 +12,11 @@
   <span class="tip-wrap">
     <button type="button" class="react-btn tip-btn{{if .TipTotal}} has{{end}}" data-tip-toggle aria-expanded="false" title="用积分打赏作者" aria-label="打赏">
       <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>
-      {{if .TipTotal}}<b>{{.TipTotal}}</b>{{end}}
+      {{if .TipTotal}}<b>{{pts .TipTotal}}</b>{{end}}
     </button>
     <span class="tip-pop" data-tip-pop hidden>
       <span class="tip-pop-t">
-        打赏积分 · 我有 {{.MyPoints}}
+        打赏积分 · 我有 {{pts .MyPoints}}
         <button type="button" class="tip-x" data-tip-close title="关闭" aria-label="关闭">
           <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
         </button>
@@ -30,7 +30,7 @@
       </form>
       <form hx-post="/t/{{.Thread.ID}}/tip" hx-target="#op-reacts" hx-swap="outerHTML" class="tip-custom">
         {{csrfField .CSRF}}
-        <input class="input input-sm tip-input" type="number" name="amount" min="1" max="10000"
+        <input class="input input-sm tip-input" type="number" name="amount" min="0.01" max="10000" step="0.01"
                placeholder="自定义" aria-label="自定义打赏积分">
         <button class="btn btn-primary btn-sm" type="submit">打赏</button>
       </form>

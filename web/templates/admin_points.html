@@ -27,12 +27,12 @@
       <div class="tr-top">
         <a class="author" href="/u/{{.ID}}">{{.Name}}</a>
         {{roleBadge .Role .BadgeText}}
-        <span class="m">积分 <b>{{.Points}}</b></span>
+        <span class="m">积分 <b>{{pts .Points}}</b></span>
       </div>
       <form class="pt-adjust" method="post" action="/admin/points/{{.ID}}/adjust">
         {{csrfField $.CSRF}}
         <input type="hidden" name="q" value="{{$.Q}}">
-        <input class="input input-sm pt-delta-in" type="number" name="delta" min="-1000000" max="1000000" required placeholder="+100 / -50" aria-label="积分变动">
+        <input class="input input-sm pt-delta-in" type="number" name="delta" min="-1000000" max="1000000" step="0.01" required placeholder="+100 / -50" aria-label="积分变动">
         <input class="input input-sm pt-note-in" name="note" maxlength="60" required placeholder="调整原因(必填)" aria-label="调整原因">
         <button class="btn btn-white btn-sm" type="submit">调整</button>
       </form>

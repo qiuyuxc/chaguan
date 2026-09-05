@@ -49,10 +49,10 @@
           <span class="author">{{.Name}}</span>
           {{if eq .Kind "badge"}}<span class="badge">勋章</span>{{else if eq .Kind "checkin"}}<span class="badge">签到加成</span>{{else}}<span class="badge">自定义</span>{{end}}
           {{if not .Active}}<span class="badge badge-lock">已下架</span>{{end}}
-          <span class="m">{{.Price}} 积分</span>
+          <span class="m">{{pts .Price}} 积分</span>
         </div>
         <div class="tr-meta">
-          {{if eq .Kind "checkin"}}<span>每天 +{{.Bonus}} 积分{{if .Days}} · {{.Days}} 天{{else}} · 不限期{{end}}</span>{{end}}
+          {{if eq .Kind "checkin"}}<span>每天 +{{pts .Bonus}} 积分{{if .Days}} · {{.Days}} 天{{else}} · 不限期{{end}}</span>{{end}}
           <span>{{if ge .Stock 0}}剩余 {{.Stock}}{{else}}不限量{{end}}</span>
           {{if .Note}}<span>{{.Note}}</span>{{end}}
         </div>
@@ -60,9 +60,9 @@
       <div class="row-acts row-acts-tight">
         <button class="btn btn-white btn-sm" type="button" data-shop-edit
                 data-id="{{.ID}}" data-kind="{{.Kind}}" data-name="{{.Name}}"
-                data-note="{{.Note}}" data-price="{{.Price}}"
+                data-note="{{.Note}}" data-price="{{pts .Price}}"
                 data-badge="{{if .BadgeID.Valid}}{{.BadgeID.Int64}}{{end}}"
-                data-bonus="{{.Bonus}}" data-days="{{.Days}}"
+                data-bonus="{{pts .Bonus}}" data-days="{{.Days}}"
                 data-stock="{{if ge .Stock 0}}{{.Stock}}{{end}}">编辑</button>
         <form method="post" action="/admin/shop/{{.ID}}/toggle">
           {{csrfField $.CSRF}}
@@ -165,7 +165,7 @@
         <span class="pt-log-note">兑换人:<a href="/u/{{.UserID}}">{{.UserName}}</a></span>
       </div>
       <div class="pt-log-side">
-        <b class="pt-delta down">-{{.Price}}</b>
+        <b class="pt-delta down">-{{pts .Price}}</b>
         <span class="pt-log-time">{{relTime .CreatedAt}}</span>
       </div>
     </div>

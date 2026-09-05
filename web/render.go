@@ -118,6 +118,8 @@ var funcs = template.FuncMap{
 	"vColorClass":  vColorClass,
 	"quotePreview": quotePreview,
 	"pointKind":    pointKindName,
+	// pts 渲染积分:库里存的是「分」,这里换成人看的两位小数(整数不带小数点)
+	"pts": db.FormatPoints,
 }
 
 // pointKindName 把积分流水类型翻成中文,列表里直接显示。

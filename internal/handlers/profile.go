@@ -17,7 +17,7 @@ import (
 const (
 	maxBioLen = 200
 	// 改显示名收费:显示名全站唯一且到处都在展示,收点积分挡住随手改名
-	renameCost = 3
+	renameCost = 3 * db.PointScale
 )
 
 type profileData struct {

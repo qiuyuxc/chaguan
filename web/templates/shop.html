@@ -2,7 +2,7 @@
 <div class="page-head">
   <div>
     <h1>积分商城</h1>
-    <p class="page-sub">用积分兑换勋章与增值服务 · 当前 <b>{{.Points}}</b> 积分</p>
+    <p class="page-sub">用积分兑换勋章与增值服务 · 当前 <b>{{pts .Points}}</b> 积分</p>
   </div>
   <a class="btn btn-white btn-sm" href="/points">积分明细</a>
 </div>
@@ -28,11 +28,11 @@
         {{.Name}}
       </span>
       {{end}}
-      <b class="shop-price">{{.Price}} 积分</b>
+      <b class="shop-price">{{pts .Price}} 积分</b>
     </div>
     {{if .Note}}<p class="shop-note">{{.Note}}</p>{{end}}
     <p class="shop-spec">
-      {{if eq .Kind "badge"}}兑换后可在「编辑资料」里佩戴{{else if eq .Kind "checkin"}}签到每天多得 <b>{{.Bonus}}</b> 积分{{if .Days}} · 有效 {{.Days}} 天{{else}} · 不限期{{end}}{{else}}兑换后由管理员按说明发放{{end}}
+      {{if eq .Kind "badge"}}兑换后可在「编辑资料」里佩戴{{else if eq .Kind "checkin"}}签到每天多得 <b>{{pts .Bonus}}</b> 积分{{if .Days}} · 有效 {{.Days}} 天{{else}} · 不限期{{end}}{{else}}兑换后由管理员按说明发放{{end}}
       {{if ge .Stock 0}} · 剩余 {{.Stock}}{{end}}
     </p>
     <div class="shop-act">
@@ -41,7 +41,7 @@
       {{else if .SoldOut}}
       <button class="btn btn-white btn-sm" type="button" disabled>已兑换完</button>
       {{else}}
-      <form method="post" action="/shop/{{.ID}}/redeem" data-confirm="用 {{.Price}} 积分兑换「{{.Name}}」?">
+      <form method="post" action="/shop/{{.ID}}/redeem" data-confirm="用 {{pts .Price}} 积分兑换「{{.Name}}」?">
         {{csrfField $.CSRF}}
         <button class="btn btn-primary btn-sm" type="submit">兑换</button>
       </form>
@@ -61,7 +61,7 @@
   <div class="pt-log">
     <div class="pt-log-main"><span class="pt-log-kind">{{.Name}}</span></div>
     <div class="pt-log-side">
-      <b class="pt-delta down">-{{.Price}}</b>
+      <b class="pt-delta down">-{{pts .Price}}</b>
       <span class="pt-log-time">{{relTime .CreatedAt}}</span>
     </div>
   </div>

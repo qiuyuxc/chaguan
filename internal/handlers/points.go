@@ -4,7 +4,6 @@ package handlers
 
 import (
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -13,9 +12,11 @@ import (
 )
 
 const (
-	checkinPoints = 5  // 每天签到基础积分
-	checkinExp    = 5  // 每天签到经验
-	maxTip        = 10000
+	// 积分常量都以内部单位「分」记(1 积分 = 100 分),写 *db.PointScale
+	// 而不是直接写 500,免得以后看不出是 5 积分还是 500 积分
+	checkinPoints = 5 * db.PointScale     // 每天签到基础积分
+	checkinExp    = 5                     // 每天签到经验(经验不是积分,不放大)
+	maxTip        = 10000 * db.PointScale // 单次打赏上限
 	pointsPerPage = 20
 )
 
@@ -29,6 +30,7 @@ type pointsData struct {
 	Days        int64  // 累计签到天数
 	CheckedIn   bool
 	Bonus       int64  // 增值服务带来的每日额外积分
+	Gain        int64  // 今天签到能拿多少(基础 + 加成),按钮上直接写清
 	Notice      string // 签到成功提示
 	Page, Pages int
 	BaseURL     string
@@ -76,6 +78,7 @@ func (s *Server) points(w http.ResponseWriter, r *http.Request) {
 		Days:      days,
 		CheckedIn: done,
 		Bonus:     user.CheckinExtra(),
+		Gain:      checkinPoints + user.CheckinExtra(),
 		Notice:    notice,
 		Page:      page,
 		Pages:     totalPages(total, pointsPerPage),
@@ -132,9 +135,10 @@ func (s *Server) tip(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "不能打赏自己的帖子", http.StatusBadRequest)
 		return
 	}
-	amount, err := strconv.ParseInt(strings.TrimSpace(r.FormValue("amount")), 10, 64)
+	// 打赏允许两位小数(用户自己定的金额),预设按钮传的整数也走同一条解析
+	amount, err := db.ParsePoints(r.FormValue("amount"))
 	if err != nil || amount < 1 || amount > maxTip {
-		http.Error(w, "打赏积分需在 1–10000 之间", http.StatusBadRequest)
+		http.Error(w, "打赏积分需在 0.01–10000 之间", http.StatusBadRequest)
 		return
 	}
 	note := "打赏《" + t.Title + "》"

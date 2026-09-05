@@ -72,15 +72,15 @@
       <p class="page-sub">
         {{if .Gate.NeedLevel}}需要 LV{{.Gate.NeedLevel}} 及以上{{if .User}}(你现在是 LV{{.Gate.MyLevel}}){{end}}{{end}}
         {{if and .Gate.NeedLevel .Gate.NeedPay}} · {{end}}
-        {{if .Gate.NeedPay}}需支付 {{.Gate.NeedPay}} 积分解锁{{end}}
+        {{if .Gate.NeedPay}}需支付 {{pts .Gate.NeedPay}} 积分解锁{{end}}
       </p>
     </div>
     {{if not .User}}
     <a class="btn btn-primary btn-sm" href="/login">登录后查看</a>
     {{else if and .Gate.NeedPay (not .Gate.NeedLevel)}}
-    <form method="post" action="/t/{{.Thread.ID}}/unlock" data-confirm="支付 {{.Gate.NeedPay}} 积分解锁这篇内容?">
+    <form method="post" action="/t/{{.Thread.ID}}/unlock" data-confirm="支付 {{pts .Gate.NeedPay}} 积分解锁这篇内容?">
       {{csrfField .CSRF}}
-      <button class="btn btn-primary btn-sm" type="submit">用 {{.Gate.NeedPay}} 积分解锁</button>
+      <button class="btn btn-primary btn-sm" type="submit">用 {{pts .Gate.NeedPay}} 积分解锁</button>
     </form>
     {{end}}
   </div>
@@ -92,7 +92,7 @@
 <section class="lot-card{{if .Lot.Over}} drawn{{end}}">
   <div class="lot-head">
     <span class="lot-tag">{{if .Lot.IsPoints}}积分抽奖{{else}}抽奖{{end}}</span>
-    <b class="lot-prize">{{if .Lot.IsPoints}}{{.Lot.Pool}} 积分{{else}}{{.Lot.Prize}}{{end}}</b>
+    <b class="lot-prize">{{if .Lot.IsPoints}}{{pts .Lot.Pool}} 积分{{else}}{{.Lot.Prize}}{{end}}</b>
     {{if .Lot.Canceled}}<span class="badge badge-lock">无人参与,已退回</span>
     {{else if .Lot.Drawn}}<span class="badge badge-lock">已开奖</span>
     {{else}}<span class="badge">进行中</span>{{end}}
@@ -100,19 +100,19 @@
   <div class="lot-meta">
     <span>中奖 <b>{{if .Lot.Winners}}{{.Lot.Winners}}{{else}}全员{{end}}</b>{{if .Lot.Winners}} 人{{end}}</span>
     <span>已参与 <b>{{.Lot.Entries}}</b>{{if .Lot.MaxEntries}} / {{.Lot.MaxEntries}}{{end}} 人</span>
-    {{if .Lot.Stake}}<span>参与投入 <b>{{.Lot.Stake}}</b> 积分</span>{{end}}
-    {{if .Lot.Pool}}<span>奖池 <b>{{.Lot.Pool}}</b> 积分</span>{{end}}
+    {{if .Lot.Stake}}<span>参与投入 <b>{{pts .Lot.Stake}}</b> 积分</span>{{end}}
+    {{if .Lot.Pool}}<span>奖池 <b>{{pts .Lot.Pool}}</b> 积分</span>{{end}}
     {{if and .Lot.DrawAt.Valid (not .Lot.Over)}}<span><time data-localtime="{{.Lot.DrawAt.Int64}}">{{absTime .Lot.DrawAt.Int64}}</time> 自动开奖</span>{{end}}
   </div>
   {{if not .Lot.Over}}
   <p class="lot-tip">
     {{if .LotJoined}}你已参与,{{if .Lot.DrawAt.Valid}}等到点自动开奖{{else}}等楼主开奖{{end}}
     {{else if .Lot.Full}}参与人数已满,后来的回复不再计入名单
-    {{else if .User}}在下面回复一句即参与{{if .Lot.Stake}},回复时会扣 {{.Lot.Stake}} 积分进奖池{{end}}
+    {{else if .User}}在下面回复一句即参与{{if .Lot.Stake}},回复时会扣 {{pts .Lot.Stake}} 积分进奖池{{end}}
     {{else}}登录后回复即可参与{{end}}
   </p>
   {{if .Lot.IsPoints}}
-  <p class="lot-tip">开奖时奖池会随机拆开自动打进中奖者账户,每人至少 1 积分。</p>
+  <p class="lot-tip">开奖时奖池会随机拆开自动打进中奖者账户,每人至少 0.01 积分。</p>
   {{end}}
   {{end}}
   {{if .LotEntries}}
@@ -122,7 +122,7 @@
       {{if .UserAvatar}}<span class="avatar av-32"><img src="{{.UserAvatar}}" alt="" aria-hidden="true"></span>
       {{else}}<span class="avatar av-32 {{avColor .UserID}}" aria-hidden="true">{{initial .UserName}}</span>{{end}}
       <span class="lot-entry-name">{{.UserName}}</span>
-      {{if .Won}}<span class="lot-win">中奖{{if .Prize}} +{{.Prize}}{{end}}</span>{{end}}
+      {{if .Won}}<span class="lot-win">中奖{{if .Prize}} +{{pts .Prize}}{{end}}</span>{{end}}
     </a>
     {{end}}
   </div>

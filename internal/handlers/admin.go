@@ -475,9 +475,15 @@ func (s *Server) adminAdjustPoints(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	delta, err := strconv.ParseInt(strings.TrimSpace(r.FormValue("delta")), 10, 64)
-	if err != nil || delta == 0 || delta < -1000000 || delta > 1000000 {
-		s.adminPointsPage(w, r, "积分变动需为非 0 整数,且不超过 ±1000000", "")
+	// 后台调整也允许两位小数:用户余额可能是 3.24,不给小数就没法抹平
+	raw := strings.TrimSpace(r.FormValue("delta"))
+	neg := strings.HasPrefix(raw, "-")
+	delta, err := db.ParsePoints(strings.TrimPrefix(raw, "-"))
+	if neg {
+		delta = -delta
+	}
+	if err != nil || delta == 0 || delta < -1000000*db.PointScale || delta > 1000000*db.PointScale {
+		s.adminPointsPage(w, r, "积分变动需为非 0 数值(最多两位小数),且不超过 ±1000000", "")
 		return
 	}
 	note := strings.TrimSpace(r.FormValue("note"))

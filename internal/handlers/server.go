@@ -19,7 +19,9 @@ const (
 	postsPerPage   = 15
 	maxPostLen     = 10000
 	maxTitleLen    = 120
-	// 发帖时可设的上限:付费帖价格、抽奖参与投入、楼主自掏的抽奖奖池
+	// 发帖时可设的上限:付费帖价格、抽奖参与投入、楼主自掏的抽奖奖池。
+	// 这三个表单只让填整数积分,所以这里也是「整数积分」,不是内部单位「分」——
+	// 校验用它比,存库前再由 db.Pts() 放大。
 	maxThreadPrice  = 10000
 	maxLotteryStake = 1000
 	maxLotteryPool  = 100000

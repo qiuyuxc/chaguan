@@ -567,9 +567,9 @@ func (s *Server) createThread(w http.ResponseWriter, r *http.Request, user *db.U
 			case sponsor < 1 && stake < 1:
 				fail("积分抽奖要么自己出奖池,要么设参与投入,不然没有奖可发")
 				return
-			case stake < 1 && winners > 0 && int64(winners) > sponsor:
-				// 每人至少分到 1 分,所以中奖人数不可能超过奖池
-				fail("中奖人数不能超过奖池积分 —— 每位中奖者至少分到 1 积分")
+			case stake < 1 && winners > 0 && int64(winners) > db.Pts(sponsor):
+				// 每人至少分到 0.01 积分,所以中奖人数不可能超过奖池的「分」数
+				fail("中奖人数不能超过奖池 —— 每位中奖者至少分到 0.01 积分")
 				return
 			}
 			// 积分奖的「奖品」是奖池本身,标题上不再要求另填说明
@@ -577,9 +577,9 @@ func (s *Server) createThread(w http.ResponseWriter, r *http.Request, user *db.U
 		}
 	}
 	id, err := s.store.CreateThread(cat.ID, user.ID, title, content, markdown.Render(content), db.NewThread{
-		Kind: kind, MinLevel: minLevel, Price: price,
-		Prize: prize, Winners: winners, Stake: stake,
-		PayKind: payKind, Sponsor: sponsor, MaxEntries: maxEntries, DrawAt: drawAt,
+		Kind: kind, MinLevel: minLevel, Price: db.Pts(price),
+		Prize: prize, Winners: winners, Stake: db.Pts(stake),
+		PayKind: payKind, Sponsor: db.Pts(sponsor), MaxEntries: maxEntries, DrawAt: drawAt,
 	})
 	if err == db.ErrNotEnoughPoints {
 		fail("你的积分不够垫这个奖池")
