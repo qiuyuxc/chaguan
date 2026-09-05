@@ -1225,6 +1225,9 @@ contains "私信用通用编辑器" "$D" 'class="composer"'
 contains "编辑器带插图入口" "$D" 'data-compose="upload"'
 contains "编辑器带红包按钮" "$D" "data-rp-toggle"
 contains "红包面板默认收起" "$D" "data-rp-panel hidden"
+# 面板必须浮在输入框上方:它原来是向下展开的普通块,而输入框就在页面最底下,
+# 展开只是把页面撑高、下面一片留白,滚过去也看不出发生了什么
+contains "红包面板浮在输入框上方" "$(curl -s "$BASE/static/style.css")" "position: absolute; left: 0; right: 0; bottom: 100%"
 # 私信用的是论坛那个 composer(带插图),所以正文也得按 Markdown 渲染 ——
 # 否则插进去的图片只会原样显示成 ![](/uploads/12)
 CSRFD=$(curl -s -b "$JAR2" -c "$JAR2" "$BASE/messages/$DMID" | grep -o 'name="_csrf" value="[^"]*"' | head -1 | sed 's/.*value="//;s/"//' || true)

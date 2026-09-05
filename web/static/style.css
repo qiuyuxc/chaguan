@@ -2021,12 +2021,18 @@ html[data-theme="dark"] .avatar.c5, html[data-theme="dark"] .avatar.c6 { color: 
 /* 撤回后的占位气泡:虚线边 + 灰字,一眼看出不是真消息(金额已经不渲染了) */
 .dm-revoked { border-style: dashed; background: transparent; }
 .dm-revoked .dm-text { color: var(--ink-4); }
-.dm-compose { padding-top: 10px; border-top: 1px solid var(--line); }
+.dm-compose { position: relative; padding-top: 10px; border-top: 1px solid var(--line); }
 .dm-form { display: block; margin: 0; }
+/* 红包面板浮在输入框「上方」,不占文档流。原来它是向下展开的普通块:
+   输入框本来就在页面最底下,展开只会把页面撑高,下面又什么都没有 —— 滚过去
+   就是一片大留白。改成绝对定位盖在消息区底部(聊天软件的通用做法),
+   高度不变、位置固定、一打开就在眼前,不需要滚动。 */
 .rp-panel {
+  position: absolute; left: 0; right: 0; bottom: 100%; z-index: 12;
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-  margin-top: 8px; padding: 9px 10px;
-  background: var(--bg); border: 1px dashed var(--line-strong); border-radius: var(--r-card);
+  margin-bottom: 8px; padding: 9px 10px;
+  background: var(--card); border: 1px solid var(--line-strong);
+  border-radius: var(--r-card); box-shadow: var(--shadow-card);
 }
 .rp-panel-t { font-size: 11px; color: var(--ink-3); }
 .rp-form { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0; }

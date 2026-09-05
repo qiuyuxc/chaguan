@@ -83,7 +83,7 @@ scripts/            端到端测试脚本
 ```bash
 go build -o bbs ./cmd/bbs
 PORT=8090 BBS_DB=/tmp/t.db BBS_UPLOADS=/tmp ./bbs &   # 起一个空库实例
-BASE=http://localhost:8090 bash scripts/smoke.sh      # 515 条 curl 断言
+BASE=http://localhost:8090 bash scripts/smoke.sh      # 516 条 curl 断言
 bash scripts/mailflow.sh                              # 邮件链路 16 条(python3 起假 SMTP)
 bash scripts/accountflow.sh                           # 两步验证 18 条(python3 算 TOTP)
 bash scripts/sweeper.sh                               # 巡检 24 条(红包超时退回 + 定点开奖)

@@ -1222,10 +1222,6 @@
       closeTips(pop);
       pop.hidden = !willOpen;
       btn.setAttribute("aria-expanded", willOpen ? "true" : "false");
-      if (willOpen) {
-        // 同私信红包面板:向下展开的东西在手机上可能落在屏幕外,滚过来才看得见
-        try { pop.scrollIntoView({ behavior: "smooth", block: "nearest" }); } catch (err) {}
-      }
       return;
     }
     if (e.target.closest && e.target.closest("[data-tip-close]")) {
@@ -1417,10 +1413,9 @@
     panel.hidden = !open;
     btn.classList.toggle("on", open);
     btn.setAttribute("aria-expanded", open ? "true" : "false");
+    // 面板是浮在输入框上方的(见 style.css 里 .rp-panel),不占文档流也不会
+    // 把页面撑高,所以不用滚动,只把焦点送进金额框(手机上顺带弹数字键盘)
     if (!open) return;
-    // 面板是向下展开的,在手机上正好被折在屏幕外 —— 只切 hidden 的话页面看不出
-    // 任何变化,用户以为按钮没反应。滚过去 + 聚焦金额框(顺带弹出数字键盘)
-    try { panel.scrollIntoView({ behavior: "smooth", block: "nearest" }); } catch (e) {}
     var amt = panel.querySelector("input[type=number]");
     if (amt) { try { amt.focus(); } catch (e) {} }
   });
