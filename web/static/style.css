@@ -1981,6 +1981,8 @@ html[data-theme="dark"] .avatar.c5, html[data-theme="dark"] .avatar.c6 { color: 
 .picker-btn .ic { color: var(--ink-4); }
 .picker-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .picker.need .picker-btn { border-color: #e0443e; color: #e0443e; }
+/* 必选项的行内提示:一直留着直到选了东西,不是闪一下就没(闪的那下在屏幕外) */
+.picker-need { margin: 6px 0 0; font-size: 12px; color: #e0443e; }
 .picker-card {
   width: min(420px, 100%); max-height: min(70vh, 520px);
   display: flex; flex-direction: column; gap: 10px;

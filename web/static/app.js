@@ -1353,16 +1353,35 @@
     document.addEventListener("keydown", function (e) {
       if (e.key === "Escape" && !modal.hidden) hide();
     });
-    // 必选项:没选就拦住提交并给出视觉提示
+    // 必选项:没选就拦住提交。以前只给 box 闪 700ms 红边就完事,但必选项通常在
+    // 表单顶部、提交按钮在底部 —— 手机上那点反馈发生在屏幕外,用户看到的是
+    // 「点了没反应也不报错」。所以现在滚回去、留住提示、把焦点也移过来。
     var form = box.closest("form");
     if (form && box.getAttribute("data-optional") === null) {
-      form.addEventListener("submit", function (e) {
-        if (!input.value) {
-          e.preventDefault();
-          box.classList.add("need");
-          setTimeout(function () { box.classList.remove("need"); }, 700);
+      var need = null;
+      function showNeed() {
+        box.classList.add("need");
+        if (!need) {
+          need = document.createElement("p");
+          need.className = "picker-need";
+          need.setAttribute("role", "alert");
+          need.textContent = box.getAttribute("data-need") || "这一项必选";
+          box.appendChild(need);
         }
+        need.hidden = false;
+        try { box.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (e) {}
+        try { open.focus(); } catch (e) {}
+      }
+      function clearNeed() {
+        box.classList.remove("need");
+        if (need) need.hidden = true;
+      }
+      form.addEventListener("submit", function (e) {
+        if (input.value) return;
+        e.preventDefault();
+        showNeed();
       });
+      input.addEventListener("change", clearNeed); // 选好了就把提示撤掉
     }
   });
 })();

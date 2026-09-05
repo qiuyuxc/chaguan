@@ -17,7 +17,7 @@
   </div>
   <div class="compose-field">
     <span class="flabel">版块</span>
-    <div class="picker" data-picker>
+    <div class="picker" data-picker data-need="请先选择版块 —— 点上面的按钮挑一个">
       <input type="hidden" name="category" id="thread-category" value="{{if .Category}}{{.Category.Slug}}{{end}}">
       <button type="button" class="picker-btn" data-picker-open>
         <span data-picker-label>{{if .Category}}{{.Category.Name}}{{else}}选择版块…{{end}}</span>

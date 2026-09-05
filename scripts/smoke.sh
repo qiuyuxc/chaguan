@@ -89,6 +89,12 @@ contains "分类筛选生效" "$CATF" "第一帖"
 NPP=$(curl -s -b "$JAR" "$BASE/new")
 contains "发帖页含版块字段" "$NPP" 'name="category"'
 contains "发帖页用内置版块面板" "$NPP" 'data-picker'
+# 忘选版块时提交会被拦住,提示必须留得住 —— 只闪 700ms 红边的话,必选项在表单
+# 顶部、按钮在底部,手机上那下反馈发生在屏幕外,用户看到的是「点了没反应」
+contains "版块必选带具体提示文案" "$NPP" 'data-need="请先选择版块'
+AJS=$(curl -s "$BASE/static/app.js")
+contains "必选提示会滚回可视区" "$AJS" "picker-need"
+lacks "必选提示不再 700ms 就撤" "$AJS" 'box.classList.remove("need"); }, 700)'
 contains "发帖页列出版块" "$NPP" "技术分享"
 contains "发帖页用新式编辑器" "$NPP" 'class="composer"'
 PP=$(curl -s -b "$JAR" "$BASE/c/tech/new")

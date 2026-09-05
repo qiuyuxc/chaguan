@@ -28,7 +28,7 @@
       <form method="post" action="/admin/categories/{{.ID}}/delete" class="cat-del-move">
         {{csrfField $.CSRF}}
         <input type="hidden" name="mode" value="move">
-        <div class="picker" data-picker>
+        <div class="picker" data-picker data-need="先选一个迁往的版块">
           <input type="hidden" name="to" value="">
           <button type="button" class="picker-btn" data-picker-open>
             <span data-picker-label>迁往…</span>
