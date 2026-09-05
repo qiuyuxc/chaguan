@@ -9,6 +9,5 @@ bbs-linux
 *.db
 *.db-wal
 *.db-shm
-preview
 scripts
 *.md
