@@ -841,6 +841,19 @@ contains "开奖后奖池只发一次" "$(curl -s -b "$JAR" "$BASE/t/$LOTID")" "
 
 echo "== 积分抽奖帖 =="
 contains "发帖页有三档类型" "$(curl -s -b "$JAR" "$BASE/new")" 'data-kind="lottery_points"'
+# 定点开奖的时区:datetime-local 不带时区,浏览器要把 UTC 偏移一起发来,
+# 否则服务器跑 UTC、用户在东八区时,「到点」会整体晚 8 小时(真踩过)
+contains "发帖页带时区偏移字段" "$(curl -s -b "$JAR" "$BASE/new")" "data-tz-offset"
+TZDAY=$(date -u -d '+10 days' +%Y-%m-%d 2>/dev/null || date -u -v+10d +%Y-%m-%d)
+csrf "$BASE/new"
+TZID=$(curl -s -o /dev/null -w '%{redirect_url}' -b "$JAR" -d "_csrf=$CSRF" \
+  --data-urlencode "category=tech" --data-urlencode "title=时区测试" \
+  --data-urlencode "content=东八区 20:00 应存成 UTC 12:00" --data-urlencode "kind=lottery" \
+  --data-urlencode "prize=时区奖品" --data-urlencode "winners=1" \
+  --data-urlencode "draw_at=${TZDAY}T20:00" --data-urlencode "tz_offset=480" "$BASE/new" | grep -oE '[0-9]+$')
+TZP=$(curl -s -b "$JAR" "$BASE/t/$TZID")
+contains "按浏览器时区换算开奖时刻" "$TZP" "12:00</time> 自动开奖"
+contains "开奖时间给前端本机化的钩子" "$TZP" "data-localtime="
 csrf "$BASE/new"
 A=$(curl -s -b "$JAR" -d "_csrf=$CSRF" --data-urlencode "category=tech" --data-urlencode "title=垫不起的奖池" \
   --data-urlencode "content=测试余额不足" --data-urlencode "kind=lottery_points" \

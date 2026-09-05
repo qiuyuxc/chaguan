@@ -102,7 +102,7 @@
     <span>已参与 <b>{{.Lot.Entries}}</b>{{if .Lot.MaxEntries}} / {{.Lot.MaxEntries}}{{end}} 人</span>
     {{if .Lot.Stake}}<span>参与投入 <b>{{.Lot.Stake}}</b> 积分</span>{{end}}
     {{if .Lot.Pool}}<span>奖池 <b>{{.Lot.Pool}}</b> 积分</span>{{end}}
-    {{if and .Lot.DrawAt.Valid (not .Lot.Over)}}<span>{{absTime .Lot.DrawAt.Int64}} 自动开奖</span>{{end}}
+    {{if and .Lot.DrawAt.Valid (not .Lot.Over)}}<span><time data-localtime="{{.Lot.DrawAt.Int64}}">{{absTime .Lot.DrawAt.Int64}}</time> 自动开奖</span>{{end}}
   </div>
   {{if not .Lot.Over}}
   <p class="lot-tip">

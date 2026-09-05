@@ -91,6 +91,9 @@
         <input class="input input-sm" type="datetime-local" name="draw_at" value="{{.DrawAtStr}}">
         <span class="um-f-tip">留空则只能你自己点「开奖」</span>
       </label>
+      {{/* datetime-local 不带时区,把浏览器的 UTC 偏移一起发过去,
+           免得服务器时区和你不一致时「到点」整体偏几小时 */}}
+      <input type="hidden" name="tz_offset" value="" data-tz-offset>
     </div>
   </div>
 

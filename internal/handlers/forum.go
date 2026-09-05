@@ -495,8 +495,16 @@ func (s *Server) createThread(w http.ResponseWriter, r *http.Request, user *db.U
 	drawAtStr := strings.TrimSpace(r.FormValue("draw_at"))
 	var drawAt int64
 	if drawAtStr != "" {
-		// datetime-local 不带时区,按服务器本地时间解析(签到那边也是这个口径)
-		if ts, err := time.ParseInLocation("2006-01-02T15:04", drawAtStr, time.Local); err == nil {
+		// datetime-local 不带时区。只用服务端 time.Local 解析的话,服务器时区
+		// 和用户不一致就会整体偏几小时(容器不设 TZ 时是 UTC,用户在东八区,
+		// 结果「到点」比预期晚 8 小时)。所以让浏览器把自己的 UTC 偏移一起发来,
+		// 拿不到(禁用 JS)才退回服务端本地时区。
+		loc := time.Local
+		if off, err := strconv.Atoi(strings.TrimSpace(r.FormValue("tz_offset"))); err == nil &&
+			off >= -14*60 && off <= 14*60 {
+			loc = time.FixedZone("client", off*60)
+		}
+		if ts, err := time.ParseInLocation("2006-01-02T15:04", drawAtStr, loc); err == nil {
 			drawAt = ts.Unix()
 		}
 	}

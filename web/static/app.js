@@ -1131,6 +1131,23 @@
   if (cancel) cancel.addEventListener("click", toNew);
 })();
 
+// 时区:datetime-local 不带时区,发帖时把浏览器的 UTC 偏移一起带上(东八区 = 480),
+// 服务端才能把「18:00」换成正确的时刻。反过来,展示未来时间的地方按本机时区改写,
+// 免得服务器跑在 UTC 时卡片上显示的钟点跟用户填的对不上。
+(function () {
+  document.querySelectorAll("[data-tz-offset]").forEach(function (el) {
+    el.value = String(-new Date().getTimezoneOffset());
+  });
+  function two(n) { return n < 10 ? "0" + n : String(n); }
+  document.querySelectorAll("[data-localtime]").forEach(function (el) {
+    var ts = parseInt(el.getAttribute("data-localtime"), 10);
+    if (!ts) return;
+    var d = new Date(ts * 1000);
+    el.textContent = two(d.getMonth() + 1) + "-" + two(d.getDate()) + " " +
+      two(d.getHours()) + ":" + two(d.getMinutes());
+  });
+})();
+
 // 发帖:帖子类型(普通/抽奖)与观看等级门槛的芯片选择
 (function () {
   var kindBox = document.querySelector("[data-kind-pick]");
