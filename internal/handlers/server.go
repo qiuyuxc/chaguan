@@ -19,9 +19,7 @@ const (
 	postsPerPage   = 15
 	maxPostLen     = 10000
 	maxTitleLen    = 120
-	// 发帖时可设的上限:付费帖价格、抽奖参与投入、楼主自掏的抽奖奖池。
-	// 这三个表单只让填整数积分,所以这里也是「整数积分」,不是内部单位「分」——
-	// 校验用它比,存库前再由 db.Pts() 放大。
+	// 这三个表单只让填整数积分,校验用它比,存库前再由 db.Pts() 放大。
 	maxThreadPrice  = 10000
 	maxLotteryStake = 1000
 	maxLotteryPool  = 100000
@@ -191,9 +189,7 @@ func Routes(store *db.Store, rend *web.Renderer, uploadsDir string, opts Options
 	return s.recoverMW(s.loadUserMW(s.csrfMW(mux)))
 }
 
-// startSweeper 后台巡检:红包超时退回 + 抽奖定点开奖。
-// 单二进制应用没有别的调度器,生命周期跟进程一致所以不带 ctx;
-// 启动时先扫一次,补上停机期间到点的。
+// startSweeper 后台巡检(红包超时退回 + 定点开奖),启动时先扫一次补上停机欠账。
 func (s *Server) startSweeper(opts Options) {
 	ttl, every := opts.redpackTTL(), opts.sweepEvery()
 	go func() {
@@ -225,8 +221,7 @@ func (s *Server) sweepRedpacks(ttl time.Duration) {
 	}
 }
 
-// sweepLotteries 到点自动开奖。抽签逻辑和手动开奖共用 runDraw,
-// actorID 传 0 表示系统开的(通知记在楼主名下)。
+// sweepLotteries 到点自动开奖,actorID 传 0 表示系统开的。
 func (s *Server) sweepLotteries() {
 	ids, err := s.store.DueLotteries(time.Now().Unix())
 	if err != nil {
@@ -297,8 +292,7 @@ func (s *Server) ensureCSRFCookie(w http.ResponseWriter, r *http.Request) string
 	return token
 }
 
-// csrfMW 校验所有写请求:表单 _csrf 或 X-CSRF-Token 头,
-// 必须与当前会话(或匿名 cookie)的 token 常量时间相等。
+// csrfMW 校验所有写请求:表单 _csrf 或 X-CSRF-Token 头,与当前会话 token 常量时间相等。
 func (s *Server) csrfMW(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -307,7 +301,7 @@ func (s *Server) csrfMW(next http.Handler) http.Handler {
 		}
 		info := auth.From(r.Context())
 		if strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
-			r.ParseMultipartForm(4 << 20) // 上传表单里也带 _csrf,需解析 multipart
+			r.ParseMultipartForm(4 << 20) // multipart 表单里也带 _csrf
 		} else {
 			r.ParseForm()
 		}

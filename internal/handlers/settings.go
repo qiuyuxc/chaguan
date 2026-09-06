@@ -30,15 +30,13 @@ func (s *Server) settings(w http.ResponseWriter, r *http.Request) {
 }
 
 // saveNotifySettings POST /settings/notify:保存接收范围与私信提醒。
-// 通知一律实时推送,不再提供「接收频率」这档设置。
 func (s *Server) saveNotifySettings(w http.ResponseWriter, r *http.Request) {
 	user := s.currentUser(w, r)
 	if user == nil {
 		return
 	}
 	scope := strings.TrimSpace(r.FormValue("scope"))
-	// 表单里没带 dm 字段时保持原值:设置接口只改提交上来的项,
-	// 不让一次不完整的提交把用户的私信提醒静默关掉。
+	// 表单没带 dm 字段时保持原值
 	dm := user.NotifyDM
 	if v := strings.TrimSpace(r.FormValue("dm")); v != "" {
 		dm = v == "1"

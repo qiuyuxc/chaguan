@@ -28,8 +28,7 @@ func envOr(key, def string) string {
 	return def
 }
 
-// envDur 读一个时长环境变量(如 "2s"、"24h")。生产用默认值就行,
-// 存在的意义主要是让测试脚本把「等 24 小时」压成「等 2 秒」。
+// envDur 读时长环境变量("2s"、"24h"),非法值回落默认。
 func envDur(key string, def time.Duration) time.Duration {
 	if v := os.Getenv(key); v != "" {
 		if d, err := time.ParseDuration(v); err == nil && d > 0 {
@@ -39,8 +38,7 @@ func envDur(key string, def time.Duration) time.Duration {
 	return def
 }
 
-// healthcheck 供容器探活用:请求本机 /healthz,正常返回 0。
-// distroless 镜像里没有 curl/wget,所以让二进制自己充当探针。
+// healthcheck 请求本机 /healthz,正常返回 0(distroless 里没有 curl,探活用二进制自己)。
 func healthcheck(port string) int {
 	c := &http.Client{Timeout: 3 * time.Second}
 	resp, err := c.Get("http://127.0.0.1:" + port + "/healthz")
@@ -56,8 +54,7 @@ func healthcheck(port string) int {
 	return 0
 }
 
-// applyTZ 显式按 TZ 装载时区并覆盖 time.Local:有些系统的 zoneinfo 布局 Go 认不出来,
-// TZ 被静默忽略后 time.Local 留在 UTC,签到的「一天」就会在错误的时刻翻页。
+// applyTZ 按 TZ 装载时区并覆盖 time.Local(全局副作用)。
 func applyTZ() {
 	name := os.Getenv("TZ")
 	if name == "" {

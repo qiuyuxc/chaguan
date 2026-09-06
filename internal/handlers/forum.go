@@ -208,12 +208,12 @@ func (s *Server) adminCategories(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// deleteCategory 删除版块。空版块直接删;非空版块必须明确指定处理方式:
+// deleteCategory 删除版块。空版块直接删;非空版块必须指定:
 //
-//	mode=cascade     连同版块内的主题与回复一起删除(政策原因需强删时用)
-//	mode=move&to=ID  先把主题整体迁到别的版块,再删掉这个版块
+//	mode=cascade     连同版块内的主题与回复一起删除
+//	mode=move&to=ID  先把主题迁到别的版块,再删掉这个版块
 //
-// 无论哪种都保留最后一个版块,否则发帖页会没有可选版块。
+// 总是保留最后一个版块。
 func (s *Server) deleteCategory(w http.ResponseWriter, r *http.Request) {
 	user := s.currentUser(w, r)
 	if user == nil {
@@ -350,7 +350,7 @@ func (s *Server) category(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// ---------- 新主题:直接发帖(标题 + 版块下拉 + 正文),不再先走版块选择页 ----------
+// ---------- 新主题 ----------
 
 type newThreadData struct {
 	web.Base
@@ -495,8 +495,7 @@ func (s *Server) createThread(w http.ResponseWriter, r *http.Request, user *db.U
 	drawAtStr := strings.TrimSpace(r.FormValue("draw_at"))
 	var drawAt int64
 	if drawAtStr != "" {
-		// datetime-local 不带时区,只靠服务端 time.Local 解析的话,服务器时区和
-		// 用户不一致就会整体偏几小时。浏览器会把自己的 UTC 偏移一起发来。
+		// datetime-local 不带时区,按客户端发来的偏移解析
 		loc := time.Local
 		if off, err := strconv.Atoi(strings.TrimSpace(r.FormValue("tz_offset"))); err == nil &&
 			off >= -14*60 && off <= 14*60 {
@@ -613,11 +612,11 @@ type threadData struct {
 	MyPoints    int64 // 我的积分余额(打赏面板提示)
 	CanModerate bool  // 当前查看者:管理员或该版块的版主(可置顶/锁定)
 	Gate        threadGate
-	Lot         *db.Lottery        // 抽奖设置(非抽奖帖为 nil)
-	LotEntries  []db.LotteryEntry  // 参与名单(中奖者在前)
-	LotJoined   bool               // 我是否已参与
-	CanDraw     bool               // 我能否开奖(楼主/管理员且未开奖)
-	Unlocks     int64              // 付费帖已解锁人数(作者/管理员可见)
+	Lot         *db.Lottery       // 抽奖设置(非抽奖帖为 nil)
+	LotEntries  []db.LotteryEntry // 参与名单(中奖者在前)
+	LotJoined   bool              // 我是否已参与
+	CanDraw     bool              // 我能否开奖(楼主/管理员且未开奖)
+	Unlocks     int64             // 付费帖已解锁人数(作者/管理员可见)
 }
 
 func (s *Server) thread(w http.ResponseWriter, r *http.Request) {
@@ -696,17 +695,11 @@ func (s *Server) thread(w http.ResponseWriter, r *http.Request) {
 			IsOP: p.AuthorID == t.AuthorID, LikeCount: likes.Count, LikedByMe: likes.Liked,
 			CanDelete: canDelete})
 	}
-	likeCount, favCount, liked, faved, err := s.store.ThreadReacts(t.ID, 0)
+	// viewerID 为 0(未登录)时 ThreadReacts 只取计数,不查「我赞过没」
+	likeCount, favCount, liked, faved, err := s.store.ThreadReacts(t.ID, viewerID)
 	if err != nil {
 		s.serverError(w, err)
 		return
-	}
-	if viewer != nil {
-		likeCount, favCount, liked, faved, err = s.store.ThreadReacts(t.ID, viewer.ID)
-		if err != nil {
-			s.serverError(w, err)
-			return
-		}
 	}
 	tipTotal, err := s.store.ThreadTipTotal(t.ID)
 	if err != nil {
@@ -723,7 +716,7 @@ func (s *Server) thread(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, err)
 		return
 	}
-	// 门槛没过就不把正文与回复送到模板里,避免「样式挡住但源码能看」
+	// 门槛没过就不把正文与回复送进模板,防「样式挡住但源码能看」
 	if !gate.OK {
 		pvs = nil
 	}
@@ -874,7 +867,7 @@ func (s *Server) deletePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if p == nil {
-		http.NotFound(w, r) // 已删过,幂等处理:htmx 会收到 404 并保留元素,可接受
+		http.NotFound(w, r) // 已删过,幂等
 		return
 	}
 	if p.IsFirst {

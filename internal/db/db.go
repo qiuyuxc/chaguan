@@ -160,8 +160,7 @@ func (u *User) CheckinExtra() int64 {
 	return u.CheckinBonus
 }
 
-// NeedsEmailVerify 该账号是否卡在「填了邮箱但没验证」的状态(登录要拦)。
-// 没填邮箱的老账号不受影响,开启邮件注册也不会把它们锁死。
+// NeedsEmailVerify 填了邮箱但没验证(登录要拦)。没填邮箱的老账号不算。
 func (u *User) NeedsEmailVerify() bool {
 	return u != nil && u.Email != "" && !u.EmailVerified.Valid
 }
@@ -195,8 +194,7 @@ func ValidNotifyFreq(sec int) int {
 }
 
 // WantsNotify 该用户是否接收此类通知。
-// 「只接收评论 / 只接收 @提及」只筛社区互动(reply / mention);
-// 打赏、抽奖这类账户通知照常发,只有整体关闭才不发。
+// 「只接收评论 / 只提及」只筛社区互动(reply/mention),账户类通知(打赏/抽奖)照常发。
 func (u *User) WantsNotify(ntype string) bool {
 	if u == nil {
 		return false
@@ -413,8 +411,7 @@ type rowScanner interface {
 	QueryRow(string, ...any) *sql.Row
 }
 
-// nameTaken 该名字是否已被别人用作显示名或账户名。
-// 两者共用一个命名空间:否则有人把账户名改成别人的显示名,登录时就会撞在一起。
+// nameTaken 该名字是否已被别人占用。显示名与账户名共用一个命名空间。
 func nameTaken(q rowScanner, userID int64, name string) (bool, error) {
 	var n int64
 	err := q.QueryRow(`SELECT COUNT(*) FROM users WHERE id <> ?
@@ -671,8 +668,7 @@ type SocialStats struct {
 
 func (s *Store) SocialStats(userID int64) (SocialStats, error) {
 	var st SocialStats
-	// 设置过的社交值作为「起点基准」:展示 = 设置值 + 之后的真实增量(只增不减);
-	// 未设置则按真实统计聚合。
+	// 覆盖值存在时:展示 = 覆盖值 + 之后的真实增量(只增不减)
 	err := s.DB.QueryRow(`
 		SELECT
 			CASE WHEN u.stat_following IS NOT NULL THEN
@@ -690,8 +686,7 @@ func (s *Store) SocialStats(userID int64) (SocialStats, error) {
 	return st, err
 }
 
-// SetSocialStats 后台设置社交数据起点基准;NullInt64 无效值表示恢复真实统计。
-// 设置时记录当时的真实统计为基准,之后真实新增会继续累计到展示值上。
+// SetSocialStats 设置社交数据覆盖值(记录当时真实统计为基准);NullInt64 无效值表示恢复真实统计。
 func (s *Store) SetSocialStats(userID int64, following, followers, liked sql.NullInt64) error {
 	var rf, rfo, rl int64
 	if err := s.DB.QueryRow(`
@@ -1376,8 +1371,7 @@ func (s *Store) ListFeedThreads(catSlug string, hot bool, limit, offset int) ([]
 	return out, rows.Err()
 }
 
-// ListAdminThreads 内容管理列表:可选的标题/作者关键词 q + 版块过滤,
-// 置顶优先、按最后回复倒序(管理视角的排序,与前台信息流一致好对照)。
+// ListAdminThreads 内容管理列表:可选的标题/作者关键词 + 版块过滤。
 func (s *Store) ListAdminThreads(q string, catID int64, limit, offset int) ([]Thread, error) {
 	q = strings.TrimSpace(q)
 	cond := ` WHERE 1=1`
@@ -1451,8 +1445,7 @@ func ftsPhrase(q string) string {
 }
 
 // SearchThreads 全文搜索主题:标题或任一回复正文命中都返回主题行。
-// ≥3 字符走 FTS5 trigram(无空格中文也可做子串匹配);短查询回退 LIKE,
-// FTS 语法无法解析的输入同样兜底 LIKE,保证查询不因输入而 500。
+// ≥3 字符走 FTS5 trigram;短查询或 FTS 解析失败回退 LIKE。
 func (s *Store) SearchThreads(q string, limit, offset int) ([]Thread, error) {
 	var rows *sql.Rows
 	var err error
@@ -1506,9 +1499,7 @@ func (s *Store) CountSearchThreads(q string) (int64, error) {
 	return n, err
 }
 
-// DeleteCategory 删除版块;版块内的主题/回复由外键级联清掉,调用方需先确认过。
-// DeleteCategory 删版块。版块里的主题靠外键级联一起消失,所以要先把里面
-// 未开奖的抽奖退款干净(同 DeleteThread 的理由)。
+// DeleteCategory 删版块,主题/回复靠外键级联;未开奖的抽奖先退款。
 func (s *Store) DeleteCategory(id int64) error {
 	return s.withTx(func(tx *sql.Tx) error {
 		rows, err := tx.Query(`SELECT l.thread_id FROM lotteries l
@@ -1547,8 +1538,7 @@ func (s *Store) CountCategories() (int64, error) {
 	return n, err
 }
 
-// MoveThreadsAndDeleteCategory 把版块里的主题整体迁到 toID,然后删掉这个版块。
-// 一个事务里做完,避免迁一半失败留下半空版块。
+// MoveThreadsAndDeleteCategory 把版块里的主题整体迁到 toID,然后删版块(一个事务)。
 func (s *Store) MoveThreadsAndDeleteCategory(fromID, toID int64) error {
 	return s.withTx(func(tx *sql.Tx) error {
 		if _, err := tx.Exec(`UPDATE threads SET category_id = ? WHERE category_id = ?`,
@@ -1730,8 +1720,8 @@ func (l *Lottery) Full() bool {
 	return l != nil && l.MaxEntries > 0 && l.Entries >= int64(l.MaxEntries)
 }
 
-// MaxWinners 实际最多能有几个中奖者。积分奖每人至少 1 分,所以中奖人数
-// 不可能超过奖池总额;Winners 为 0 表示「不设人数」= 参与者全员分。
+// MaxWinners 实际最多能有几个中奖者。积分奖每人至少 1 分;
+// Winners 为 0 表示「不设人数」= 参与者全员分。
 func (l *Lottery) MaxWinners() int {
 	n := l.Winners
 	if n <= 0 || int64(n) > l.Entries {
@@ -1794,8 +1784,7 @@ func (s *Store) DueLotteries(now int64) ([]int64, error) {
 	return out, rows.Err()
 }
 
-// CancelLottery 关掉一场开不了奖的抽奖(没人参与),楼主预扣的奖池原路退回。
-// 参与者投入的 stake 不在这里退 —— 没人参与就没有 stake。幂等。
+// CancelLottery 关掉一场开不了奖的抽奖(没人参与),楼主预扣的奖池原路退回。幂等。
 func (s *Store) CancelLottery(threadID int64) (bool, error) {
 	done := false
 	err := s.withTx(func(tx *sql.Tx) error {
@@ -1839,8 +1828,8 @@ func (s *Store) JoinedLottery(threadID, userID int64) (bool, error) {
 }
 
 // JoinLottery 参与抽奖(回复时自动调用):写参与记录,stake>0 时扣积分进奖池。
-// 已参与、已开奖、名额已满都返回 false —— 这三种情况回复照发,只是不进名单
-// (把整条回复拦掉太狠)。积分不足返回 ErrNotEnoughPoints。
+// 已参与、已开奖、名额已满都返回 false,回复照发只是不进名单;
+// 积分不足返回 ErrNotEnoughPoints。
 func (s *Store) JoinLottery(threadID, userID, stake int64, note string) (bool, error) {
 	joined := false
 	err := s.withTx(func(tx *sql.Tx) error {
@@ -2209,9 +2198,7 @@ func (s *Store) PendingVerify(userID int64) (bool, error) {
 	return n > 0, err
 }
 
-// ResolveVerify 处理申请:通过则把分类/文案写进用户并**删掉这条申请**
-// (认证结果已经落在 users 上,列表里再留一条已通过记录没有意义);
-// 拒绝则留档为 rejected,便于知道拒过谁。幂等:已处理的再次操作直接跳过。
+// ResolveVerify 处理申请:通过则把分类/文案写进用户并删掉申请,拒绝则留档 rejected。幂等。
 func (s *Store) ResolveVerify(reqID, adminID int64, approve bool) error {
 	return s.withTx(func(tx *sql.Tx) error {
 		var status, kind, subject string
@@ -2509,8 +2496,7 @@ func (s *Store) DeletePost(postID int64) error {
 }
 
 // DeleteThread 删除整个主题(posts / 抽奖 / 参与记录靠外键级联)。
-// 主题上还挂着没开奖的抽奖时先把钱退干净:奖池退楼主、投入逐笔退参与者,
-// 否则这些积分会跟着帖子一起蒸发。
+// 未开奖的抽奖先退款:奖池退楼主、投入逐笔退参与者。
 func (s *Store) DeleteThread(threadID int64) error {
 	return s.withTx(func(tx *sql.Tx) error {
 		if err := refundLotteryTx(tx, threadID, "抽奖帖已删除"); err != nil {
@@ -2605,8 +2591,7 @@ type DMMessage struct {
 // IsRedpack 该条是不是红包。
 func (m DMMessage) IsRedpack() bool { return m.Kind == "redpack" }
 
-// RPRevoked 是不是被发送者主动撤回的。这种气泡要降级成不显示金额的占位 ——
-// 撤回时最该藏的就是金额(尤其是发错人)。超时退回不算,那种照旧显示金额。
+// RPRevoked 被发送者主动撤回的红包(超时退回不算),气泡降级为不显金额的占位。
 func (m DMMessage) RPRevoked() bool { return m.Kind == "redpack" && m.RPStatus == "refunded" }
 
 // RPOpen 红包是否还没被领走/退回。
@@ -2743,8 +2728,7 @@ func (s *Store) ClaimRedpack(msgID, threadID, claimerID int64, note string) (int
 }
 
 // RefundRedpack 撤回未领取的红包,积分退还发送者。
-// 若这条红包是会话里唯一的消息,连消息带会话一起删 —— 发错人的场合不该在陌生人
-// 的私信列表里留痕。已有往来时只改状态,气泡降级成不显示金额的占位。
+// 红包是会话里唯一消息时连消息带会话一起删;否则只改状态,气泡降级为不显金额的占位。
 // 返回 (是否撤回成功, 会话是否已被删掉)。
 func (s *Store) RefundRedpack(msgID, threadID, senderID int64, note string) (bool, bool, error) {
 	done, gone := false, false
@@ -2768,7 +2752,7 @@ func (s *Store) RefundRedpack(msgID, threadID, senderID int64, note string) (boo
 			threadID, msgID).Scan(&others); err != nil {
 			return err
 		}
-		// 并发保护同原来:靠 rp_status = 'open' 的影响行数判断,领取和撤回抢不到一起
+		// 并发保护:靠 rp_status='open' 的影响行数判断
 		var res sql.Result
 		if others == 0 {
 			res, err = tx.Exec(`DELETE FROM dm_messages WHERE id = ? AND rp_status = 'open'`, msgID)
@@ -2806,8 +2790,7 @@ type ExpiredRedpack struct {
 }
 
 // ExpireRedpacks 把 createdBefore 之前还没人领的红包退回发送者,状态记 expired。
-// 跟手动撤回不同:超时是被动的、对方早看过金额了,所以不删消息也不删会话。
-// 一次最多 500 笔,剩下的下一轮再扫。
+// 超时是被动退回,对方早看过金额,所以不删消息也不删会话。一次最多 500 笔。
 func (s *Store) ExpireRedpacks(createdBefore int64) ([]ExpiredRedpack, error) {
 	type cand struct {
 		msgID, threadID, senderID, amount, peerID int64
@@ -3008,21 +2991,21 @@ func (s *Store) NotifyDMEnabled(userID int64) (bool, error) {
 
 // 积分流水类型。
 const (
-	PointCheckin  = "checkin"       // 每日签到
-	PointTipOut   = "tip_out"       // 打赏支出
-	PointTipIn    = "tip_in"        // 打赏收入
-	PointAdmin    = "admin"         // 管理员手动调整
-	PointUnlockOut = "unlock_out"   // 解锁付费帖支出
-	PointUnlockIn  = "unlock_in"    // 付费帖作者收入
+	PointCheckin     = "checkin"       // 每日签到
+	PointTipOut      = "tip_out"       // 打赏支出
+	PointTipIn       = "tip_in"        // 打赏收入
+	PointAdmin       = "admin"         // 管理员手动调整
+	PointUnlockOut   = "unlock_out"    // 解锁付费帖支出
+	PointUnlockIn    = "unlock_in"     // 付费帖作者收入
 	PointStake       = "lottery_stake" // 参与抽奖投入
 	PointWin         = "lottery_win"   // 抽奖中奖
 	PointLotFund     = "lottery_fund"  // 抽奖出奖预扣(楼主自掏奖池)
 	PointLotBack     = "lottery_back"  // 抽奖奖池退回(无人参与/帖子删了)
-	PointShop      = "shop"          // 商城兑换
-	PointRedpackOut = "redpack_out"  // 发出私信红包
-	PointRedpackIn  = "redpack_in"   // 领取私信红包
-	PointRedpackBack = "redpack_back" // 未领取红包退回
-	PointRename      = "rename"       // 修改显示名
+	PointShop        = "shop"          // 商城兑换
+	PointRedpackOut  = "redpack_out"   // 发出私信红包
+	PointRedpackIn   = "redpack_in"    // 领取私信红包
+	PointRedpackBack = "redpack_back"  // 未领取红包退回
+	PointRename      = "rename"        // 修改显示名
 )
 
 // ErrNotEnoughPoints 余额不足;调用方据此给出「积分不够」的提示。
@@ -3348,18 +3331,18 @@ func (s *Store) WearBadge(userID, badgeID int64, hide bool) error {
 
 // ShopItem 商城商品。
 type ShopItem struct {
-	ID       int64
-	Kind     string // badge=勋章 | checkin=签到加成 | custom=自定义(兑换后由管理员线下发放)
-	Name     string
-	Note     string
-	Price    int64
-	BadgeID  sql.NullInt64
-	Bonus    int64
-	Days     int64
-	Stock    int64 // -1 表示不限量
-	Active   bool
-	Owned    bool // kind=badge 且当前用户已持有
-	SoldOut  bool
+	ID      int64
+	Kind    string // badge=勋章 | checkin=签到加成 | custom=自定义(兑换后由管理员线下发放)
+	Name    string
+	Note    string
+	Price   int64
+	BadgeID sql.NullInt64
+	Bonus   int64
+	Days    int64
+	Stock   int64 // -1 表示不限量
+	Active  bool
+	Owned   bool // kind=badge 且当前用户已持有
+	SoldOut bool
 }
 
 // ShopOrder 一条兑换记录。
@@ -3451,9 +3434,7 @@ func (s *Store) CreateShopItem(it ShopItem) (int64, error) {
 	return res.LastInsertId()
 }
 
-// UpdateShopItem 改商品的可编辑字段。kind 故意不可改 —— 勋章商品换成签到加成
-// 会让已有兑换记录对不上,要换类型就删了重建。历史订单存的是下单时的名称与价格
-// 快照(shop_orders),所以改这里不会篡改账目。
+// UpdateShopItem 改商品的可编辑字段。kind 不可改;历史订单存下单时的名称与价格快照。
 func (s *Store) UpdateShopItem(it ShopItem) error {
 	var badgeArg any
 	if it.BadgeID.Valid {
@@ -3524,9 +3505,7 @@ func (s *Store) RedeemShopItem(userID int64, it ShopItem) error {
 				}
 			}
 		case "checkin":
-			// 加成额度不累加:买 N 次就每天多拿 N 倍会通胀,而且 checkin_bonus /
-			// bonus_until 各只有一列,装不下两份并存的加成。
-			// 规则:生效中的取较高档,已过期的直接替换;有期限的按天顺延。
+			// 加成不累加:生效中取较高档;有期限的按剩余天数顺延
 			now := time.Now().Unix()
 			var curBonus int64
 			var curUntil sql.NullInt64
@@ -3534,7 +3513,7 @@ func (s *Store) RedeemShopItem(userID int64, it ShopItem) error {
 				userID).Scan(&curBonus, &curUntil); err != nil {
 				return err
 			}
-			// bonus_until 为 NULL 表示不限期,所以只有「有到期时间且已过」才算失效
+			// bonus_until 为 NULL 表示不限期,只有「有到期时间且已过」才算失效
 			active := curBonus > 0 && !(curUntil.Valid && curUntil.Int64 <= now)
 			bonus := it.Bonus
 			if active && curBonus > bonus {
@@ -3695,8 +3674,8 @@ const (
 	keyAnnouncement = "announcement"
 )
 
-// Site 一次读出全部站点设置。每个页面渲染都会调用它,故只走一条查询;
-// 读失败时返回的仍是带默认值的结构,页面不会出现空品牌。
+// Site 一次读出全部站点设置。每个页面渲染都会调用,只走一条查询;
+// 读失败时返回带默认值的结构。
 func (s *Store) Site() (Site, error) {
 	site := Site{Name: SiteDefaultName, Footer: SiteDefaultFooter}
 	rows, err := s.DB.Query(`SELECT key, value FROM site_settings`)
@@ -3782,7 +3761,6 @@ func (sec Security) MailReady() bool {
 }
 
 // EmailRegisterOn 邮件注册是否真正生效:开关打开且发信配置齐全。
-// 没配 SMTP 就打开开关会把所有人挡在注册门外,所以这里带上前置条件。
 func (sec Security) EmailRegisterOn() bool { return sec.EmailRegister && sec.MailReady() }
 
 // CaptchaOn 人机验证是否真正生效:开关打开且两个密钥都填了。

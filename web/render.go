@@ -59,9 +59,8 @@ type PostView struct {
 	CanDelete bool  // 该查看者可删此回复:作者本人 / 管理员 / 管辖该版块的版主
 }
 
-// DMView 是私信气泡的数据:消息 + 是否我发的 + 对方信息(渲染头像用)。
-// BodyHTML 是正文渲染后的 HTML —— 私信编辑器和论坛用的是同一个 composer(带插图),
-// 所以正文也得按 Markdown 渲染,否则插进去的图片只会显示成 ![](/uploads/12)。
+// DMView 是私信气泡的数据。BodyHTML 是渲染后的正文(私信与论坛共用
+// composer,正文也走 Markdown,否则插图只显示 ![](/uploads/12))。
 type DMView struct {
 	Msg      db.DMMessage
 	Mine     bool
@@ -79,11 +78,10 @@ var funcs = template.FuncMap{
 	"avColor":   func(id int64) string { return "c" + strconv.Itoa(int(id)%6+1) },
 	"bcatColor": func(id int64) string { return "bcat-" + strconv.Itoa(int(id)%6+1) },
 	"date":      func(ts int64) string { return time.Unix(ts, 0).Format("2006-01-02") },
-	// relTime 只讲得清过去;定点开奖这类未来时间要给绝对值
+	// relTime 只讲得清过去,未来时间用 absTime
 	"absTime":  func(ts int64) string { return time.Unix(ts, 0).Format("01-02 15:04") },
 	"safeHTML": func(s string) template.HTML { return template.HTML(s) },
-	// otpauth:// 这类非 http 协议会被模板的 URL 过滤器拦掉,
-	// 这里显式放行(链接由服务端拼装,参数都经过 url 转义)
+	// otpauth:// 协议会被模板的 URL 过滤器拦掉,这里显式放行(链接参数已转义)
 	"safeURL": func(s string) template.URL { return template.URL(s) },
 	"postView": func(p db.Post, viewer *db.User) PostView {
 		return PostView{Post: p, Viewer: viewer}
@@ -121,7 +119,7 @@ var funcs = template.FuncMap{
 	"vColorClass":  vColorClass,
 	"quotePreview": quotePreview,
 	"pointKind":    pointKindName,
-	// pts 渲染积分:库里存的是「分」,这里换成人看的两位小数(整数不带小数点)
+	// pts 渲染积分:库里存「分」,这里换成人看的两位小数
 	"pts": db.FormatPoints,
 }
 
@@ -164,9 +162,7 @@ func pointKindName(kind string) string {
 }
 
 // roleBadge 渲染用户称号徽章:
-// badge NULL → 跟随身份(管理员/版主);"" → 隐藏;自定义文本 → 替换身份文案。
-// 自定义称号对所有人统一实心配色:同一种勋章不应因身份而异色,
-// 浅灰与页面底色太接近,故用实心强调;角色配色只用于「跟随身份」的默认标签。
+// badge NULL=跟随身份,""=隐藏,非空=自定义文案(统一实心配色)。
 func roleBadge(role string, badge sql.NullString) template.HTML {
 	var label, cls string
 	if badge.Valid {
@@ -221,8 +217,8 @@ func vLabelOf(role string, kind, title sql.NullString) string {
 	return ""
 }
 
-// vColorClass 认证 V 的配色:官方=默认蓝,厂商=红,作者=黄;
-// 旧数据无分类时按文案兜底(官号归蓝、认证作者归黄)。
+// vColorClass 认证 V 的配色:官方=蓝(默认),厂商=红,作者=黄。
+// 旧数据只有文案没有分类时按文案兜底。
 func vColorClass(kind, title sql.NullString) string {
 	switch verifyKindName(kind) {
 	case "厂商":
@@ -230,7 +226,6 @@ func vColorClass(kind, title sql.NullString) string {
 	case "作者":
 		return " v-yellow"
 	}
-	// 旧数据可能只有文案没有分类:按文案兜底配色(官号归蓝,即默认)
 	if title.Valid && strings.TrimSpace(title.String) == "认证作者" {
 		return " v-yellow"
 	}
@@ -258,9 +253,8 @@ func vSeal(role string, kind, title sql.NullString) template.HTML {
 		template.HTMLEscapeString(label) + `" aria-label="认证">V</span>`)
 }
 
-// quotePreview 取帖子「自己写的正文」压成一行并截前 120 字,作为「引用回复」的预览。
-// 引用某楼时只应带上对方自己写的内容,引用行(含 `>` 嵌套引用别人更早楼层)不算数,
-// 否则 3 楼引 2 楼时会把 2 楼引 1 楼的整段一起套进来,出现连环嵌套。
+// quotePreview 取帖子正文压成一行并截前 120 字。引用某楼时只带对方自己写的内容,
+// 引用行(含 `>` 嵌套引用)不算,否则连环嵌套。
 func quotePreview(src string) string {
 	trim := func(s string) string {
 		r := []rune(s)

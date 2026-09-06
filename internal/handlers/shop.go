@@ -231,7 +231,7 @@ func (s *Server) adminDeleteBadge(w http.ResponseWriter, r *http.Request) {
 }
 
 // parseShopItemForm 从表单读商品字段并校验,第二个返回值非空即错误提示。
-// kind 由调用方给:新建时从表单读,编辑时沿用商品原有类型(类型不可改)。
+// kind 由调用方给:新建时从表单读,编辑时沿用原类型(不可改)。
 func parseShopItemForm(r *http.Request, kind string) (db.ShopItem, string) {
 	name := strings.TrimSpace(r.FormValue("name"))
 	note := strings.TrimSpace(r.FormValue("note"))
@@ -302,8 +302,7 @@ func (s *Server) adminNewShopItem(w http.ResponseWriter, r *http.Request) {
 	s.adminShopPage(w, r, "", "商品「"+it.Name+"」已上架")
 }
 
-// adminEditShopItem POST /admin/shop/{id}/edit:改已有商品。
-// 类型不可改,其余字段(名称/说明/价格/库存/加成/天数/对应勋章)都能改。
+// adminEditShopItem POST /admin/shop/{id}/edit:改已有商品(类型不可改)。
 func (s *Server) adminEditShopItem(w http.ResponseWriter, r *http.Request) {
 	if s.requireAdmin(w, r) == nil {
 		return

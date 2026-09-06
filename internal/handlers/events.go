@@ -47,8 +47,8 @@ func (h *hub) remove(userID int64, ch chan string) {
 	close(ch)
 }
 
-// publish 给某用户的所有连接投递一个事件名;连接积压时丢弃该次信号
-// (前端下次心跳/轮询仍会补上,不值得为此阻塞写请求)。
+// publish 给某用户的所有连接投递一个事件名;连接积压时丢弃该次信号,
+// 前端靠下次心跳/轮询补上。
 func (h *hub) publish(userID int64, event string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()

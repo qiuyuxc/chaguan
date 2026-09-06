@@ -220,7 +220,7 @@ func (s *Server) account2FAEnable(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/account?ok=2fa-on", http.StatusSeeOther)
 }
 
-// account2FADisable POST /account/2fa/disable:关闭需要再验一次码,避免会话被借用就能关。
+// account2FADisable POST /account/2fa/disable:关闭需要再验一次码。
 func (s *Server) account2FADisable(w http.ResponseWriter, r *http.Request) {
 	user := s.currentUser(w, r)
 	if user == nil {

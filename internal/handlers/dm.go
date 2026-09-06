@@ -1,5 +1,4 @@
-// 私信:一对一实时会话。新消息通过 SSE 信号推给对方,对方页面上的消息列表
-// 用 htmx 拉一次最新内容,不做前端状态机。正文按纯文本处理(不走 Markdown)。
+// 私信:一对一实时会话,新消息靠 SSE 信号推对方、htmx 拉最新列表。
 package handlers
 
 import (
@@ -55,8 +54,6 @@ func (s *Server) messages(w http.ResponseWriter, r *http.Request) {
 }
 
 // dmStart POST /messages/start(表单字段 to=用户 id):开始或继续会话,跳到会话页。
-// 用 /messages/start 而不是 /messages/to/{id},是为了避开与 /messages/{id}/send
-// 的路由歧义(ServeMux 对这类两段通配会直接 panic)。
 func (s *Server) dmStart(w http.ResponseWriter, r *http.Request) {
 	user := s.currentUser(w, r)
 	if user == nil {
@@ -185,7 +182,7 @@ func (s *Server) dmSend(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, err)
 		return
 	}
-	// 信号照发,即便对方开了免打扰:那只影响顶栏角标,不该让打开着的会话不刷新
+	// 信号照发:免打扰只影响角标,打开着的会话仍要刷新
 	s.hub.publish(conv.PeerID, "dm")
 	s.renderDMList(w, conv, user)
 }
@@ -254,8 +251,7 @@ func (s *Server) dmRefund(w http.ResponseWriter, r *http.Request) {
 	}
 	s.hub.publish(conv.PeerID, "dm")
 	if gone {
-		// 这条红包是会话里唯一的消息,撤回时连会话一起删了(发错人不留痕),
-		// 当前页面已经无内容可渲染 —— 让 htmx 整页跳回私信列表
+		// 红包是会话里唯一消息时撤回会连会话一起删,无内容可渲染
 		w.Header().Set("HX-Redirect", "/messages")
 		w.WriteHeader(http.StatusOK)
 		return

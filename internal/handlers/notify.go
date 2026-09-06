@@ -93,7 +93,6 @@ func (s *Server) unreadCount(w http.ResponseWriter, r *http.Request) {
 }
 
 // notifyReply 回复落库后给主题作者与 @提及用户发通知(失败仅记日志)。
-// 接收范围由 store.CreateNotification 统一过滤,真的落库了才推实时信号。
 func (s *Server) notifyReply(actorID int64, t *db.Thread, postID int64, content string) {
 	replySent := false
 	if t.AuthorID != actorID {
@@ -105,8 +104,7 @@ func (s *Server) notifyReply(actorID int64, t *db.Thread, postID int64, content 
 			replySent = true
 		}
 	}
-	// 作者已收到「回复」通知时不再重复发 mention;若那条通知被其接收范围
-	// 过滤掉了(如只收 @提及),这里仍要把 @ 补给作者。
+	// 作者已收到「回复」通知时不再重复发 mention
 	var skip int64
 	if replySent {
 		skip = t.AuthorID

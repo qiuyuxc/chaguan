@@ -29,12 +29,18 @@ func (s *Server) requireAdmin(w http.ResponseWriter, r *http.Request) *db.User {
 	return u
 }
 
-// redirectAfter 后台表单操作完成后优先跳回表单里的 next(仅允许站内相对路径),
-// 没有 next 时回退到常规目标页,保持资料页等旧入口行为不变。
+// safeNextPath next 只认本站相对路径:`//host` 是协议相对地址,
+// `/\host` 的反斜杠会被浏览器归一成 `/`,都能跳到外站。
+func safeNextPath(next string) bool {
+	if next == "" || next[0] != '/' || strings.ContainsAny(next, "\r\n") {
+		return false
+	}
+	return len(next) == 1 || (next[1] != '/' && next[1] != '\\')
+}
+
+// redirectAfter 表单操作完成后优先跳回 next,没有则回 fallback。
 func (s *Server) redirectAfter(w http.ResponseWriter, r *http.Request, fallback string) {
-	next := strings.TrimSpace(r.FormValue("next"))
-	if next != "" && strings.HasPrefix(next, "/") && !strings.HasPrefix(next, "//") &&
-		!strings.ContainsAny(next, "\r\n") {
+	if next := strings.TrimSpace(r.FormValue("next")); safeNextPath(next) {
 		http.Redirect(w, r, next, http.StatusSeeOther)
 		return
 	}
@@ -475,7 +481,7 @@ func (s *Server) adminAdjustPoints(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	// 后台调整也允许两位小数:用户余额可能是 3.24,不给小数就没法抹平
+	// 后台调整允许两位小数
 	raw := strings.TrimSpace(r.FormValue("delta"))
 	neg := strings.HasPrefix(raw, "-")
 	delta, err := db.ParsePoints(strings.TrimPrefix(raw, "-"))
@@ -502,9 +508,9 @@ func (s *Server) adminAdjustPoints(w http.ResponseWriter, r *http.Request) {
 	}
 	sign := "+"
 	if delta < 0 {
-		sign = ""
+		sign = "" // FormatPoints 自带负号
 	}
-	s.adminPointsPage(w, r, "", "已给 "+target.Name+" 调整 "+sign+strconv.FormatInt(delta, 10)+" 积分")
+	s.adminPointsPage(w, r, "", "已给 "+target.Name+" 调整 "+sign+db.FormatPoints(delta)+" 积分")
 }
 
 // ---------- 用户管理 ----------
@@ -609,17 +615,17 @@ type adminPanelCat struct {
 }
 
 type adminUserPanelData struct {
-	CSRF      string
-	ViewerID  int64
-	Target    *db.User
-	ModCats   []db.Category
-	Cats      []adminPanelCat
-	Threads   int64
-	Replies   int64
-	Likes     int64
-	Badges    []db.Badge // 全部勋章 + 该用户是否持有(后台发放/收回)
-	WornID    int64      // 该用户正佩戴的勋章 id
-	Next      string
+	CSRF     string
+	ViewerID int64
+	Target   *db.User
+	ModCats  []db.Category
+	Cats     []adminPanelCat
+	Threads  int64
+	Replies  int64
+	Likes    int64
+	Badges   []db.Badge // 全部勋章 + 该用户是否持有(后台发放/收回)
+	WornID   int64      // 该用户正佩戴的勋章 id
+	Next     string
 }
 
 // adminUserPanel GET /admin/users/{id}/panel:返回用户管理弹窗片段。
@@ -690,17 +696,17 @@ func (s *Server) adminUserPanel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.rend.Partial(w, 200, "admin_users", "admin_user_panel", adminUserPanelData{
-		CSRF:      info.CSRF,
-		ViewerID:  viewerID,
-		Target:    target,
-		ModCats:   modCats,
-		Cats:      opts,
-		Threads:   threads,
-		Replies:   replies,
-		Likes:     stats.Liked,
-		Badges:    badges,
-		WornID:    wornID,
-		Next:      usersReturnURL(id, q, pageParam(r)),
+		CSRF:     info.CSRF,
+		ViewerID: viewerID,
+		Target:   target,
+		ModCats:  modCats,
+		Cats:     opts,
+		Threads:  threads,
+		Replies:  replies,
+		Likes:    stats.Liked,
+		Badges:   badges,
+		WornID:   wornID,
+		Next:     usersReturnURL(id, q, pageParam(r)),
 	})
 }
 
@@ -834,7 +840,7 @@ func (s *Server) adminUserNew(w http.ResponseWriter, r *http.Request) {
 	case strings.ContainsAny(name, " \t\r\n@/"):
 		fail("用户名不能包含空格、@ 或斜杠")
 		return
-	case email != "" && (strings.ContainsAny(email, " \t\r\n") || !strings.Contains(email, "@")):
+	case email != "" && !validEmail(email):
 		fail("邮箱格式不正确(可留空)")
 		return
 	case len(password) < 8:
@@ -856,8 +862,7 @@ func (s *Server) adminUserNew(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, err)
 		return
 	}
-	// 后台建号视同管理员已核实邮箱,直接标已验证,
-	// 否则开着邮件注册时这个账号会因为「邮箱未验证」登不进来
+	// 后台建号视同邮箱已核实,否则开着邮件注册时登不进来
 	if email != "" {
 		if err := s.store.MarkEmailVerified(uid); err != nil {
 			s.serverError(w, err)

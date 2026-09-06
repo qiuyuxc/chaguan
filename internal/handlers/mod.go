@@ -90,8 +90,7 @@ func (s *Server) toggleLock(w http.ResponseWriter, r *http.Request) {
 }
 
 // adminTarget 校验管理员身份并返回目标用户。
-// 允许对自己操作:管理员可借后台改自己的基础资料/认证/等级/社交数据;
-// 危险动作(封禁自己、给自己改角色/设版主等)由各 handler 单独拦截。
+// 允许对自己操作;危险动作(封禁/改角色/设版主)由各 handler 单独拦截。
 func (s *Server) adminTarget(w http.ResponseWriter, r *http.Request) (*db.User, bool) {
 	viewer := s.currentUser(w, r)
 	if viewer == nil {

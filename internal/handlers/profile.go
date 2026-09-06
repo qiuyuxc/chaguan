@@ -15,46 +15,44 @@ import (
 )
 
 const (
-	maxBioLen = 200
-	// 改显示名收费:显示名全站唯一且到处都在展示,收点积分挡住随手改名
-	renameCost = 3 * db.PointScale
+	maxBioLen  = 200
+	renameCost = 3 * db.PointScale // 改显示名收费
 )
 
 type profileData struct {
 	web.Base
-	Profile       *db.User
-	Topics        []db.Thread
-	Tab           string // posts | likes | favorites
-	Threads       int64
-	Replies       int64
-	Posts         int64
-	Following     int64            // 关注
-	Followers     int64            // 粉丝
-	Liked         int64            // 获赞(收到的赞)
-	LikeTotal     int64            // 导航计数:我点赞过的文章总数
-	FavTotal      int64            // 导航计数:我收藏的主题总数
-	LikedThreads  []db.LikedThread // 「点赞」分区:我点赞过的文章
-	FavThreads    []db.FavThread   // 「收藏」分区:我收藏的主题
-	Exp           int64            // 等级经验
-	Level         int              // LV0..LV6
-	ExpStart      int64            // 当前等级起始经验
-	ExpNext       int64            // 升下一级所需经验(LV6 时等于 ExpStart,经验条满)
-	ExpPct        int              // 经验条百分比 0..100
-	IsSelf        bool
-	CanDM         bool   // 显示「发私信」:已登录且不是自己
-	IsBanned      bool   // 账号当前封禁中(已过期的 banned_until 不算)
-	BanUntil      int64  // 解封时间(IsBanned 为真时有效)
-	CertText      string // 认证信息(管理员 / 版主+管辖版块),空则不展示
-	Page, Pages   int
-	BaseURL       string
-	HasQ          bool
-	Count         int64
+	Profile      *db.User
+	Topics       []db.Thread
+	Tab          string // posts | likes | favorites
+	Threads      int64
+	Replies      int64
+	Posts        int64
+	Following    int64            // 关注
+	Followers    int64            // 粉丝
+	Liked        int64            // 获赞(收到的赞)
+	LikeTotal    int64            // 导航计数:我点赞过的文章总数
+	FavTotal     int64            // 导航计数:我收藏的主题总数
+	LikedThreads []db.LikedThread // 「点赞」分区:我点赞过的文章
+	FavThreads   []db.FavThread   // 「收藏」分区:我收藏的主题
+	Exp          int64            // 等级经验
+	Level        int              // LV0..LV6
+	ExpStart     int64            // 当前等级起始经验
+	ExpNext      int64            // 升下一级所需经验(LV6 时等于 ExpStart,经验条满)
+	ExpPct       int              // 经验条百分比 0..100
+	IsSelf       bool
+	CanDM        bool   // 显示「发私信」:已登录且不是自己
+	IsBanned     bool   // 账号当前封禁中(已过期的 banned_until 不算)
+	BanUntil     int64  // 解封时间(IsBanned 为真时有效)
+	CertText     string // 认证信息(管理员 / 版主+管辖版块),空则不展示
+	Page, Pages  int
+	BaseURL      string
+	HasQ         bool
+	Count        int64
 }
 
 const profileItemsPerPage = 15
 
-// banState 判断账号当前是否处于封禁中。banned_until 落在过去只是历史记录,
-// 会话中间件也已按同样口径放行,不应再显示为封禁。
+// banState banned_until 在过去只是历史记录,不算封禁中。
 func banState(u *db.User) (banned bool, until int64) {
 	if u == nil || !u.BannedUntil.Valid || u.BannedUntil.Int64 <= time.Now().Unix() {
 		return false, 0
@@ -83,9 +81,8 @@ func levelOf(exp int64) int {
 	return lv
 }
 
-// levelInfo 求最终等级与展示经验:
-// 管理员手动指定等级时,经验按“该级起点”兜底(真实经验低于门槛就补到门槛),
-// LV6 顶级固定满经验 16000(顶级不再往上,显示即满);自动升级按真实经验展示。
+// levelInfo 求最终等级与展示经验。手动指定等级时经验按该级起点兜底,
+// LV6 固定满 16000。
 func levelInfo(exp int64, override sql.NullInt64) (lv int, shown, start, next int64) {
 	lv = levelOf(exp)
 	manual := false
@@ -122,7 +119,7 @@ func clipRunes(s string, n int) string {
 type editProfileData struct {
 	web.Base
 	Profile   *db.User
-	Name      string     // 修改后的账号名称(校验失败时保留输入)
+	Name      string // 修改后的账号名称(校验失败时保留输入)
 	Bio       string
 	Badges    []db.Badge // 我持有的勋章(供选择佩戴)
 	BadgeMode string     // follow | hide | wear
@@ -131,8 +128,7 @@ type editProfileData struct {
 	Error     string
 }
 
-// badgeState 把用户当前的标签状态拆成编辑表单的选项。
-// 勋章改为发放/兑换后,用户只能在「跟随身份 / 隐藏 / 佩戴某枚勋章」之间选。
+// badgeState 把用户当前的标签状态拆成编辑表单的选项(follow / hide / wear)。
 func badgeState(u *db.User) (mode string, wornID int64) {
 	if u == nil || !u.BadgeText.Valid {
 		return "follow", 0
@@ -177,7 +173,7 @@ func (s *Server) profile(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, err)
 		return
 	}
-	// 等级经验只看真实获赞,后台覆盖的展示获赞不参与,避免经验被手动数值带飞
+	// 等级经验只看真实获赞,不看后台覆盖的展示获赞
 	likedReal, err := s.store.LikesReceived(u.ID)
 	if err != nil {
 		s.serverError(w, err)
@@ -238,35 +234,35 @@ func (s *Server) profile(w http.ResponseWriter, r *http.Request) {
 	cert := userCert(u, s.store)
 	banned, banUntil := banState(u)
 	s.rend.Render(w, 200, "profile", profileData{
-		Base:          s.base(r, title),
-		Profile:       u,
-		Topics:        topics,
-		LikedThreads:  likedThreads,
-		FavThreads:    favThreads,
-		Tab:           tab,
-		Threads:       threads,
-		Replies:       replies,
-		Posts:         threads + replies,
-		Following:     stats.Following,
-		Followers:     stats.Followers,
-		Liked:         stats.Liked,
-		LikeTotal:     likeTotal,
-		FavTotal:      favTotal,
-		Exp:           expShown,
-		Level:         level,
-		ExpStart:      expStart,
-		ExpNext:       expNext,
-		ExpPct:        expPct,
-		IsSelf:        viewer != nil && viewer.ID == u.ID,
-		CanDM:         viewer != nil && viewer.ID != u.ID,
-		IsBanned:      banned,
-		BanUntil:      banUntil,
-		CertText:      cert,
-		Page:          page,
-		Pages:         totalPages(total, profileItemsPerPage),
-		BaseURL:       baseURL,
-		HasQ:          true,
-		Count:         total,
+		Base:         s.base(r, title),
+		Profile:      u,
+		Topics:       topics,
+		LikedThreads: likedThreads,
+		FavThreads:   favThreads,
+		Tab:          tab,
+		Threads:      threads,
+		Replies:      replies,
+		Posts:        threads + replies,
+		Following:    stats.Following,
+		Followers:    stats.Followers,
+		Liked:        stats.Liked,
+		LikeTotal:    likeTotal,
+		FavTotal:     favTotal,
+		Exp:          expShown,
+		Level:        level,
+		ExpStart:     expStart,
+		ExpNext:      expNext,
+		ExpPct:       expPct,
+		IsSelf:       viewer != nil && viewer.ID == u.ID,
+		CanDM:        viewer != nil && viewer.ID != u.ID,
+		IsBanned:     banned,
+		BanUntil:     banUntil,
+		CertText:     cert,
+		Page:         page,
+		Pages:        totalPages(total, profileItemsPerPage),
+		BaseURL:      baseURL,
+		HasQ:         true,
+		Count:        total,
 	})
 }
 
@@ -386,21 +382,9 @@ func (s *Server) editProfile(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if err := s.store.UpdateUserBio(u.ID, bio); err != nil {
-		s.serverError(w, err)
-		return
-	}
-	if avatarPath != u.AvatarPath {
-		if err := s.store.UpdateUserAvatar(u.ID, avatarPath); err != nil {
-			s.serverError(w, err)
-			return
-		}
-		if oldID, ok := uploadPathID(u.AvatarPath); ok {
-			s.removeUploadFile(oldID) // 清理旧头像,失败静默
-		}
-	}
+	// 改名会扣分/查重,先于简介与头像落库
 	if name != u.Name {
-		// 改名与扣分在一个事务里:余额不够不改名,改名失败不扣分
+		// 改名与扣分在一个事务里
 		err := s.store.RenameDisplayName(u.ID, name, renameCost)
 		switch err {
 		case nil:
@@ -413,6 +397,19 @@ func (s *Server) editProfile(w http.ResponseWriter, r *http.Request) {
 		default:
 			s.serverError(w, err)
 			return
+		}
+	}
+	if err := s.store.UpdateUserBio(u.ID, bio); err != nil {
+		s.serverError(w, err)
+		return
+	}
+	if avatarPath != u.AvatarPath {
+		if err := s.store.UpdateUserAvatar(u.ID, avatarPath); err != nil {
+			s.serverError(w, err)
+			return
+		}
+		if oldID, ok := uploadPathID(u.AvatarPath); ok {
+			s.removeUploadFile(oldID) // 清理旧头像,失败静默
 		}
 	}
 	http.Redirect(w, r, "/u/"+strconv.FormatInt(u.ID, 10), http.StatusSeeOther)
@@ -472,7 +469,7 @@ func (s *Server) userSearch(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, users)
 }
 
-// userCert 生成资料页认证行文案:管理员全站认证;版主列出管辖版块。
+// userCert 生成资料页认证行文案(空则不展示)。
 func userCert(u *db.User, store *db.Store) string {
 	if u == nil {
 		return ""

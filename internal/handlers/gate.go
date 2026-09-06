@@ -129,7 +129,7 @@ func (s *Server) joinLotteryOnReply(t *db.Thread, user *db.User) string {
 		return ""
 	}
 	lot, err := s.store.GetLottery(t.ID)
-	if err != nil || lot == nil || lot.Drawn() {
+	if err != nil || lot == nil || lot.Over() {
 		return ""
 	}
 	_, err = s.store.JoinLottery(t.ID, user.ID, lot.Stake, "参与抽奖《"+t.Title+"》")
@@ -187,9 +187,8 @@ func (s *Server) drawLottery(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/t/"+strconv.FormatInt(t.ID, 10), http.StatusSeeOther)
 }
 
-// runDraw 抽签并发奖。手动开奖和定点开奖走同一条路。
-// actorID 只用来当通知的发起人,0 表示系统自动开奖(记在楼主名下)。
-// 没人参与时不报错:把抽奖关掉、楼主预扣的奖池原路退回 —— 否则那笔钱会一直卡着。
+// runDraw 抽签并发奖(手动与定点开奖共用)。actorID 0 表示系统开奖。
+// 无人参与时关掉抽奖并退回奖池。
 func (s *Server) runDraw(threadID, authorID int64, lot *db.Lottery, actorID int64) error {
 	ids, err := s.store.LotteryEntryIDs(threadID)
 	if err != nil {
@@ -205,7 +204,7 @@ func (s *Server) runDraw(threadID, authorID int64, lot *db.Lottery, actorID int6
 	lot.Entries = int64(len(ids))
 	n := lot.MaxWinners()
 	if n < 1 {
-		// 积分奖但奖池是 0(实物奖不会走到这):没东西可发,当无人参与处理
+		// 积分奖但奖池是 0:没东西可发,当无人参与处理
 		_, err := s.store.CancelLottery(threadID)
 		return err
 	}
@@ -224,16 +223,15 @@ func (s *Server) runDraw(threadID, authorID int64, lot *db.Lottery, actorID int6
 }
 
 // splitPool 把奖池随机拆成 n 份,每份至少 1、总和严格等于 pool。
-// 用「随机切点法」:在 1..pool-1 里取 n-1 个互不相同的切点,排序后取相邻差值。
-// 比「先随机再取整」稳 —— 后者会拆出 0,也会因取整丢掉一两分。
-// pool 为 0(实物奖)时返回全 0,表示只抽人不发积分。
+// 随机切点法:在 1..pool-1 取 n-1 个互不相同切点,相邻差值即份额。
+// pool 为 0(实物奖)时返回全 0。
 func splitPool(pool int64, n int) []int64 {
 	out := make([]int64, n)
 	if pool <= 0 || n <= 0 {
 		return out
 	}
-	if int64(n) >= pool { // 每人正好 1,没有可切的空间
-		for i := range out {
+	if int64(n) >= pool { // 没有可切的空间:前 pool 个各拿 1,总和仍然正好是 pool
+		for i := int64(0); i < pool; i++ {
 			out[i] = 1
 		}
 		return out
