@@ -1,12 +1,10 @@
 services:
   chaguan:
-    # 默认用 CI 构建好的镜像(amd64 / arm64 都有)。
-    # ghcr.io 不可达时改用本地构建:注掉 image,放开下面的 build。
+    # ghcr.io 不可达时改本地构建:注掉 image,放开 build
     image: ghcr.io/qiuyuxc/chaguan:${CHAGUAN_TAG:-latest}
     # build:
     #   context: .
     #   args:
-    #     # 国内网络:GOPROXY 换国内源,BASE 换 scratch(gcr.io 拉不到)
     #     GOPROXY: https://goproxy.cn,direct
     #     BASE: scratch
     container_name: chaguan
@@ -15,9 +13,5 @@ services:
       - "${CHAGUAN_PORT:-8080}:8080"
     environment:
       - TZ=${TZ:-Asia/Shanghai}
-      # SMTP、人机验证这些都在后台页面里配,不用写环境变量
     volumes:
-      # SQLite 与上传文件都在 /data(见 Dockerfile 里的 CHAGUAN_DB / CHAGUAN_UPLOADS)。
-      # 容器以 uid 65532 运行,宿主目录属主不对会写不进去:
-      #   mkdir -p data && sudo chown -R 65532:65532 data
       - ./data:/data

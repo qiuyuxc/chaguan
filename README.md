@@ -140,7 +140,7 @@ docker run -d --name chaguan -p 8080:8080 \
   ghcr.io/qiuyuxc/chaguan:latest
 ```
 
-镜像基于 distroless(无 shell、非 root),提供 `amd64` 与 `arm64`。
+镜像基于 distroless(无 shell),以 root 运行,提供 `amd64` 与 `arm64`。
 数据(SQLite + 上传文件)全在 `/data`,挂出去即可持久化,换镜像不影响数据。
 时区数据已编进二进制,`TZ` 直接生效。容器探活用二进制自带的 `chaguan -healthcheck`。
 
